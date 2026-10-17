@@ -56,6 +56,10 @@ const methodOptions = (
     label: method === 'kredit' ? 'Belum lunas' : methodLabel('biaya', method),
 }));
 
+const otherTypes = (Object.keys(transactionTypes) as TransactionType[]).filter(
+    (type) => type !== 'penjualan',
+);
+
 const sourceOptions: Array<{ value: TransactionSource; label: string }> = [
     { value: 'web', label: 'Web' },
     { value: 'wa', label: 'WhatsApp' },
@@ -95,19 +99,53 @@ export default function TransactionsIndex({
 
                 {!hasTransactions ? (
                     <EmptyState
+                        variant="page"
                         icon={NotebookText}
                         title="Belum ada transaksi"
-                        description="Mulai dari penjualan hari ini. Stok dan laba langsung dihitung."
+                        description="Mulai dari penjualan hari ini. Stok, kas, dan laba langsung dihitung saat disimpan."
                         action={
-                            <Button asChild>
-                                <Link
-                                    href={create({
-                                        query: { jenis: 'penjualan' },
-                                    })}
-                                >
-                                    Catat penjualan
-                                </Link>
-                            </Button>
+                            <div className="flex flex-col gap-4">
+                                <Button asChild className="self-start">
+                                    <Link
+                                        href={create({
+                                            query: { jenis: 'penjualan' },
+                                        })}
+                                    >
+                                        Catat penjualan
+                                    </Link>
+                                </Button>
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-sm text-muted-foreground">
+                                        Atau catat yang lain:
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {otherTypes.map((type) => {
+                                            const { label, icon: Icon } =
+                                                transactionTypes[type];
+
+                                            return (
+                                                <Button
+                                                    key={type}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={create({
+                                                            query: {
+                                                                jenis: type,
+                                                            },
+                                                        })}
+                                                    >
+                                                        <Icon aria-hidden />
+                                                        {label}
+                                                    </Link>
+                                                </Button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
                         }
                     />
                 ) : (

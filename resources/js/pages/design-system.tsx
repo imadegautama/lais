@@ -3,6 +3,7 @@ import {
     CircleCheck,
     CircleX,
     Coins,
+    Package,
     Plus,
     Search,
     TriangleAlert,
@@ -1044,6 +1045,30 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 description="Coba lagi beberapa saat."
                                 onRetry={() =>
                                     toast('Mencoba membuat PDF lagi')
+                                }
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2 border-t pt-4">
+                            <p className="text-sm text-muted-foreground">
+                                Varian <code>page</code>: kosong pertama kali,
+                                berdiri langsung di atas wash tanpa kartu
+                                pembungkus.
+                            </p>
+                            <EmptyState
+                                variant="page"
+                                icon={Package}
+                                title="Belum ada produk"
+                                description="Mulai dari yang paling sering dijual."
+                                action={
+                                    <Button
+                                        onClick={() =>
+                                            toast.info(
+                                                'Di halaman asli, tombol ini membuka form produk.',
+                                            )
+                                        }
+                                    >
+                                        Tambah produk
+                                    </Button>
                                 }
                             />
                         </div>

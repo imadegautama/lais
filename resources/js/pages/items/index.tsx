@@ -265,6 +265,7 @@ export default function ItemsIndex({ items, summary }: ItemsIndexProps) {
 
                 {summary.itemCount === 0 ? (
                     <EmptyState
+                        variant="page"
                         icon={Package}
                         title="Belum ada produk"
                         description="Mulai dari yang paling sering dijual. Produk resep butuh bahan baku, jadi bahan bisa ditambah dulu."

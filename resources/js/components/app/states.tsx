@@ -1,5 +1,6 @@
 import { CircleAlert, RotateCcw, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { IconChip } from '@/components/app/section-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,8 @@ type EmptyStateProps = {
     /** What fills it. */
     description: ReactNode;
     action?: ReactNode;
+    /** "inline" sits inside a card or table; "page" stands on the page wash by itself. */
+    variant?: 'inline' | 'page';
     className?: string;
 };
 
@@ -19,8 +22,29 @@ export function EmptyState({
     title,
     description,
     action,
+    variant = 'inline',
     className,
 }: EmptyStateProps) {
+    if (variant === 'page') {
+        return (
+            <section
+                className={cn(
+                    'flex flex-col items-start gap-3 rounded-xl border bg-card p-5 text-card-foreground shadow-card md:p-6',
+                    className,
+                )}
+            >
+                {Icon && <IconChip icon={Icon} tone="focus" />}
+                <div className="flex max-w-prose flex-col gap-1">
+                    <h2 className="text-base font-semibold">{title}</h2>
+                    <p className="text-sm text-muted-foreground">
+                        {description}
+                    </p>
+                </div>
+                {action && <div className="mt-1">{action}</div>}
+            </section>
+        );
+    }
+
     return (
         <div
             className={cn(
