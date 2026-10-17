@@ -151,12 +151,17 @@ export type RecipeMaterial = {
     averageCost: number;
 };
 
+/** StockMovementResource. Name and unit come along on lists that mix items. */
 export type StockMovementRow = {
     id: number;
     occurredAt: string;
     reason: StockMovementReason;
     qty: number;
     value: Rupiah;
+    /** Null on movements recorded before this was kept. */
+    stockAfter: number | null;
+    name?: string;
+    unit?: string;
 };
 
 export type ItemsIndexProps = {
@@ -238,15 +243,7 @@ export type TransactionDetailProps = {
         subtotal: Rupiah;
         hpp: Rupiah | null;
     }>;
-    movements: Array<{
-        id: number;
-        name: string;
-        unit: string;
-        qty: number;
-        value: Rupiah;
-        stockAfter: number | null;
-        reason: StockMovementReason;
-    }>;
+    movements: StockMovementRow[];
     journal: Array<{
         id: number;
         description: string;

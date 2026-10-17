@@ -7,7 +7,7 @@ import {
     Scale,
     SearchX,
 } from 'lucide-react';
-import { methodLabel, transactionTypes } from '@/components/app/badges';
+import { transactionTypes } from '@/components/app/badges';
 import {
     ChipFilter,
     FilterBar,
@@ -20,25 +20,26 @@ import { PeriodPicker } from '@/components/app/period-picker';
 import { QuickRecordSheet } from '@/components/app/quick-record-sheet';
 import { SectionCard } from '@/components/app/section-card';
 import { EmptyState } from '@/components/app/states';
-import { TransactionTable } from '@/components/app/transaction-table';
 import { Button } from '@/components/ui/button';
+import { TransactionTable } from '@/features/transactions/transaction-table';
 import { useTableQuery } from '@/hooks/use-table-query';
 import { create, index } from '@/routes/transactions';
-import type {
-    PaymentMethod,
+import type { TransactionsIndexProps } from '@/types/domain';
+import {
+    paymentMethodLabels,
+    Period,
+    periodLabels,
     TransactionSource,
-    TransactionsIndexProps,
+    transactionSourceLabels,
     TransactionType,
-} from '@/types/domain';
+} from '@/types/enums';
 
-const PERIODS = [
+type PeriodChoice = Period | 'semua';
+
+const periods: Array<{ key: PeriodChoice; label: string }> = [
     { key: 'semua', label: 'Semua' },
-    { key: 'hari_ini', label: 'Hari ini' },
-    { key: 'minggu_ini', label: 'Minggu ini' },
-    { key: 'bulan_ini', label: 'Bulan ini' },
-] as const;
-
-type PeriodChoice = (typeof PERIODS)[number]['key'];
+    ...Object.values(Period).map((key) => ({ key, label: periodLabels[key] })),
+];
 
 const typeOptions = (Object.keys(transactionTypes) as TransactionType[]).map(
     (type) => ({
@@ -48,23 +49,19 @@ const typeOptions = (Object.keys(transactionTypes) as TransactionType[]).map(
     }),
 );
 
-// A purchase reads "Belum dibayar" and a sale "Belum lunas"; the filter uses the neutral word.
-const methodOptions = (
-    ['tunai', 'non_tunai', 'kredit', 'pribadi'] as PaymentMethod[]
-).map((method) => ({
-    value: method,
-    label: method === 'kredit' ? 'Belum lunas' : methodLabel('biaya', method),
-}));
-
-const otherTypes = (Object.keys(transactionTypes) as TransactionType[]).filter(
-    (type) => type !== 'penjualan',
+// The filter uses the neutral words ("Belum lunas" for credit either way).
+const methodOptions = Object.entries(paymentMethodLabels).map(
+    ([value, label]) => ({ value, label }),
 );
 
-const sourceOptions: Array<{ value: TransactionSource; label: string }> = [
-    { value: 'web', label: 'Web' },
-    { value: 'wa', label: 'WhatsApp' },
-    { value: 'toko', label: 'Halaman toko' },
-];
+// shortcut: receipt photos (ocr) are not recorded yet, so they get no chip; add it with that feature.
+const sourceOptions = Object.values(TransactionSource)
+    .filter((source) => source !== TransactionSource.Ocr)
+    .map((value) => ({ value, label: transactionSourceLabels[value] }));
+
+const otherTypes = Object.values(TransactionType).filter(
+    (type) => type !== TransactionType.Penjualan,
+);
 
 export default function TransactionsIndex({
     transactions,
@@ -108,7 +105,9 @@ export default function TransactionsIndex({
                                 <Button asChild className="self-start">
                                     <Link
                                         href={create({
-                                            query: { jenis: 'penjualan' },
+                                            query: {
+                                                jenis: TransactionType.Penjualan,
+                                            },
                                         })}
                                     >
                                         Catat penjualan
@@ -197,7 +196,7 @@ export default function TransactionsIndex({
                                 <div className="flex flex-col gap-2">
                                     <PeriodPicker
                                         fill
-                                        periods={[...PERIODS]}
+                                        periods={periods}
                                         value={period}
                                         onChange={(next) =>
                                             table.set({

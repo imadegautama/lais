@@ -72,6 +72,16 @@ export function formatDate(
     }).format(date);
 }
 
+/**
+ * "Beras" / "Beras dan Telur" / "Beras, Telur, dan 3 lainnya", from the first
+ * names of a longer list of `count`.
+ */
+export function formatNameList(names: string[], count: number): string {
+    return count <= 2
+        ? names.join(' dan ')
+        : `${names.join(', ')}, dan ${count - names.length} lainnya`;
+}
+
 /** 0,6 kg / 3 butir */
 export function formatQty(value: number, unit: string): string {
     const qty = new Intl.NumberFormat('id-ID', {

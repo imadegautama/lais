@@ -46,7 +46,7 @@ import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { SearchSelect } from '@/components/app/search-select';
 import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
-import { TransactionTable } from '@/components/app/transaction-table';
+import { TransactionTable } from '@/features/transactions/transaction-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

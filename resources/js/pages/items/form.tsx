@@ -1,104 +1,40 @@
-import type { FormDataValues } from '@inertiajs/core';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, History, Plus, Wheat, X } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
-import {
-    itemKinds,
-    MarginLabel,
-    THIN_MARGIN_PERCENT,
-} from '@/components/app/badges';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { History } from 'lucide-react';
+import type { FormEvent } from 'react';
+import { itemKinds } from '@/components/app/badges';
 import { Field } from '@/components/app/field';
 import { FormActionBar } from '@/components/app/form-action-bar';
-import { MetricInline } from '@/components/app/metric';
-import { Money } from '@/components/app/money';
 import { MoneyInput } from '@/components/app/money-input';
-import {
-    SearchSelect,
-    type SearchSelectOption,
-} from '@/components/app/search-select';
 import { PageHeader } from '@/components/app/page-header';
+import { SearchSelect } from '@/components/app/search-select';
 import { SectionCard } from '@/components/app/section-card';
-import { EmptyState } from '@/components/app/states';
-import { StockAdjustDialog } from '@/components/app/stock-adjust-dialog';
+import { StockMovementList } from '@/components/app/stock-movement-list';
+import { SwitchRow } from '@/components/app/switch-row';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { formatDate, formatQty, formatRupiah } from '@/lib/format';
-import { cn } from '@/lib/utils';
-import { create, destroy, index, store, update } from '@/routes/items';
-import type {
-    ItemFormProps,
-    ItemKind,
-    RecipeMaterial,
-    StockMovementReason,
-} from '@/types/domain';
-
-// Common units, grouped the way owners think about them. Units are free
-// text in the database; one item has one unit until conversions land (v1.1).
-const UNIT_GROUPS: Array<[string, string[]]> = [
-    [
-        'Jumlah',
-        ['pcs', 'porsi', 'gelas', 'botol', 'bungkus', 'butir', 'kantong'],
-    ],
-    ['Berat', ['kg', 'gram']],
-    ['Volume', ['liter', 'ml']],
-];
-
-function unitOptions(used: string[]): SearchSelectOption[] {
-    const common = UNIT_GROUPS.flatMap(([group, units]) =>
-        units.map((unit) => ({ value: unit, label: unit, group })),
-    );
-    const own = used
-        .filter((unit) => !common.some((option) => option.value === unit))
-        .map((unit) => ({
-            value: unit,
-            label: unit,
-            group: 'Dipakai di usahamu',
-        }));
-
-    return [...own, ...common];
-}
-
-const movementReasons: Record<StockMovementReason, string> = {
-    stok_awal: 'Stok awal',
-    koreksi: 'Koreksi stok',
-    penjualan: 'Terjual',
-    pembelian: 'Belanja',
-    pembatalan: 'Pembatalan',
-};
-
-type RecipeRow = { material_id: string; qty: string };
-
-type ItemFormData = {
-    kind: ItemKind;
-    name: string;
-    aliases: string;
-    unit: string;
-    price: number | null;
-    min_stock: string;
-    show_in_store: boolean;
-    available: boolean;
-    opening_stock: string;
-    opening_cost: number | null;
-    recipe: RecipeRow[];
-};
-
-/** "0,15" and "0.15" are the same amount. NaN for anything else. */
-const toNumber = (text: string) => Number(text.trim().replace(',', '.'));
-
-const emptyLine = (): RecipeRow => ({ material_id: '', qty: '' });
+import { ArchiveButton } from '@/features/items/archive-button';
+import { CostPanel } from '@/features/items/cost-panel';
+import { recipeCost } from '@/features/items/cost';
+import {
+    initialItemForm,
+    isSoldKind,
+    isStockedKind,
+    toItemPayload,
+    withKind,
+    type ItemFormData,
+} from '@/features/items/item-form';
+import { KindPicker } from '@/features/items/kind-picker';
+import { OpeningStockPanel } from '@/features/items/opening-stock-panel';
+import { RecipeBuilder } from '@/features/items/recipe-builder';
+import { StockAdjustDialog } from '@/features/items/stock-adjust-dialog';
+import { itemKindCopy, unitOptions } from '@/features/items/vocabulary';
+import { formatQty } from '@/lib/format';
+import { fieldSetter, focusFirstError, formErrors } from '@/lib/form';
+import { parseDecimal } from '@/lib/number';
+import { index, store, update } from '@/routes/items';
+import type { ItemFormProps } from '@/types/domain';
+import { ItemKind } from '@/types/enums';
 
 export default function ItemForm({
     item,
@@ -108,106 +44,29 @@ export default function ItemForm({
     movements,
 }: ItemFormProps) {
     const editing = item !== null;
-    const form = useForm<ItemFormData>({
-        kind: initialKind,
-        name: item?.name ?? '',
-        aliases: item?.aliases.join(', ') ?? '',
-        unit: item?.unit ?? (initialKind === 'komposisi' ? 'porsi' : 'pcs'),
-        price: item?.price ?? null,
-        min_stock: item?.minStock?.toString().replace('.', ',') ?? '',
-        show_in_store: item?.showInStore ?? true,
-        available: item?.available ?? true,
-        opening_stock: '',
-        opening_cost: null,
-        recipe: item?.recipe.map((line) => ({
-            material_id: String(line.material_id),
-            qty: String(line.qty).replace('.', ','),
-        })) ?? [emptyLine()],
-    });
+    const form = useForm<ItemFormData>(initialItemForm(item, initialKind));
     const { data, processing } = form;
-    const setData = <K extends keyof ItemFormData>(
-        key: K,
-        value: FormDataValues<ItemFormData, K>,
-    ) => {
-        form.setData(key, value);
-        // An error goes away as soon as its field is edited.
-        const stale = Object.keys(form.errors).filter(
-            (name) => name === key || name.startsWith(`${key}.`),
-        );
-
-        if (stale.length > 0) {
-            form.clearErrors(...(stale as Array<keyof ItemFormData>));
-        }
-    };
-    const errors = form.errors as Record<string, string | undefined>;
-    const kind = data.kind;
-    const sold = kind !== 'bahan';
-    const stocked = kind !== 'komposisi';
-
-    const materialById = new Map(materials.map((m) => [String(m.id), m]));
-    const lineCost = (line: RecipeRow) => {
-        const qty = toNumber(line.qty);
-        const material = materialById.get(line.material_id);
-
-        return material && qty > 0 ? qty * material.averageCost : 0;
-    };
+    const errors = formErrors(form);
+    const setField = fieldSetter(form);
+    const { kind } = data;
+    const sold = isSoldKind(kind);
+    const stocked = isStockedKind(kind);
     const unitCost =
-        kind === 'komposisi'
-            ? data.recipe.some((line) => lineCost(line) > 0)
-                ? Math.round(
-                      data.recipe.reduce((sum, l) => sum + lineCost(l), 0),
-                  )
-                : null
+        kind === ItemKind.Komposisi
+            ? recipeCost(
+                  data.recipe,
+                  new Map(materials.map((m) => [String(m.id), m])),
+              )
             : editing
               ? item.unitCost
               : data.opening_cost;
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        form.transform((values) => ({
-            ...(editing ? {} : { kind: values.kind }),
-            name: values.name,
-            aliases: values.aliases,
-            unit: values.unit,
-            price: sold ? values.price : null,
-            min_stock:
-                stocked && values.min_stock.trim() !== ''
-                    ? toNumber(values.min_stock)
-                    : null,
-            show_in_store: sold && values.show_in_store,
-            available: values.available,
-            ...(!editing && stocked
-                ? {
-                      opening_stock:
-                          values.opening_stock.trim() === ''
-                              ? null
-                              : toNumber(values.opening_stock),
-                      opening_cost: values.opening_cost,
-                  }
-                : {}),
-            ...(kind === 'komposisi'
-                ? {
-                      recipe: values.recipe.map((line) => ({
-                          material_id:
-                              line.material_id === ''
-                                  ? null
-                                  : Number(line.material_id),
-                          qty:
-                              line.qty.trim() === ''
-                                  ? null
-                                  : toNumber(line.qty),
-                      })),
-                  }
-                : {}),
-        }));
+        form.transform((values) => toItemPayload(values, editing));
         form.submit(editing ? update(item.id) : store(), {
             preserveScroll: true,
-            onError: () =>
-                requestAnimationFrame(() =>
-                    document
-                        .querySelector<HTMLElement>('[aria-invalid="true"]')
-                        ?.focus(),
-                ),
+            onError: focusFirstError,
         });
     };
 
@@ -236,19 +95,11 @@ export default function ItemForm({
                             {!editing && (
                                 <KindPicker
                                     value={kind}
-                                    onChange={(next) => {
-                                        form.setData((values) => ({
-                                            ...values,
-                                            kind: next,
-                                            unit:
-                                                values.unit === 'pcs' ||
-                                                values.unit === 'porsi'
-                                                    ? next === 'komposisi'
-                                                        ? 'porsi'
-                                                        : 'pcs'
-                                                    : values.unit,
-                                        }));
-                                    }}
+                                    onChange={(next) =>
+                                        form.setData((values) =>
+                                            withKind(values, next),
+                                        )
+                                    }
                                     error={errors.kind}
                                 />
                             )}
@@ -265,14 +116,10 @@ export default function ItemForm({
                                             id="item-name"
                                             value={data.name}
                                             onChange={(e) =>
-                                                setData('name', e.target.value)
+                                                setField('name', e.target.value)
                                             }
                                             placeholder={
-                                                kind === 'bahan'
-                                                    ? 'Beras'
-                                                    : kind === 'komposisi'
-                                                      ? 'Nasi Goreng'
-                                                      : 'Air Mineral 600 ml'
+                                                itemKindCopy[kind].nameExample
                                             }
                                             aria-invalid={
                                                 Boolean(errors.name) ||
@@ -296,18 +143,13 @@ export default function ItemForm({
                                             id="item-aliases"
                                             value={data.aliases}
                                             onChange={(e) =>
-                                                setData(
+                                                setField(
                                                     'aliases',
                                                     e.target.value,
                                                 )
                                             }
                                             placeholder={
-                                                {
-                                                    produk: 'aqua, air',
-                                                    bahan: 'minyak, migor',
-                                                    komposisi:
-                                                        'nasgor, nasi goreng biasa',
-                                                }[kind]
+                                                itemKindCopy[kind].aliasExample
                                             }
                                             aria-invalid={
                                                 Boolean(errors.aliases) ||
@@ -327,7 +169,7 @@ export default function ItemForm({
                                             id="item-unit"
                                             value={data.unit}
                                             onChange={(unit) =>
-                                                setData(
+                                                setField(
                                                     'unit',
                                                     unit.toLowerCase(),
                                                 )
@@ -355,7 +197,7 @@ export default function ItemForm({
                                                 inputMode="decimal"
                                                 value={data.min_stock}
                                                 onChange={(e) =>
-                                                    setData(
+                                                    setField(
                                                         'min_stock',
                                                         e.target.value,
                                                     )
@@ -377,7 +219,7 @@ export default function ItemForm({
                                                 label="Harga jual"
                                                 value={data.price}
                                                 onChange={(value) =>
-                                                    setData('price', value)
+                                                    setField('price', value)
                                                 }
                                             />
                                             <InputError
@@ -395,18 +237,18 @@ export default function ItemForm({
                                             hint="Halaman toko untuk pelanggan dibuka di tahap berikutnya. Pilihan ini sudah tersimpan."
                                             checked={data.show_in_store}
                                             onChange={(value) =>
-                                                setData('show_in_store', value)
+                                                setField('show_in_store', value)
                                             }
                                         />
                                         {/* Produk biasa is sold out by its stock (PRD US-08), so only recipes get this switch. */}
-                                        {kind === 'komposisi' && (
+                                        {kind === ItemKind.Komposisi && (
                                             <SwitchRow
                                                 id="item-available"
                                                 label="Tersedia untuk dipesan"
                                                 hint="Matikan kalau bahannya habis atau warung tutup."
                                                 checked={data.available}
                                                 onChange={(value) =>
-                                                    setData('available', value)
+                                                    setField('available', value)
                                                 }
                                             />
                                         )}
@@ -430,7 +272,7 @@ export default function ItemForm({
                                                 inputMode="decimal"
                                                 value={data.opening_stock}
                                                 onChange={(e) =>
-                                                    setData(
+                                                    setField(
                                                         'opening_stock',
                                                         e.target.value,
                                                     )
@@ -449,7 +291,7 @@ export default function ItemForm({
                                                 label={`Harga beli per ${data.unit || 'satuan'}`}
                                                 value={data.opening_cost}
                                                 onChange={(value) =>
-                                                    setData(
+                                                    setField(
                                                         'opening_cost',
                                                         value,
                                                     )
@@ -463,14 +305,13 @@ export default function ItemForm({
                                 </SectionCard>
                             )}
 
-                            {kind === 'komposisi' && (
+                            {kind === ItemKind.Komposisi && (
                                 <RecipeBuilder
                                     lines={data.recipe}
                                     materials={materials}
                                     errors={errors}
-                                    lineCost={lineCost}
                                     onChange={(recipe) =>
-                                        setData('recipe', recipe)
+                                        setField('recipe', recipe)
                                     }
                                 />
                             )}
@@ -486,9 +327,9 @@ export default function ItemForm({
                                 />
                             )}
 
-                            {!editing && kind === 'bahan' && (
+                            {!editing && kind === ItemKind.Bahan && (
                                 <OpeningStockPanel
-                                    qty={toNumber(data.opening_stock)}
+                                    qty={parseDecimal(data.opening_stock)}
                                     unitCost={data.opening_cost}
                                     unit={data.unit}
                                 />
@@ -520,51 +361,11 @@ export default function ItemForm({
                                             bertambah saat belanja dicatat.
                                         </p>
                                     ) : (
-                                        <ul className="flex flex-col divide-y">
-                                            {movements.map((movement) => (
-                                                <li
-                                                    key={movement.id}
-                                                    className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0"
-                                                >
-                                                    <div className="flex min-w-0 flex-col">
-                                                        <span className="text-sm font-medium">
-                                                            {
-                                                                movementReasons[
-                                                                    movement
-                                                                        .reason
-                                                                ]
-                                                            }
-                                                        </span>
-                                                        <span className="num text-xs text-muted-foreground">
-                                                            {formatDate(
-                                                                movement.occurredAt,
-                                                                'datetime',
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="num text-sm font-semibold">
-                                                            {movement.qty > 0
-                                                                ? '+'
-                                                                : '−'}
-                                                            {formatQty(
-                                                                Math.abs(
-                                                                    movement.qty,
-                                                                ),
-                                                                item.unit,
-                                                            )}
-                                                        </span>
-                                                        <Money
-                                                            value={
-                                                                movement.value
-                                                            }
-                                                            size="sm"
-                                                            className="text-xs font-normal text-muted-foreground"
-                                                        />
-                                                    </div>
-                                                </li>
-                                            ))}
-                                        </ul>
+                                        <StockMovementList
+                                            movements={movements}
+                                            by="reason"
+                                            unit={item.unit}
+                                        />
                                     )}
                                 </SectionCard>
                             )}
@@ -595,464 +396,3 @@ export default function ItemForm({
 ItemForm.layout = {
     breadcrumbs: [{ title: 'Produk & stok', href: index() }],
 };
-
-function SwitchRow({
-    id,
-    label,
-    hint,
-    checked,
-    onChange,
-}: {
-    id: string;
-    label: string;
-    hint: string;
-    checked: boolean;
-    onChange: (value: boolean) => void;
-}) {
-    return (
-        <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
-            <Label htmlFor={id} className="flex flex-col items-start gap-0.5">
-                {label}
-                <span className="text-xs font-normal text-muted-foreground">
-                    {hint}
-                </span>
-            </Label>
-            <Switch id={id} checked={checked} onCheckedChange={onChange} />
-        </div>
-    );
-}
-
-function KindPicker({
-    value,
-    onChange,
-    error,
-}: {
-    value: ItemKind;
-    onChange: (kind: ItemKind) => void;
-    error?: string;
-}) {
-    return (
-        <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-sm font-medium">Jenis</legend>
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                {(['produk', 'komposisi', 'bahan'] as ItemKind[]).map(
-                    (kind) => {
-                        const { label, hint, icon: Icon } = itemKinds[kind];
-
-                        return (
-                            <label
-                                key={kind}
-                                className="flex cursor-pointer items-start gap-3 rounded-xl border bg-card p-3 shadow-card has-checked:border-primary has-checked:bg-accent has-focus-visible:ring-2 has-focus-visible:ring-ring"
-                            >
-                                <input
-                                    type="radio"
-                                    name="kind"
-                                    value={kind}
-                                    checked={value === kind}
-                                    onChange={() => onChange(kind)}
-                                    className="sr-only"
-                                />
-                                <Icon
-                                    className={cn(
-                                        'mt-0.5 size-5 shrink-0',
-                                        value === kind
-                                            ? 'text-brand-strong'
-                                            : 'text-muted-foreground',
-                                    )}
-                                    aria-hidden
-                                />
-                                <span className="flex flex-col gap-0.5">
-                                    <span className="text-sm font-semibold">
-                                        {label}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {hint}
-                                    </span>
-                                </span>
-                            </label>
-                        );
-                    },
-                )}
-            </div>
-            <InputError message={error} />
-        </fieldset>
-    );
-}
-
-function RecipeBuilder({
-    lines,
-    materials,
-    errors,
-    lineCost,
-    onChange,
-}: {
-    lines: RecipeRow[];
-    materials: RecipeMaterial[];
-    errors: Record<string, string | undefined>;
-    lineCost: (line: RecipeRow) => number;
-    onChange: (lines: RecipeRow[]) => void;
-}) {
-    const materialById = new Map(materials.map((m) => [String(m.id), m]));
-    const setLine = (index: number, patch: Partial<RecipeRow>) =>
-        onChange(
-            lines.map((line, i) =>
-                i === index ? { ...line, ...patch } : line,
-            ),
-        );
-
-    return (
-        <SectionCard
-            title="Resep per porsi"
-            icon={Wheat}
-            description="Takaran bahan untuk satu kali jual. HPP dihitung dari biaya rata-rata tiap bahan."
-        >
-            {materials.length === 0 ? (
-                <EmptyState
-                    title="Belum ada bahan baku"
-                    description="Resep disusun dari bahan baku atau produk biasa. Tambahkan bahannya dulu, lalu kembali ke sini."
-                    action={
-                        <Button variant="outline" size="sm" asChild>
-                            <Link href={create({ query: { jenis: 'bahan' } })}>
-                                Tambah bahan baku
-                            </Link>
-                        </Button>
-                    }
-                />
-            ) : (
-                <div className="flex flex-col gap-3">
-                    <InputError message={errors.recipe} />
-                    <ol className="flex flex-col gap-3">
-                        {lines.map((line, index) => {
-                            const material = materialById.get(line.material_id);
-                            const lineError =
-                                errors[`recipe.${index}.material_id`] ??
-                                errors[`recipe.${index}.qty`];
-
-                            return (
-                                <li
-                                    key={index}
-                                    className="flex flex-col gap-1.5 rounded-lg border p-3 md:border-0 md:p-0"
-                                >
-                                    <div className="grid grid-cols-[1fr_auto] items-end gap-2 md:grid-cols-[minmax(0,1fr)_8rem_6.5rem_auto]">
-                                        <div className="col-span-2 flex flex-col gap-1.5 md:col-span-1">
-                                            <Label
-                                                htmlFor={`recipe-${index}-material`}
-                                                className={cn(
-                                                    index > 0 && 'md:sr-only',
-                                                )}
-                                            >
-                                                Bahan
-                                            </Label>
-                                            <SearchSelect
-                                                id={`recipe-${index}-material`}
-                                                value={line.material_id}
-                                                onChange={(value) =>
-                                                    setLine(index, {
-                                                        material_id: value,
-                                                    })
-                                                }
-                                                options={materials.map((m) => ({
-                                                    value: String(m.id),
-                                                    label: m.name,
-                                                    group:
-                                                        m.kind === 'bahan'
-                                                            ? 'Bahan baku'
-                                                            : 'Produk biasa',
-                                                    description:
-                                                        m.averageCost > 0
-                                                            ? `${formatRupiah(m.averageCost)}/${m.unit}`
-                                                            : `belum ada biaya/${m.unit}`,
-                                                    disabled: lines.some(
-                                                        (other, i) =>
-                                                            i !== index &&
-                                                            other.material_id ===
-                                                                String(m.id),
-                                                    ),
-                                                }))}
-                                                placeholder="Pilih bahan"
-                                                searchPlaceholder="Cari bahan"
-                                                emptyText="Bahan tidak ditemukan. Tambahkan dulu di Produk & stok."
-                                                invalid={Boolean(
-                                                    errors[
-                                                        `recipe.${index}.material_id`
-                                                    ],
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-1.5">
-                                            <Label
-                                                htmlFor={`recipe-${index}-qty`}
-                                                className={cn(
-                                                    index > 0 && 'md:sr-only',
-                                                )}
-                                            >
-                                                Takaran
-                                            </Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id={`recipe-${index}-qty`}
-                                                    inputMode="decimal"
-                                                    value={line.qty}
-                                                    onChange={(e) =>
-                                                        setLine(index, {
-                                                            qty: e.target.value,
-                                                        })
-                                                    }
-                                                    aria-invalid={
-                                                        Boolean(
-                                                            errors[
-                                                                `recipe.${index}.qty`
-                                                            ],
-                                                        ) || undefined
-                                                    }
-                                                    className="num pr-14"
-                                                    autoComplete="off"
-                                                />
-                                                <span
-                                                    aria-hidden
-                                                    className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground"
-                                                >
-                                                    {material?.unit ?? ''}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="hidden flex-col items-end gap-1.5 md:flex">
-                                            <span
-                                                className={cn(
-                                                    'text-sm font-medium',
-                                                    index > 0 && 'sr-only',
-                                                )}
-                                            >
-                                                Biaya
-                                            </span>
-                                            <Money
-                                                value={Math.round(
-                                                    lineCost(line),
-                                                )}
-                                                size="sm"
-                                                className="h-9 items-center"
-                                            />
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() =>
-                                                onChange(
-                                                    lines.filter(
-                                                        (_, i) => i !== index,
-                                                    ),
-                                                )
-                                            }
-                                            disabled={lines.length === 1}
-                                            aria-label={`Hapus ${material?.name ?? `baris ${index + 1}`} dari resep`}
-                                        >
-                                            <X aria-hidden />
-                                        </Button>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground md:hidden">
-                                        Biaya{' '}
-                                        <Money
-                                            value={Math.round(lineCost(line))}
-                                            size="sm"
-                                            className="text-xs"
-                                        />
-                                    </p>
-                                    <InputError message={lineError} />
-                                </li>
-                            );
-                        })}
-                    </ol>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="w-fit"
-                        onClick={() => onChange([...lines, emptyLine()])}
-                        disabled={lines.length >= materials.length}
-                    >
-                        <Plus aria-hidden />
-                        Tambah bahan
-                    </Button>
-                </div>
-            )}
-        </SectionCard>
-    );
-}
-
-function CostPanel({
-    kind,
-    unitCost,
-    price,
-    unit,
-}: {
-    kind: ItemKind;
-    unitCost: number | null;
-    price: number | null;
-    unit: string;
-}) {
-    const marginRupiah =
-        price !== null && unitCost !== null ? price - unitCost : null;
-    const marginPercent =
-        marginRupiah !== null && price
-            ? Math.round((marginRupiah / price) * 1000) / 10
-            : null;
-
-    return (
-        <SectionCard
-            title="Untung per jual"
-            tone="focus"
-            description={
-                kind === 'komposisi'
-                    ? `Dihitung langsung dari resep, per ${unit || 'porsi'}.`
-                    : `Dari harga beli per ${unit || 'satuan'}.`
-            }
-            className="lg:sticky lg:top-18"
-        >
-            <div className="flex flex-col divide-y" aria-live="polite">
-                <MetricInline
-                    label={kind === 'komposisi' ? 'HPP' : 'Biaya per unit'}
-                    value={
-                        unitCost === null ? (
-                            <span className="text-sm text-muted-foreground">
-                                Belum diisi
-                            </span>
-                        ) : (
-                            <Money value={unitCost} />
-                        )
-                    }
-                />
-                <MetricInline
-                    label="Harga jual"
-                    value={
-                        price === null ? (
-                            <span className="text-sm text-muted-foreground">
-                                Belum diisi
-                            </span>
-                        ) : (
-                            <Money value={price} />
-                        )
-                    }
-                />
-                <MetricInline
-                    label="Margin"
-                    value={
-                        marginRupiah === null ? (
-                            <span className="text-sm text-muted-foreground">
-                                Isi harga dan biaya
-                            </span>
-                        ) : (
-                            <Money value={marginRupiah} size="lg" />
-                        )
-                    }
-                    detail={
-                        marginPercent !== null && (
-                            <MarginLabel percent={marginPercent} />
-                        )
-                    }
-                />
-            </div>
-            {marginPercent !== null && marginPercent < THIN_MARGIN_PERCENT && (
-                <p
-                    role="status"
-                    className="mt-3 rounded-lg bg-destructive-soft px-3 py-2 text-sm text-foreground"
-                >
-                    Margin di bawah {THIN_MARGIN_PERCENT}%. Naikkan harga jual
-                    atau cek lagi takaran resepnya.
-                </p>
-            )}
-        </SectionCard>
-    );
-}
-
-/** Bahan baku has no price, so the side shows what the opening stock adds to the books. */
-function OpeningStockPanel({
-    qty,
-    unitCost,
-    unit,
-}: {
-    qty: number;
-    unitCost: number | null;
-    unit: string;
-}) {
-    const value =
-        Number.isFinite(qty) && qty > 0 && unitCost !== null
-            ? Math.round(qty * unitCost)
-            : null;
-
-    return (
-        <SectionCard
-            title="Nilai stok awal"
-            tone="focus"
-            description={`Jumlah × harga beli per ${unit || 'satuan'}.`}
-            className="lg:sticky lg:top-18"
-        >
-            <div aria-live="polite" className="flex flex-col gap-2">
-                {value === null ? (
-                    <p className="text-sm text-muted-foreground">
-                        Belum diisi. Stok bisa dicatat nanti saat belanja.
-                    </p>
-                ) : (
-                    <>
-                        <Money value={value} size="xl" />
-                        <p className="text-sm text-muted-foreground">
-                            Dicatat sebagai modal awal di pembukuan.
-                        </p>
-                    </>
-                )}
-            </div>
-        </SectionCard>
-    );
-}
-
-function ArchiveButton({ id, name }: { id: number; name: string }) {
-    const [open, setOpen] = useState(false);
-    const [busy, setBusy] = useState(false);
-
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive lg:ml-auto"
-                >
-                    <Archive aria-hidden />
-                    Arsipkan
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Arsipkan {name}?</DialogTitle>
-                    <DialogDescription>
-                        {name} hilang dari daftar produk dan halaman toko.
-                        Catatan penjualan dan stok lamanya tetap tersimpan.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button type="button" variant="outline">
-                            Batal
-                        </Button>
-                    </DialogClose>
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        disabled={busy}
-                        onClick={() =>
-                            router.delete(destroy.url(id), {
-                                onStart: () => setBusy(true),
-                                onFinish: () => {
-                                    setBusy(false);
-                                    setOpen(false);
-                                },
-                            })
-                        }
-                    >
-                        {busy ? 'Mengarsipkan…' : 'Arsipkan'}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}

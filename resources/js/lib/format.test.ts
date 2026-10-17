@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { formatRupiahCompact, parseMoney } from './format';
+import { formatNameList, formatRupiahCompact, parseMoney } from './format';
 
 describe('parseMoney', () => {
     it.each([
@@ -32,5 +32,15 @@ describe('formatRupiahCompact', () => {
         [-2_100_000_000, '−Rp2,1 M'],
     ])('formats %d as %s', (value, expected) => {
         expect(formatRupiahCompact(value)).toBe(expected);
+    });
+});
+
+describe('formatNameList', () => {
+    it('names one or two, then counts the rest', () => {
+        expect(formatNameList(['Beras'], 1)).toBe('Beras');
+        expect(formatNameList(['Beras', 'Telur'], 2)).toBe('Beras dan Telur');
+        expect(formatNameList(['Beras', 'Telur'], 5)).toBe(
+            'Beras, Telur, dan 3 lainnya',
+        );
     });
 });

@@ -1,44 +1,29 @@
 import { Head } from '@inertiajs/react';
-import type { ReactNode } from 'react';
-import {
-    Ban,
-    BookOpenCheck,
-    ChevronDown,
-    PackageOpen,
-    ReceiptText,
-} from 'lucide-react';
+import { Ban, PackageOpen, ReceiptText } from 'lucide-react';
 import {
     CategoryBadge,
     methodLabel,
     SourceLabel,
-    transactionKinds,
     VoidBadge,
 } from '@/components/app/badges';
+import { DetailRow } from '@/components/app/detail-row';
 import { MetricInline } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
 import { PageHeader } from '@/components/app/page-header';
 import { SectionCard } from '@/components/app/section-card';
-import { Button } from '@/components/ui/button';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { formatDate, formatQty } from '@/lib/format';
+import { StockMovementList } from '@/components/app/stock-movement-list';
+import { JournalCard } from '@/features/transactions/journal-card';
+import { contactTypeFor } from '@/features/transactions/record';
+import { formatDate, formatQty, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { index } from '@/routes/transactions';
-import type {
-    StockMovementReason,
-    TransactionDetailProps,
-} from '@/types/domain';
-
-const movementReasons: Record<StockMovementReason, string> = {
-    stok_awal: 'Stok awal',
-    koreksi: 'Koreksi stok',
-    penjualan: 'Terjual',
-    pembelian: 'Masuk dari belanja',
-    pembatalan: 'Dikembalikan karena dibatalkan',
-};
+import type { TransactionDetailProps } from '@/types/domain';
+import {
+    contactTypeLabels,
+    PaymentMethod,
+    TransactionType,
+    transactionKindLabels,
+} from '@/types/enums';
 
 export default function TransactionShow({
     transaction,
@@ -47,7 +32,8 @@ export default function TransactionShow({
     journal,
 }: TransactionDetailProps) {
     const hpp = lines.reduce((sum, line) => sum + (line.hpp ?? 0), 0);
-    const isSale = transaction.type === 'penjualan';
+    const isSale = transaction.type === TransactionType.Penjualan;
+    const contactType = contactTypeFor(transaction.type, transaction.kind);
 
     return (
         <>
@@ -136,17 +122,21 @@ export default function TransactionShow({
                             ) : (
                                 <dl className="flex flex-col divide-y text-sm">
                                     {transaction.kind && (
-                                        <Row label="Jenis">
-                                            {transactionKinds[transaction.kind]}
-                                        </Row>
+                                        <DetailRow label="Jenis">
+                                            {
+                                                transactionKindLabels[
+                                                    transaction.kind
+                                                ]
+                                            }
+                                        </DetailRow>
                                     )}
-                                    <Row label="Nominal">
+                                    <DetailRow label="Nominal">
                                         <Money value={transaction.amount} />
-                                    </Row>
+                                    </DetailRow>
                                     {transaction.note && (
-                                        <Row label="Catatan">
+                                        <DetailRow label="Catatan">
                                             {transaction.note}
-                                        </Row>
+                                        </DetailRow>
                                     )}
                                 </dl>
                             )}
@@ -158,55 +148,10 @@ export default function TransactionShow({
                                 icon={PackageOpen}
                                 description="Stok yang bergerak karena catatan ini."
                             >
-                                <ul className="flex flex-col divide-y">
-                                    {movements.map((movement) => (
-                                        <li
-                                            key={movement.id}
-                                            className="flex items-baseline justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                                        >
-                                            <div className="flex min-w-0 flex-col">
-                                                <span className="text-sm font-medium">
-                                                    {movement.name}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {
-                                                        movementReasons[
-                                                            movement.reason
-                                                        ]
-                                                    }
-                                                    {movement.stockAfter !==
-                                                        null &&
-                                                        ` · sisa ${formatQty(movement.stockAfter, movement.unit)}`}
-                                                </span>
-                                            </div>
-                                            <div className="flex flex-col items-end">
-                                                <span
-                                                    className={cn(
-                                                        'num text-sm font-semibold',
-                                                        movement.stockAfter !==
-                                                            null &&
-                                                            movement.stockAfter <
-                                                                0 &&
-                                                            'text-destructive',
-                                                    )}
-                                                >
-                                                    {movement.qty > 0
-                                                        ? '+'
-                                                        : '−'}
-                                                    {formatQty(
-                                                        Math.abs(movement.qty),
-                                                        movement.unit,
-                                                    )}
-                                                </span>
-                                                <Money
-                                                    value={movement.value}
-                                                    size="sm"
-                                                    className="text-xs font-normal text-muted-foreground"
-                                                />
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
+                                <StockMovementList
+                                    movements={movements}
+                                    by="item"
+                                />
                             </SectionCard>
                         )}
 
@@ -264,20 +209,15 @@ export default function TransactionShow({
                                     }
                                     detail={
                                         isSale &&
-                                        transaction.method === 'kredit'
-                                            ? `Dibayar di tempat Rp${new Intl.NumberFormat('id-ID').format(transaction.paidAmount)}`
+                                        transaction.method ===
+                                            PaymentMethod.Kredit
+                                            ? `Dibayar di tempat ${formatRupiah(transaction.paidAmount)}`
                                             : undefined
                                     }
                                 />
                                 {transaction.contact && (
                                     <MetricInline
-                                        label={
-                                            isSale ||
-                                            transaction.kind ===
-                                                'terima_piutang'
-                                                ? 'Pelanggan'
-                                                : 'Supplier'
-                                        }
+                                        label={contactTypeLabels[contactType]}
                                         value={
                                             <span className="text-sm font-medium">
                                                 {transaction.contact}
@@ -325,126 +265,3 @@ export default function TransactionShow({
 TransactionShow.layout = {
     breadcrumbs: [{ title: 'Transaksi', href: index() }],
 };
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="flex items-baseline justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="text-right font-medium">{children}</dd>
-        </div>
-    );
-}
-
-/** The accounting behind the transaction, closed by default (UI-PAGES C4). */
-function JournalCard({
-    journal,
-}: {
-    journal: TransactionDetailProps['journal'];
-}) {
-    return (
-        <Collapsible className="rounded-xl border bg-card shadow-card">
-            <CollapsibleTrigger asChild>
-                <Button
-                    variant="ghost"
-                    className="group h-auto w-full justify-between rounded-xl px-4 py-4 text-left md:px-5"
-                >
-                    <span className="flex items-center gap-3">
-                        <BookOpenCheck
-                            className="size-[18px] text-muted-foreground"
-                            aria-hidden
-                        />
-                        <span className="flex flex-col">
-                            <span className="text-base font-semibold">
-                                Lihat jurnal
-                            </span>
-                            <span className="text-sm font-normal text-muted-foreground">
-                                Catatan akuntansi di balik transaksi ini.
-                            </span>
-                        </span>
-                    </span>
-                    <ChevronDown
-                        className="size-4 transition-transform group-data-[state=open]:rotate-180"
-                        aria-hidden
-                    />
-                </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="flex flex-col gap-4 px-4 pb-4 md:px-5 md:pb-5">
-                <p className="text-sm text-muted-foreground">
-                    Setiap transaksi dicatat di dua sisi. Debit dan kredit
-                    selalu sama besar, jadi pembukuan tetap seimbang.
-                </p>
-                {journal.map((entry) => {
-                    const debit = entry.lines.reduce((s, l) => s + l.debit, 0);
-                    const credit = entry.lines.reduce(
-                        (s, l) => s + l.credit,
-                        0,
-                    );
-
-                    return (
-                        <table key={entry.id} className="w-full text-sm">
-                            <caption className="sr-only">
-                                Jurnal {entry.description}
-                            </caption>
-                            <thead>
-                                <tr className="border-b text-xs text-muted-foreground">
-                                    <th className="py-2 text-left font-semibold">
-                                        Akun
-                                    </th>
-                                    <th className="py-2 text-right font-semibold">
-                                        Debit
-                                    </th>
-                                    <th className="py-2 text-right font-semibold">
-                                        Kredit
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {entry.lines.map((line, i) => (
-                                    <tr key={i} className="border-b">
-                                        <td className="py-2">
-                                            <span className="num text-muted-foreground">
-                                                {line.code}
-                                            </span>{' '}
-                                            {line.account}
-                                        </td>
-                                        <td className="num py-2 text-right">
-                                            {line.debit > 0 && (
-                                                <Money
-                                                    value={line.debit}
-                                                    size="sm"
-                                                />
-                                            )}
-                                        </td>
-                                        <td className="num py-2 text-right">
-                                            {line.credit > 0 && (
-                                                <Money
-                                                    value={line.credit}
-                                                    size="sm"
-                                                />
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot>
-                                <tr className="font-semibold">
-                                    <td className="py-2">
-                                        {debit === credit
-                                            ? 'Seimbang'
-                                            : 'Tidak seimbang'}
-                                    </td>
-                                    <td className="py-2 text-right">
-                                        <Money value={debit} size="sm" />
-                                    </td>
-                                    <td className="py-2 text-right">
-                                        <Money value={credit} size="sm" />
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    );
-                })}
-            </CollapsibleContent>
-        </Collapsible>
-    );
-}

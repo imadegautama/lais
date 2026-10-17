@@ -23,7 +23,7 @@ import { PeriodPicker } from '@/components/app/period-picker';
 import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
-import { TransactionTable } from '@/components/app/transaction-table';
+import { TransactionTable } from '@/features/transactions/transaction-table';
 import { Progress } from '@/components/ui/progress';
 import {
     formatDate,

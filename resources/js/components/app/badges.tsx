@@ -27,10 +27,33 @@ import type {
     OrderStatus,
     PaymentMethod,
     PaymentStatus,
-    TransactionKind,
     TransactionSource,
     TransactionType,
 } from '@/types/domain';
+import {
+    itemKindLabels,
+    paymentMethodLabels,
+    transactionSourceLabels,
+    transactionTypeLabels,
+} from '@/types/enums';
+
+type Vocabulary<K extends string> = Record<
+    K,
+    { label: string; icon: LucideIcon }
+>;
+
+/** Labels come from app/Enums (types/enums.ts); this file only adds the icon. */
+function withIcons<K extends string>(
+    labels: Record<K, string>,
+    icons: Record<K, LucideIcon>,
+): Vocabulary<K> {
+    return Object.fromEntries(
+        (Object.keys(labels) as K[]).map((key) => [
+            key,
+            { label: labels[key], icon: icons[key] },
+        ]),
+    ) as Vocabulary<K>;
+}
 
 type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'accent';
 
@@ -69,16 +92,16 @@ function LabelBadge({
 
 // Transaction categories are told apart by icon and label, not by five
 // different colors (DESIGN.md, "Palet dibatasi").
-export const transactionTypes: Record<
-    TransactionType,
-    { label: string; icon: LucideIcon }
-> = {
-    penjualan: { label: 'Penjualan', icon: HandCoins },
-    pembelian: { label: 'Belanja', icon: ShoppingBasket },
-    biaya: { label: 'Biaya', icon: ReceiptText },
-    utang_piutang: { label: 'Utang-piutang', icon: NotebookPen },
-    modal: { label: 'Modal', icon: Wallet },
-};
+export const transactionTypes = withIcons<TransactionType>(
+    transactionTypeLabels,
+    {
+        penjualan: HandCoins,
+        pembelian: ShoppingBasket,
+        biaya: ReceiptText,
+        utang_piutang: NotebookPen,
+        modal: Wallet,
+    },
+);
 
 export function CategoryBadge({ type }: { type: TransactionType }) {
     const { label, icon } = transactionTypes[type];
@@ -86,17 +109,14 @@ export function CategoryBadge({ type }: { type: TransactionType }) {
     return <LabelBadge icon={icon} label={label} />;
 }
 
-const sources: Record<TransactionSource, { label: string; icon: LucideIcon }> =
-    {
-        wa: { label: 'WhatsApp', icon: MessageCircle },
-        web: { label: 'Web', icon: Monitor },
-        toko: { label: 'Halaman toko', icon: Store },
-        ocr: { label: 'Foto nota', icon: ScanText },
-    };
+export const transactionSources = withIcons<TransactionSource>(
+    transactionSourceLabels,
+    { wa: MessageCircle, web: Monitor, toko: Store, ocr: ScanText },
+);
 
 /** Where a record came from. Plain text, no chip, so it stays quiet in lists. */
 export function SourceLabel({ source }: { source: TransactionSource }) {
-    const { label, icon: Icon } = sources[source];
+    const { label, icon: Icon } = transactionSources[source];
 
     return (
         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -138,26 +158,11 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
     return <LabelBadge icon={icon} label={label} tone={tone} />;
 }
 
-export const itemKinds: Record<
-    ItemKind,
-    { label: string; icon: LucideIcon; hint: string }
-> = {
-    produk: {
-        label: 'Produk biasa',
-        icon: Package,
-        hint: 'Dibeli atau dibuat lalu dijual apa adanya: air mineral, sabun jadi.',
-    },
-    bahan: {
-        label: 'Bahan baku',
-        icon: Wheat,
-        hint: 'Tidak dijual langsung, dipakai di resep: beras, telur, minyak.',
-    },
-    komposisi: {
-        label: 'Produk resep',
-        icon: CookingPot,
-        hint: 'Dibuat dari bahan saat dijual: nasi goreng, es teh, kue.',
-    },
-};
+export const itemKinds = withIcons<ItemKind>(itemKindLabels, {
+    produk: Package,
+    bahan: Wheat,
+    komposisi: CookingPot,
+});
 
 /** Item kinds share one neutral tone; icon and word tell them apart. */
 export function ItemKindBadge({ kind }: { kind: ItemKind }) {
@@ -210,35 +215,15 @@ export function MarginLabel({ percent }: { percent: number }) {
     );
 }
 
-/** How the money moved, in the words of the transaction type. */
+/** How the money moved, in the words of the transaction type: a purchase on credit is "Belum dibayar". */
 export function methodLabel(
     type: TransactionType,
     method: PaymentMethod,
 ): string {
-    if (method === 'kredit') {
-        return type === 'penjualan' ? 'Belum lunas' : 'Belum dibayar';
-    }
-
-    return { tunai: 'Tunai', non_tunai: 'Non-tunai', pribadi: 'Uang pribadi' }[
-        method
-    ];
+    return method === 'kredit' && type !== 'penjualan'
+        ? 'Belum dibayar'
+        : paymentMethodLabels[method];
 }
-
-export const transactionKinds: Record<TransactionKind, string> = {
-    barang: 'Bahan / barang dagang',
-    peralatan: 'Peralatan',
-    listrik_air: 'Listrik & air',
-    gas_bbm: 'Gas & BBM',
-    sewa: 'Sewa',
-    upah: 'Upah karyawan',
-    transport: 'Transport & ongkir',
-    pemasaran: 'Pemasaran',
-    lain: 'Lain-lain',
-    terima_piutang: 'Terima bayaran dari pelanggan',
-    bayar_utang: 'Bayar utang ke supplier',
-    setor: 'Setor modal',
-    prive: 'Ambil untuk pribadi',
-};
 
 /** A cancelled transaction stays in the list, struck through, with this badge. */
 export function VoidBadge() {

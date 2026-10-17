@@ -16,6 +16,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatQty } from '@/lib/format';
+import { parseCount, roundQty } from '@/lib/number';
+import { adjustmentValue } from '@/lib/stock';
 import { adjustStock } from '@/routes/items';
 import type { ItemRow } from '@/types/domain';
 
@@ -23,15 +25,6 @@ type StockAdjustDialogProps = {
     item: Pick<ItemRow, 'id' | 'name' | 'unit' | 'stock' | 'stockValue'>;
     trigger: ReactNode;
 };
-
-/** Reads "8,5" and "8.5" the same way. Null when the text is not a count. */
-function parseCount(text: string): number | null {
-    const value = Number(text.trim().replace(',', '.'));
-
-    return text.trim() !== '' && Number.isFinite(value) && value >= 0
-        ? value
-        : null;
-}
 
 /**
  * Single-item stock count (UI-PAGES C8). The difference is valued at the
@@ -42,16 +35,8 @@ export function StockAdjustDialog({ item, trigger }: StockAdjustDialogProps) {
     const [open, setOpen] = useState(false);
     const form = useForm({ physical_stock: '' });
     const physical = parseCount(form.data.physical_stock);
-    const diff =
-        physical === null
-            ? 0
-            : Math.round((physical - item.stock) * 1000) / 1000;
-    const value =
-        physical === 0
-            ? -item.stockValue
-            : item.stock > 0
-              ? Math.round((diff * item.stockValue) / item.stock)
-              : 0;
+    const diff = physical === null ? 0 : roundQty(physical - item.stock);
+    const value = physical === null ? 0 : adjustmentValue(item, physical);
 
     const close = (next: boolean) => {
         setOpen(next);
@@ -72,6 +57,7 @@ export function StockAdjustDialog({ item, trigger }: StockAdjustDialogProps) {
                         event.preventDefault();
                         // React bubbles events through the portal, so a host page's <form> would submit too.
                         event.stopPropagation();
+                        // Sent as typed (comma as dot), so the server's own messages explain empty or minus.
                         form.transform((data) => ({
                             physical_stock: data.physical_stock
                                 .trim()
