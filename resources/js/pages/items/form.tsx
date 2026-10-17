@@ -212,7 +212,7 @@ export default function ItemForm({
     return (
         <>
             <Head title={title} />
-            <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
+            <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
                 <PageHeader
                     title={title}
                     description={
@@ -225,327 +225,349 @@ export default function ItemForm({
                 <form
                     onSubmit={submit}
                     noValidate
-                    className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-12"
+                    className="flex flex-1 flex-col gap-4 md:gap-6"
                 >
-                    <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:col-span-7">
-                        {!editing && (
-                            <KindPicker
-                                value={kind}
-                                onChange={(next) => {
-                                    form.setData((values) => ({
-                                        ...values,
-                                        kind: next,
-                                        unit:
-                                            values.unit === 'pcs' ||
-                                            values.unit === 'porsi'
-                                                ? next === 'komposisi'
-                                                    ? 'porsi'
-                                                    : 'pcs'
-                                                : values.unit,
-                                    }));
-                                }}
-                                error={errors.kind}
-                            />
-                        )}
-
-                        <SectionCard title="Data dasar">
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <Field
-                                    label="Nama"
-                                    htmlFor="item-name"
-                                    error={errors.name}
-                                    className="md:col-span-2"
-                                >
-                                    <Input
-                                        id="item-name"
-                                        value={data.name}
-                                        onChange={(e) =>
-                                            setData('name', e.target.value)
-                                        }
-                                        placeholder={
-                                            kind === 'bahan'
-                                                ? 'Beras'
-                                                : kind === 'komposisi'
-                                                  ? 'Nasi Goreng'
-                                                  : 'Air Mineral 600 ml'
-                                        }
-                                        aria-invalid={
-                                            Boolean(errors.name) || undefined
-                                        }
-                                        autoComplete="off"
-                                    />
-                                </Field>
-
-                                <Field
-                                    label="Nama lain"
-                                    htmlFor="item-aliases"
-                                    error={
-                                        errors.aliases ?? errors['aliases.0']
-                                    }
-                                    hint="Pisahkan dengan koma. Bot WhatsApp jadi paham kalau ditulis begini."
-                                    className="md:col-span-2"
-                                >
-                                    <Input
-                                        id="item-aliases"
-                                        value={data.aliases}
-                                        onChange={(e) =>
-                                            setData('aliases', e.target.value)
-                                        }
-                                        placeholder={
-                                            {
-                                                produk: 'aqua, air',
-                                                bahan: 'minyak, migor',
-                                                komposisi:
-                                                    'nasgor, nasi goreng biasa',
-                                            }[kind]
-                                        }
-                                        aria-invalid={
-                                            Boolean(errors.aliases) || undefined
-                                        }
-                                        autoComplete="off"
-                                    />
-                                </Field>
-
-                                <Field
-                                    label="Satuan"
-                                    htmlFor="item-unit"
-                                    error={errors.unit}
-                                    hint="Tidak ada di daftar? Ketik saja, misalnya ikat."
-                                >
-                                    <SearchSelect
-                                        id="item-unit"
-                                        value={data.unit}
-                                        onChange={(unit) =>
-                                            setData('unit', unit.toLowerCase())
-                                        }
-                                        options={unitOptions(units)}
-                                        placeholder="Pilih satuan"
-                                        searchPlaceholder="Cari atau ketik satuan"
-                                        emptyText="Ketik satuan yang kamu pakai."
-                                        creatable={(unit) =>
-                                            `Pakai satuan "${unit.toLowerCase()}"`
-                                        }
-                                        invalid={Boolean(errors.unit)}
-                                    />
-                                </Field>
-
-                                {stocked && (
-                                    <Field
-                                        label={`Stok minimum (${data.unit || 'satuan'})`}
-                                        htmlFor="item-min-stock"
-                                        error={errors.min_stock}
-                                        hint="Diberi tanda menipis di bawah angka ini."
-                                    >
-                                        <Input
-                                            id="item-min-stock"
-                                            inputMode="decimal"
-                                            value={data.min_stock}
-                                            onChange={(e) =>
-                                                setData(
-                                                    'min_stock',
-                                                    e.target.value,
-                                                )
-                                            }
-                                            aria-invalid={
-                                                Boolean(errors.min_stock) ||
-                                                undefined
-                                            }
-                                            className="num"
-                                            autoComplete="off"
-                                        />
-                                    </Field>
-                                )}
-
-                                {sold && (
-                                    <div className="flex flex-col gap-1.5">
-                                        <MoneyInput
-                                            key={kind}
-                                            label="Harga jual"
-                                            value={data.price}
-                                            onChange={(value) =>
-                                                setData('price', value)
-                                            }
-                                        />
-                                        <InputError message={errors.price} />
-                                    </div>
-                                )}
-                            </div>
-
-                            {sold && (
-                                <div className="mt-4 flex flex-col divide-y border-t">
-                                    <SwitchRow
-                                        id="item-show-in-store"
-                                        label="Tampil di halaman toko"
-                                        hint="Halaman toko untuk pelanggan dibuka di tahap berikutnya. Pilihan ini sudah tersimpan."
-                                        checked={data.show_in_store}
-                                        onChange={(value) =>
-                                            setData('show_in_store', value)
-                                        }
-                                    />
-                                    {/* Produk biasa is sold out by its stock (PRD US-08), so only recipes get this switch. */}
-                                    {kind === 'komposisi' && (
-                                        <SwitchRow
-                                            id="item-available"
-                                            label="Tersedia untuk dipesan"
-                                            hint="Matikan kalau bahannya habis atau warung tutup."
-                                            checked={data.available}
-                                            onChange={(value) =>
-                                                setData('available', value)
-                                            }
-                                        />
-                                    )}
-                                </div>
+                    <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-12">
+                        <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:col-span-7">
+                            {!editing && (
+                                <KindPicker
+                                    value={kind}
+                                    onChange={(next) => {
+                                        form.setData((values) => ({
+                                            ...values,
+                                            kind: next,
+                                            unit:
+                                                values.unit === 'pcs' ||
+                                                values.unit === 'porsi'
+                                                    ? next === 'komposisi'
+                                                        ? 'porsi'
+                                                        : 'pcs'
+                                                    : values.unit,
+                                        }));
+                                    }}
+                                    error={errors.kind}
+                                />
                             )}
-                        </SectionCard>
 
-                        {!editing && stocked && (
-                            <SectionCard
-                                title="Stok awal"
-                                description="Yang ada sekarang di rak atau gudang. Boleh dikosongkan dan dicatat saat belanja."
-                            >
+                            <SectionCard title="Data dasar">
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <Field
-                                        label={`Jumlah (${data.unit || 'satuan'})`}
-                                        htmlFor="item-opening-stock"
-                                        error={errors.opening_stock}
+                                        label="Nama"
+                                        htmlFor="item-name"
+                                        error={errors.name}
+                                        className="md:col-span-2"
                                     >
                                         <Input
-                                            id="item-opening-stock"
-                                            inputMode="decimal"
-                                            value={data.opening_stock}
+                                            id="item-name"
+                                            value={data.name}
                                             onChange={(e) =>
-                                                setData(
-                                                    'opening_stock',
-                                                    e.target.value,
-                                                )
+                                                setData('name', e.target.value)
+                                            }
+                                            placeholder={
+                                                kind === 'bahan'
+                                                    ? 'Beras'
+                                                    : kind === 'komposisi'
+                                                      ? 'Nasi Goreng'
+                                                      : 'Air Mineral 600 ml'
                                             }
                                             aria-invalid={
-                                                Boolean(errors.opening_stock) ||
+                                                Boolean(errors.name) ||
                                                 undefined
                                             }
-                                            className="num"
                                             autoComplete="off"
                                         />
                                     </Field>
-                                    <div className="flex flex-col gap-1.5">
-                                        <MoneyInput
-                                            label={`Harga beli per ${data.unit || 'satuan'}`}
-                                            value={data.opening_cost}
+
+                                    <Field
+                                        label="Nama lain"
+                                        htmlFor="item-aliases"
+                                        error={
+                                            errors.aliases ??
+                                            errors['aliases.0']
+                                        }
+                                        hint="Pisahkan dengan koma. Bot WhatsApp jadi paham kalau ditulis begini."
+                                        className="md:col-span-2"
+                                    >
+                                        <Input
+                                            id="item-aliases"
+                                            value={data.aliases}
+                                            onChange={(e) =>
+                                                setData(
+                                                    'aliases',
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder={
+                                                {
+                                                    produk: 'aqua, air',
+                                                    bahan: 'minyak, migor',
+                                                    komposisi:
+                                                        'nasgor, nasi goreng biasa',
+                                                }[kind]
+                                            }
+                                            aria-invalid={
+                                                Boolean(errors.aliases) ||
+                                                undefined
+                                            }
+                                            autoComplete="off"
+                                        />
+                                    </Field>
+
+                                    <Field
+                                        label="Satuan"
+                                        htmlFor="item-unit"
+                                        error={errors.unit}
+                                        hint="Tidak ada di daftar? Ketik saja, misalnya ikat."
+                                    >
+                                        <SearchSelect
+                                            id="item-unit"
+                                            value={data.unit}
+                                            onChange={(unit) =>
+                                                setData(
+                                                    'unit',
+                                                    unit.toLowerCase(),
+                                                )
+                                            }
+                                            options={unitOptions(units)}
+                                            placeholder="Pilih satuan"
+                                            searchPlaceholder="Cari atau ketik satuan"
+                                            emptyText="Ketik satuan yang kamu pakai."
+                                            creatable={(unit) =>
+                                                `Pakai satuan "${unit.toLowerCase()}"`
+                                            }
+                                            invalid={Boolean(errors.unit)}
+                                        />
+                                    </Field>
+
+                                    {stocked && (
+                                        <Field
+                                            label={`Stok minimum (${data.unit || 'satuan'})`}
+                                            htmlFor="item-min-stock"
+                                            error={errors.min_stock}
+                                            hint="Diberi tanda menipis di bawah angka ini."
+                                        >
+                                            <Input
+                                                id="item-min-stock"
+                                                inputMode="decimal"
+                                                value={data.min_stock}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'min_stock',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                aria-invalid={
+                                                    Boolean(errors.min_stock) ||
+                                                    undefined
+                                                }
+                                                className="num"
+                                                autoComplete="off"
+                                            />
+                                        </Field>
+                                    )}
+
+                                    {sold && (
+                                        <div className="flex flex-col gap-1.5">
+                                            <MoneyInput
+                                                key={kind}
+                                                label="Harga jual"
+                                                value={data.price}
+                                                onChange={(value) =>
+                                                    setData('price', value)
+                                                }
+                                            />
+                                            <InputError
+                                                message={errors.price}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {sold && (
+                                    <div className="mt-4 flex flex-col divide-y border-t">
+                                        <SwitchRow
+                                            id="item-show-in-store"
+                                            label="Tampil di halaman toko"
+                                            hint="Halaman toko untuk pelanggan dibuka di tahap berikutnya. Pilihan ini sudah tersimpan."
+                                            checked={data.show_in_store}
                                             onChange={(value) =>
-                                                setData('opening_cost', value)
+                                                setData('show_in_store', value)
                                             }
                                         />
-                                        <InputError
-                                            message={errors.opening_cost}
-                                        />
+                                        {/* Produk biasa is sold out by its stock (PRD US-08), so only recipes get this switch. */}
+                                        {kind === 'komposisi' && (
+                                            <SwitchRow
+                                                id="item-available"
+                                                label="Tersedia untuk dipesan"
+                                                hint="Matikan kalau bahannya habis atau warung tutup."
+                                                checked={data.available}
+                                                onChange={(value) =>
+                                                    setData('available', value)
+                                                }
+                                            />
+                                        )}
                                     </div>
-                                </div>
-                            </SectionCard>
-                        )}
-
-                        {kind === 'komposisi' && (
-                            <RecipeBuilder
-                                lines={data.recipe}
-                                materials={materials}
-                                errors={errors}
-                                lineCost={lineCost}
-                                onChange={(recipe) => setData('recipe', recipe)}
-                            />
-                        )}
-                    </div>
-
-                    <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:col-span-5">
-                        {sold && (
-                            <CostPanel
-                                kind={kind}
-                                unitCost={unitCost}
-                                price={data.price}
-                                unit={data.unit}
-                            />
-                        )}
-
-                        {!editing && kind === 'bahan' && (
-                            <OpeningStockPanel
-                                qty={toNumber(data.opening_stock)}
-                                unitCost={data.opening_cost}
-                                unit={data.unit}
-                            />
-                        )}
-
-                        {editing && stocked && (
-                            <SectionCard
-                                title="Riwayat stok"
-                                icon={History}
-                                description={`Sekarang ${formatQty(item.stock, item.unit)}.`}
-                                action={
-                                    <StockAdjustDialog
-                                        item={item}
-                                        trigger={
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                            >
-                                                Koreksi stok
-                                            </Button>
-                                        }
-                                    />
-                                }
-                            >
-                                {movements.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        Belum ada perubahan stok. Stok bertambah
-                                        saat belanja dicatat.
-                                    </p>
-                                ) : (
-                                    <ul className="flex flex-col divide-y">
-                                        {movements.map((movement) => (
-                                            <li
-                                                key={movement.id}
-                                                className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0"
-                                            >
-                                                <div className="flex min-w-0 flex-col">
-                                                    <span className="text-sm font-medium">
-                                                        {
-                                                            movementReasons[
-                                                                movement.reason
-                                                            ]
-                                                        }
-                                                    </span>
-                                                    <span className="num text-xs text-muted-foreground">
-                                                        {formatDate(
-                                                            movement.occurredAt,
-                                                            'datetime',
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="num text-sm font-semibold">
-                                                        {movement.qty > 0
-                                                            ? '+'
-                                                            : '−'}
-                                                        {formatQty(
-                                                            Math.abs(
-                                                                movement.qty,
-                                                            ),
-                                                            item.unit,
-                                                        )}
-                                                    </span>
-                                                    <Money
-                                                        value={movement.value}
-                                                        size="sm"
-                                                        className="text-xs font-normal text-muted-foreground"
-                                                    />
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
                                 )}
                             </SectionCard>
-                        )}
+
+                            {!editing && stocked && (
+                                <SectionCard
+                                    title="Stok awal"
+                                    description="Yang ada sekarang di rak atau gudang. Boleh dikosongkan dan dicatat saat belanja."
+                                >
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                        <Field
+                                            label={`Jumlah (${data.unit || 'satuan'})`}
+                                            htmlFor="item-opening-stock"
+                                            error={errors.opening_stock}
+                                        >
+                                            <Input
+                                                id="item-opening-stock"
+                                                inputMode="decimal"
+                                                value={data.opening_stock}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        'opening_stock',
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                aria-invalid={
+                                                    Boolean(
+                                                        errors.opening_stock,
+                                                    ) || undefined
+                                                }
+                                                className="num"
+                                                autoComplete="off"
+                                            />
+                                        </Field>
+                                        <div className="flex flex-col gap-1.5">
+                                            <MoneyInput
+                                                label={`Harga beli per ${data.unit || 'satuan'}`}
+                                                value={data.opening_cost}
+                                                onChange={(value) =>
+                                                    setData(
+                                                        'opening_cost',
+                                                        value,
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={errors.opening_cost}
+                                            />
+                                        </div>
+                                    </div>
+                                </SectionCard>
+                            )}
+
+                            {kind === 'komposisi' && (
+                                <RecipeBuilder
+                                    lines={data.recipe}
+                                    materials={materials}
+                                    errors={errors}
+                                    lineCost={lineCost}
+                                    onChange={(recipe) =>
+                                        setData('recipe', recipe)
+                                    }
+                                />
+                            )}
+                        </div>
+
+                        <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:col-span-5">
+                            {sold && (
+                                <CostPanel
+                                    kind={kind}
+                                    unitCost={unitCost}
+                                    price={data.price}
+                                    unit={data.unit}
+                                />
+                            )}
+
+                            {!editing && kind === 'bahan' && (
+                                <OpeningStockPanel
+                                    qty={toNumber(data.opening_stock)}
+                                    unitCost={data.opening_cost}
+                                    unit={data.unit}
+                                />
+                            )}
+
+                            {editing && stocked && (
+                                <SectionCard
+                                    title="Riwayat stok"
+                                    icon={History}
+                                    description={`Sekarang ${formatQty(item.stock, item.unit)}.`}
+                                    action={
+                                        <StockAdjustDialog
+                                            item={item}
+                                            trigger={
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                >
+                                                    Koreksi stok
+                                                </Button>
+                                            }
+                                        />
+                                    }
+                                >
+                                    {movements.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                            Belum ada perubahan stok. Stok
+                                            bertambah saat belanja dicatat.
+                                        </p>
+                                    ) : (
+                                        <ul className="flex flex-col divide-y">
+                                            {movements.map((movement) => (
+                                                <li
+                                                    key={movement.id}
+                                                    className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                                                >
+                                                    <div className="flex min-w-0 flex-col">
+                                                        <span className="text-sm font-medium">
+                                                            {
+                                                                movementReasons[
+                                                                    movement
+                                                                        .reason
+                                                                ]
+                                                            }
+                                                        </span>
+                                                        <span className="num text-xs text-muted-foreground">
+                                                            {formatDate(
+                                                                movement.occurredAt,
+                                                                'datetime',
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="num text-sm font-semibold">
+                                                            {movement.qty > 0
+                                                                ? '+'
+                                                                : '−'}
+                                                            {formatQty(
+                                                                Math.abs(
+                                                                    movement.qty,
+                                                                ),
+                                                                item.unit,
+                                                            )}
+                                                        </span>
+                                                        <Money
+                                                            value={
+                                                                movement.value
+                                                            }
+                                                            size="sm"
+                                                            className="text-xs font-normal text-muted-foreground"
+                                                        />
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </SectionCard>
+                            )}
+                        </div>
                     </div>
 
-                    <FormActionBar className="lg:col-span-12">
+                    <FormActionBar>
                         <Button type="submit" disabled={processing}>
                             {processing
                                 ? 'Menyimpan…'

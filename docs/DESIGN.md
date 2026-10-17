@@ -212,7 +212,7 @@ Isinya 20 baris per halaman. Param yang tidak valid diabaikan dan tidak pernah d
 7. **Tujuan yang belum dibangun** memakai `{ comingSoon: true }` atau `ActionButton`: tampil nonaktif dengan label "Segera" dan komentar `TODO(kode halaman)`. Tidak boleh ada link atau tombol mati.
 8. **Dialog berisi form sendiri** yang dipasang di dalam `<form>` halaman wajib memanggil `event.stopPropagation()` di `onSubmit`. React meneruskan event lewat portal, jadi tanpa itu form halaman ikut terkirim.
 9. **Ringkasan di atas tabel server** dikirim sebagai closure (`'summary' => fn () => ...`) dan dihitung atas semua baris, bukan halaman yang tampil. Reload tabel (`only: [prop]`) tidak menjalankan query ringkasan.
-10. **Form:** isian di kolom kiri, ringkasan di kolom kanan (biaya dan margin, nilai stok awal, atau riwayat stok), sehingga kolom kanan tidak pernah kosong. Aksi selalu di `FormActionBar`. Panel kanan yang menempel memakai `lg:top-18` supaya tidak tertutup header. Pilihan yang bisa bertambah memakai `SearchSelect`, bukan `<Select>`.
+10. **Form:** isian di kolom kiri, ringkasan di kolom kanan (biaya dan margin, nilai stok awal, atau riwayat stok), sehingga kolom kanan tidak pernah kosong. Aksi selalu di `FormActionBar`, sebagai anak terakhir `<form>` yang memakai `flex flex-1 flex-col` di dalam container halaman `flex-1`. Dengan begitu bar tetap di dasar layar walau isinya pendek atau layar di-zoom out. Panel kanan yang menempel memakai `lg:top-18` supaya tidak tertutup header. Pilihan yang bisa bertambah memakai `SearchSelect`, bukan `<Select>`.
 
 ## 7. Aturan konten
 
