@@ -1,20 +1,23 @@
 import { usePage } from '@inertiajs/react';
 
-import AppLogoIcon from '@/components/app-logo-icon';
-
+/**
+ * Text wordmark only. The product name is a placeholder and no logo has
+ * been designed yet (antislop R-23), so nothing pretends to be one.
+ */
 export default function AppLogo() {
     const { name } = usePage().props;
 
     return (
-        <>
-            <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                <AppLogoIcon className="size-5 fill-current text-white dark:text-black" />
-            </div>
-            <div className="ml-1 grid flex-1 text-left text-sm">
-                <span className="mb-0.5 truncate leading-tight font-semibold">
-                    {name}
-                </span>
-            </div>
-        </>
+        <span className="flex min-w-0 items-baseline gap-2">
+            <span className="text-lg leading-none font-extrabold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">
+                {name}
+            </span>
+            <span
+                aria-hidden
+                className="hidden text-lg leading-none font-extrabold text-foreground group-data-[collapsible=icon]:inline"
+            >
+                {String(name).charAt(0)}
+            </span>
+        </span>
     );
 }

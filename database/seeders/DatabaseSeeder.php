@@ -15,11 +15,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
+        // Temporary login for the frontend phase. Phone + OTP login replaces
+        // email in backend milestone M0 (PRD US-01).
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Bu Rina',
+            'email' => 'demo@laris.test',
         ]);
     }
 }

@@ -7,15 +7,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Design tokens. Every value and its contrast ratio is documented in
+ * docs/DESIGN.md. Components use these tokens only, never raw hex.
+ */
 @theme {
     --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
+    --radius-xl: calc(var(--radius) + 4px);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -27,7 +32,9 @@
     --color-popover-foreground: var(--popover-foreground);
 
     --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
     --color-primary-foreground: var(--primary-foreground);
+    --color-primary-text: var(--primary-text);
 
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
@@ -40,6 +47,17 @@
 
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-soft: var(--destructive-soft);
+
+    --color-success: var(--success);
+    --color-success-soft: var(--success-soft);
+
+    --color-warning: var(--warning);
+    --color-warning-soft: var(--warning-soft);
+
+    --color-brand: var(--brand);
+    --color-brand-strong: var(--brand-strong);
+    --color-brand-soft: var(--brand-soft);
 
     --color-border: var(--border);
     --color-input: var(--input);
@@ -59,77 +77,78 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
+
+    /* Inner shadows make buttons read as pressable; the card shadow only
+       separates white cards from the white page (DESIGN.md, "Bayangan"). */
+    --shadow-button:
+        inset 0 1px 0 rgb(255 255 255 / 0.45),
+        inset 0 -2px 0 rgb(154 52 18 / 0.2);
+    --shadow-button-pressed: inset 0 2px 3px rgb(154 52 18 / 0.25);
+    --shadow-button-soft:
+        inset 0 -1px 0 rgb(28 25 23 / 0.06), 0 1px 2px rgb(28 25 23 / 0.05);
+    --shadow-field: inset 0 1px 2px rgb(28 25 23 / 0.05);
+    --shadow-card:
+        0 1px 2px rgb(28 25 23 / 0.04), 0 2px 6px rgb(28 25 23 / 0.03);
 }
 
+/* Light only: see "Mode tampilan" in docs/DESIGN.md for the reason. */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
-}
+    --radius: 0.75rem;
 
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.145 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.145 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: oklch(0.637 0.237 25.331);
-    --border: oklch(0.269 0 0);
-    --input: oklch(0.269 0 0);
-    --ring: oklch(0.439 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.985 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(0.269 0 0);
-    --sidebar-ring: oklch(0.439 0 0);
+    /* White page (owner's choice) with warm stone neutrals. */
+    --background: #ffffff;
+    --foreground: #1c1917;
+    --card: #ffffff;
+    --card-foreground: #1c1917;
+    --popover: #ffffff;
+    --popover-foreground: #1c1917;
+    --secondary: #f5f3f0;
+    --secondary-foreground: #1c1917;
+    --muted: #f5f3f0;
+    --muted-foreground: #6b645e;
+    --border: #ece8e4;
+    /* Owner override: 1.46:1, below the 3:1 non-text guideline (DESIGN.md). */
+    --input: #dad5cf;
+
+    /* Tangerine darkened along its own hue just enough for white text (4.66:1).
+       Orange text on white or --accent uses --primary-text (5.18:1 / 4.88:1). */
+    --primary: #c25205;
+    --primary-hover: #a94704;
+    --primary-foreground: #ffffff;
+    --primary-text: #c2410c;
+    --accent: #fff7ed;
+    --accent-foreground: #9a3412;
+    --ring: #ea580c;
+
+    /* Brand fills: --brand-strong is the highlighted chart series (3.56:1 on white). */
+    --brand: #f97316;
+    --brand-strong: #ea580c;
+    --brand-soft: #ffedd5;
+
+    /* Status: only for real states, always paired with text or an icon. */
+    --success: #047857;
+    --success-soft: #ecfdf5;
+    --warning: #b45309;
+    --warning-soft: #fffbeb;
+    --destructive: #b91c1c;
+    --destructive-foreground: #b91c1c;
+    --destructive-soft: #fef2f2;
+
+    /* Charts: one highlighted series, neutral rest, teal for comparison. */
+    --chart-1: #ea580c;
+    --chart-2: #958d85;
+    --chart-3: #0d9488;
+    --chart-4: #fdba74;
+    --chart-5: #d6d3d1;
+
+    --sidebar: #ffffff;
+    --sidebar-foreground: #1c1917;
+    --sidebar-primary: #c25205;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #fff7ed;
+    --sidebar-accent-foreground: #9a3412;
+    --sidebar-border: #ece8e4;
+    --sidebar-ring: #ea580c;
 }
 
 @layer base {
@@ -137,7 +156,50 @@
         @apply border-border;
     }
 
+    html {
+        color-scheme: light;
+    }
+
     body {
         @apply bg-background text-foreground;
+        font-feature-settings: 'cv11';
+    }
+
+    /* Tailwind 4 resets buttons to cursor: default. */
+    button:not(:disabled),
+    [role='button']:not([aria-disabled='true']) {
+        cursor: pointer;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        ::before,
+        ::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+@layer utilities {
+    /* Money and quantities line up in columns. */
+    .num {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /*
+     * Receipt edge (Usulan, see DESIGN.md): a zig-zag bottom edge for
+     * surfaces that act as proof of a transaction.
+     */
+    .receipt-edge {
+        --tooth: 10px;
+        mask: conic-gradient(
+                from -45deg at bottom,
+                #0000,
+                #000 1deg 89deg,
+                #0000 90deg
+            )
+            50% / var(--tooth) 100%;
+        padding-bottom: calc(var(--tooth) / 2 + 0.75rem);
     }
 }

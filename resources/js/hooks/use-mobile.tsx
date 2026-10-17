@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
-const MOBILE_BREAKPOINT = 768;
+// Below lg the sidebar becomes a sheet and the bottom nav takes over
+// (DESIGN.md, "Breakpoint").
+const MOBILE_BREAKPOINT = 1024;
 
 const mql =
     typeof window === 'undefined'
