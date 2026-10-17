@@ -89,11 +89,12 @@ class Ledger
     /**
      * Open balance per contact: what a customer still owes (Piutang 1201) or
      * what is still owed to a supplier (Utang 2101). Read from the journal, so
-     * the sum over contacts always equals the account balance.
+     * the sum over contacts always equals the account balance. $excluding
+     * leaves one transaction out: the balance as if it were cancelled.
      *
      * @return array<int, int> contact id => rupiah
      */
-    public function contactBalances(Business $business, ?int $contactId = null): array
+    public function contactBalances(Business $business, ?int $contactId = null, ?int $excluding = null): array
     {
         // Debit and credit are unsigned, so each side is summed before subtracting (MySQL rejects a negative unsigned).
         return DB::table('journal_lines')
@@ -107,6 +108,7 @@ class Ledger
             ->whereIn('accounts.code', [Account::RECEIVABLE, Account::PAYABLE])
             ->whereNotNull('transactions.contact_id')
             ->when($contactId, fn ($query) => $query->where('transactions.contact_id', $contactId))
+            ->when($excluding, fn ($query) => $query->where('transactions.id', '<>', $excluding))
             ->groupBy('transactions.contact_id')
             ->selectRaw('transactions.contact_id, sum(case when accounts.code = ? then journal_lines.debit else journal_lines.credit end) as raised, sum(case when accounts.code = ? then journal_lines.credit else journal_lines.debit end) as settled', [Account::RECEIVABLE, Account::RECEIVABLE])
             ->get()

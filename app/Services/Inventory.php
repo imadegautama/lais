@@ -124,6 +124,33 @@ class Inventory
     }
 
     /**
+     * Undo one movement of a cancelled transaction: the same quantity back at
+     * the same value, so a purchase cancelled right away restores the old
+     * average exactly. Where units moved since make that impossible, the value
+     * follows the rules above and the caller books the gap to HPP.
+     * Same locking contract as stockIn().
+     */
+    public function reverse(Item $item, StockMovement $movement, int $transactionId): StockMovement
+    {
+        $qty = -(float) $movement->qty;
+
+        // A sale coming back is stock in at the value it left with. Units it sold
+        // past zero left at 0; a later purchase booked their cost to HPP, so they
+        // return at today's average and that HPP is undone.
+        if ($qty > 0) {
+            $before = (float) $movement->stock_after + $qty;
+            $pastZero = $qty - min($qty, max(0.0, $before));
+
+            return $this->stockIn($item, $qty, -$movement->value + (int) round($pastZero * $item->averageCost()), StockReason::Pembatalan, $transactionId);
+        }
+
+        $after = round((float) $item->stock + $qty, 3);
+        $value = $after <= 0 ? -$item->stock_value : -min($movement->value, $item->stock_value);
+
+        return $this->move($item, $qty, $value, StockReason::Pembatalan, null, $transactionId);
+    }
+
+    /**
      * Re-read stock under a row lock into the given instance, so concurrent
      * writers (web form, WhatsApp bot) cannot overwrite each other.
      */

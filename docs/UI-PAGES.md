@@ -274,9 +274,9 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 - **Bukti:** thumbnail foto yang bisa diperbesar.
 - **"Lihat jurnal"** (collapsible, tertutup secara default): tabel akun dengan debit/kredit dan total yang seimbang. Bagian ini untuk menunjukkan kualitas teknis ke juri tanpa membingungkan pengguna awam.
 - **Aksi:**
-    - **Batalkan**: dialog konfirmasi + alasan, lalu membuat transaksi pembalik.
-    - **Ubah**: membatalkan transaksi ini lalu membuka C3 dengan data yang sudah terisi.
-- Banner jika sudah dibatalkan, dengan tautan ke transaksi pembaliknya.
+    - **Batalkan**: dialog konfirmasi + alasan (opsional), lalu membuat jurnal dan mutasi stok pembalik. Tidak ada baris transaksi pembalik.
+    - **Ubah** (`/transaksi/{id}/ubah`): membuka C3 dengan data yang sudah terisi, tanpa tab jenis. Saat disimpan, transaksi lama dibatalkan dan yang baru dicatat dalam satu langkah. Kalau pemilik keluar dari form, tidak ada yang berubah.
+- Banner jika sudah dibatalkan. Kalau dibatalkan karena diubah, banner menautkan ke versi baru, dan versi baru menautkan ke versi lama. Jurnal pembaliknya tampil di "Lihat jurnal".
 
 ### C5. Daftar produk & stok `/produk`
 

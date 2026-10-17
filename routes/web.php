@@ -30,6 +30,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('transaksi/baru', [TransactionController::class, 'create'])->name('transactions.create');
     Route::post('transaksi', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('transaksi/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
+    Route::get('transaksi/{transaction}/ubah', [TransactionController::class, 'edit'])->name('transactions.edit');
+    Route::put('transaksi/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
+    Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
 });
 
 if (app()->isLocal()) {

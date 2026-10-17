@@ -217,12 +217,31 @@ export type TransactionsIndexProps = {
     hasTransactions: boolean;
 };
 
+export type RecordLine = { item_id: string; qty: string; price: number | null };
+
+/** The record form's data (C3), also sent filled in by "Ubah" (TransactionFormResource). */
+export type RecordFormData = {
+    type: TransactionType;
+    kind: TransactionKind | '';
+    method: PaymentMethod;
+    occurred_at: string;
+    lines: RecordLine[];
+    amount: number | null;
+    paid_amount: number | null;
+    /** A contact id, or a new name typed into the field. */
+    contact: string;
+    note: string;
+};
+
 export type TransactionCreateProps = {
     initialType: TransactionType;
     /** Server time (WIB) as a datetime-local value. */
     now: string;
     items: RecordItem[];
     contacts: ContactOption[];
+    /** Set when the form edits a record ("Ubah"). */
+    editing?: { id: number; description: string };
+    initial?: RecordFormData;
 };
 
 export type TransactionDetailProps = {
@@ -233,6 +252,10 @@ export type TransactionDetailProps = {
         cashFlow: Rupiah;
         voidedAt: string | null;
         voidReason: string | null;
+        /** The record "Ubah" saved in place of this one. */
+        replacedById: number | null;
+        /** The record this one replaced. */
+        replacesId: number | null;
     };
     lines: Array<{
         id: number;

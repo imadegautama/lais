@@ -8,7 +8,12 @@ import {
     stockOutCost,
     type StockLevel,
 } from '@/lib/stock';
-import type { ContactOption, RecordItem } from '@/types/domain';
+import type {
+    ContactOption,
+    RecordFormData,
+    RecordItem,
+    RecordLine,
+} from '@/types/domain';
 import {
     ContactType,
     PaymentMethod,
@@ -19,20 +24,8 @@ import {
 // The record form's rules, kept out of the page so they can be tested.
 // They mirror TransactionRequest and TransactionService on the server.
 
-export type RecordLine = { item_id: string; qty: string; price: number | null };
-
-export type RecordFormData = {
-    type: TransactionType;
-    kind: TransactionKind | '';
-    method: PaymentMethod;
-    occurred_at: string;
-    lines: RecordLine[];
-    amount: number | null;
-    paid_amount: number | null;
-    /** A contact id, or a new name typed into the field. */
-    contact: string;
-    note: string;
-};
+// The form's data shape lives with the page props, since "Ubah" sends it from the server.
+export type { RecordFormData, RecordLine };
 
 export type RecordFieldSetter = <K extends FormDataKeys<RecordFormData>>(
     key: K,

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ContactType;
 use App\Enums\StockReason;
+use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\Business;
 use App\Models\Contact;
@@ -15,6 +16,7 @@ use App\Services\Inventory;
 use App\Services\Ledger;
 use App\Services\TransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
@@ -114,10 +116,29 @@ class LedgerTest extends TestCase
         $stocked = [...$materials->all(), ...$goods->all()];
         $sellable = [...$goods->all(), $recipe];
 
+        // Cancel or edit an earlier record. One with payments against it is refused, and the refusal must leave it untouched.
+        $revise = function (bool $edit) use ($service, $business, $random, $pick) {
+            $posted = Transaction::query()->where('business_id', $business->id)->where('status', 'posted')->pluck('id')->all();
+
+            if ($posted === []) {
+                return;
+            }
+
+            $transaction = Transaction::query()->findOrFail($pick($posted));
+
+            try {
+                $edit
+                    ? $service->replace($transaction, ['type' => 'modal', 'kind' => 'setor', 'method' => $pick(['tunai', 'non_tunai']), 'amount' => $random->getInt(1, 300) * 1000])
+                    : $service->cancel($transaction);
+            } catch (ValidationException) {
+                $this->assertSame(TransactionStatus::Posted, $transaction->refresh()->status);
+            }
+        };
+
         for ($step = 0; $step < 150; $step++) {
             $method = fn (array $allowed) => $pick($allowed);
 
-            match ($random->getInt(0, 6)) {
+            match ($random->getInt(0, 8)) {
                 0, 1 => (function () use ($service, $business, $random, $pick, $sellable, $method) {
                     $lines = collect($random->shuffleArray($sellable))->take($random->getInt(1, 2))
                         ->map(fn (Item $item) => ['item_id' => $item->id, 'qty' => $random->getInt(1, 4), 'price' => $random->getInt(10, 200) * 100])->values()->all();
@@ -159,6 +180,8 @@ class LedgerTest extends TestCase
                 })(),
                 5 => $service->record($business, ['type' => 'modal', 'kind' => $pick(['setor', 'prive']), 'method' => $pick(['tunai', 'non_tunai']), 'amount' => $random->getInt(1, 300) * 1000]),
                 6 => $inventory->adjust($pick($stocked)->refresh(), $random->getInt(0, 300) / 10),
+                7 => $revise(false),
+                8 => $revise(true),
             };
 
             // Checked after every step: stock at or below zero carries no value, stock above zero never negative value.
@@ -185,5 +208,7 @@ class LedgerTest extends TestCase
         $this->assertSame($balance('1101') + $balance('1102'), (int) Transaction::query()->where('status', 'posted')->sum('cash_flow'));
 
         $this->assertGreaterThan(100, Transaction::query()->count());
+        $this->assertGreaterThan(5, Transaction::query()->where('status', 'void')->whereNull('replaced_by_id')->count());
+        $this->assertGreaterThan(5, Transaction::query()->whereNotNull('replaced_by_id')->count());
     }
 }

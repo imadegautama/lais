@@ -191,6 +191,93 @@ class TransactionControllerTest extends TestCase
         $this->actingAs(User::factory()->create())->get(route('transactions.show', $foreign))->assertNotFound();
     }
 
+    public function test_the_edit_form_starts_from_the_record_with_stock_and_balance_as_if_it_were_cancelled(): void
+    {
+        [$business, $water, $sale] = $this->creditSale();
+
+        $this->actingAs($business->user)->get(route('transactions.edit', $sale))->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('transactions/create')
+            ->where('initialType', 'penjualan')
+            ->where('editing', ['id' => $sale->id, 'description' => '3 Air Mineral'])
+            ->where('initial.method', 'kredit')
+            ->where('initial.paid_amount', 2000)
+            ->where('initial.contact', (string) $sale->contact_id)
+            ->where('initial.lines', [['item_id' => (string) $water->id, 'qty' => '3', 'price' => 4000]])
+            ->where('items.0.stock', 10)
+            ->where('items.0.stockValue', 25000)
+            ->where('contacts.0.balance', 0));
+    }
+
+    public function test_saving_an_edit_replaces_the_record_and_opens_the_new_one(): void
+    {
+        [$business, $water, $sale] = $this->creditSale();
+
+        $response = $this->actingAs($business->user)->put(route('transactions.update', $sale), [
+            'type' => 'penjualan', 'method' => 'kredit', 'paid_amount' => 2000, 'contact_id' => $sale->contact_id,
+            'lines' => [['item_id' => $water->id, 'qty' => 2, 'price' => 4000]],
+        ]);
+
+        $replacement = Transaction::query()->where('status', 'posted')->sole();
+        $response->assertRedirect(route('transactions.show', $replacement))->assertInertiaFlash('toast.message', 'Perubahan disimpan.');
+        $this->assertSame('8.000', $water->refresh()->stock);
+        $this->get(route('transactions.show', $sale))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transaction.voided', true)
+            ->where('transaction.replacedById', $replacement->id));
+        $this->get(route('transactions.show', $replacement))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transaction.replacesId', $sale->id));
+    }
+
+    public function test_cancelling_keeps_the_record_with_its_reason_and_both_journals(): void
+    {
+        [$business, $water, $sale] = $this->creditSale();
+        $this->actingAs($business->user);
+
+        $this->post(route('transactions.cancel', $sale), ['reason' => 'Tercatat dua kali'])
+            ->assertRedirect(route('transactions.show', $sale))
+            ->assertInertiaFlash('toast.message', 'Catatan dibatalkan.');
+
+        $this->assertSame('10.000', $water->refresh()->stock);
+        $this->get(route('transactions.show', $sale))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transaction.voided', true)
+            ->where('transaction.voidReason', 'Tercatat dua kali')
+            ->has('journal', 2)
+            ->has('movements', 2));
+
+        $this->post(route('transactions.cancel', $sale))->assertSessionHasErrors(['transaction' => 'Catatan ini sudah dibatalkan.']);
+        $this->get(route('transactions.edit', $sale))
+            ->assertRedirect(route('transactions.show', $sale))
+            ->assertInertiaFlash('toast.message', 'Catatan ini sudah dibatalkan.');
+    }
+
+    public function test_another_businesses_transaction_cannot_be_edited_or_cancelled(): void
+    {
+        $foreign = $this->record(Business::factory()->create(), ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 1000]);
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('transactions.edit', $foreign))->assertNotFound();
+        $this->put(route('transactions.update', $foreign), ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 5000])->assertNotFound();
+        $this->post(route('transactions.cancel', $foreign))->assertNotFound();
+        $this->assertSame([1, 0], [Transaction::query()->count(), Transaction::query()->where('status', 'void')->count()]);
+    }
+
+    /**
+     * Three of ten bottles sold on credit to Bu Sari, Rp2.000 paid on the spot.
+     *
+     * @return array{0: Business, 1: Item, 2: Transaction}
+     */
+    private function creditSale(): array
+    {
+        $business = Business::factory()->create();
+        $water = Item::factory()->for($business)->create(['name' => 'Air Mineral', 'price' => 4000]);
+        app(Inventory::class)->receive($water, 10, 2500, StockReason::StokAwal, '3101');
+        $sale = $this->record($business, [
+            'type' => 'penjualan', 'method' => 'kredit', 'paid_amount' => 2000, 'contact_name' => 'Bu Sari',
+            'lines' => [['item_id' => $water->id, 'qty' => 3, 'price' => 4000]],
+        ]);
+
+        return [$business, $water, $sale];
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */

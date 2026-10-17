@@ -23,6 +23,9 @@ class TransactionDetailResource extends TransactionResource
             'cashFlow' => $this->cash_flow,
             'voidedAt' => $this->voided_at?->toIso8601String(),
             'voidReason' => $this->void_reason,
+            // "Ubah" links: the record saved in place of this one, and the one this replaced (load replaces).
+            'replacedById' => $this->replaced_by_id,
+            'replacesId' => $this->whenLoaded('replaces', fn () => $this->replaces?->id),
         ];
     }
 }

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ContactType;
 use App\Enums\StockReason;
+use App\Enums\TransactionStatus;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\Transaction;
@@ -201,6 +202,155 @@ class TransactionServiceTest extends TestCase
             'lines' => [['item_id' => $water->id, 'qty' => 1, 'price' => 4000]],
         ]));
         $this->assertSame(0, Transaction::query()->count());
+    }
+
+    public function test_cancelling_a_recipe_sale_returns_each_ingredient_and_nets_the_journal_to_zero(): void
+    {
+        $business = Business::factory()->create();
+        $rice = $this->stocked($business, 'Beras', 10, 14000, material: true);
+        $egg = $this->stocked($business, 'Telur', 30, 2200, material: true);
+        $friedRice = Item::factory()->recipe()->for($business)->create(['name' => 'Nasi Goreng', 'price' => 15000]);
+        $friedRice->recipeLines()->createMany([['material_id' => $rice->id, 'qty' => 0.15], ['material_id' => $egg->id, 'qty' => 1]]);
+        $sale = $this->record($business, ['type' => 'penjualan', 'method' => 'non_tunai', 'occurred_at' => '2026-10-15 09:30', 'lines' => [['item_id' => $friedRice->id, 'qty' => 2, 'price' => 15000]]]);
+
+        $this->service()->cancel($sale, 'Salah input');
+
+        $this->assertSame(['10.000', 140000], [$rice->refresh()->stock, $rice->stock_value]);
+        $this->assertSame(['30.000', 66000], [$egg->refresh()->stock, $egg->stock_value]);
+        $this->assertSame([], array_filter($this->journal($sale)));
+        $this->assertSame(TransactionStatus::Void, $sale->refresh()->status);
+        $this->assertSame('Salah input', $sale->void_reason);
+        $this->assertNotNull($sale->voided_at);
+        // Mirrored on the sale's own date, so that day nets to zero.
+        $this->assertSame(['2026-10-15 09:30'], $sale->journalEntries()->get()->map(fn ($entry) => $entry->occurred_at->format('Y-m-d H:i'))->unique()->values()->all());
+        $this->assertSame(2, $sale->stockMovements()->where('reason', StockReason::Pembatalan)->count());
+    }
+
+    public function test_cancelling_a_purchase_restores_the_previous_average(): void
+    {
+        $business = Business::factory()->create();
+        $egg = $this->stocked($business, 'Telur', 30, 2200, material: true);
+        $purchase = $this->record($business, ['type' => 'pembelian', 'kind' => 'barang', 'method' => 'tunai', 'lines' => [['item_id' => $egg->id, 'qty' => 10, 'price' => 2560]]]);
+        $this->assertSame(2290.0, $egg->refresh()->averageCost());
+
+        $this->service()->cancel($purchase);
+
+        $this->assertSame(['30.000', 66000], [$egg->refresh()->stock, $egg->stock_value]);
+        $this->assertSame(2200.0, $egg->averageCost());
+        $this->assertSame([], array_filter($this->journal($purchase)));
+    }
+
+    public function test_cancelling_a_purchase_whose_units_were_sold_books_hpp_as_if_it_never_happened(): void
+    {
+        $business = Business::factory()->create();
+        $chips = $this->stocked($business, 'Kerupuk', 2, 2000, price: 5000);
+        $purchase = $this->record($business, ['type' => 'pembelian', 'kind' => 'barang', 'method' => 'tunai', 'lines' => [['item_id' => $chips->id, 'qty' => 10, 'price' => 2500]]]);
+        $this->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $chips->id, 'qty' => 11, 'price' => 5000]]]);
+
+        $this->service()->cancel($purchase);
+
+        $this->assertSame(['-9.000', 0], [$chips->refresh()->stock, $chips->stock_value]);
+        // Only the 2 opening units had a cost; the other 9 were sold past zero.
+        $this->assertSame(4000, app(Ledger::class)->balance($business, '5101'));
+        $this->assertSame(0, app(Ledger::class)->balance($business, '1301'));
+    }
+
+    public function test_cancelling_an_oversold_sale_undoes_the_hpp_the_next_purchase_caught_up(): void
+    {
+        $business = Business::factory()->create();
+        $chips = $this->stocked($business, 'Kerupuk', 1, 2000, price: 5000);
+        $sale = $this->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $chips->id, 'qty' => 3, 'price' => 5000]]]);
+        $this->record($business, ['type' => 'pembelian', 'kind' => 'barang', 'method' => 'tunai', 'lines' => [['item_id' => $chips->id, 'qty' => 10, 'price' => 2500]]]);
+
+        $this->service()->cancel($sale);
+
+        // 1 opening unit at Rp2.000 + 10 bought at Rp2.500, as if nothing was sold.
+        $this->assertSame(['11.000', 27000], [$chips->refresh()->stock, $chips->stock_value]);
+        $this->assertSame(0, app(Ledger::class)->balance($business, '5101'));
+        $this->assertSame(27000, app(Ledger::class)->balance($business, '1301'));
+    }
+
+    public function test_a_credit_sale_with_a_payment_against_it_cannot_be_cancelled_first(): void
+    {
+        $business = Business::factory()->create();
+        $water = $this->stocked($business, 'Air Mineral', 10, 2500, price: 15000);
+        $sale = $this->record($business, [
+            'type' => 'penjualan', 'method' => 'kredit', 'paid_amount' => 10000, 'contact_name' => 'Bu Sari',
+            'lines' => [['item_id' => $water->id, 'qty' => 2, 'price' => 15000]],
+        ]);
+        $payment = $this->record($business, ['type' => 'utang_piutang', 'kind' => 'terima_piutang', 'method' => 'tunai', 'contact_id' => $sale->contact_id, 'amount' => 15000]);
+
+        $this->assertValidationError('transaction', 'Bu Sari sudah membayar sebagian tagihan ini, jadi sisa tagihannya akan minus Rp15.000. Batalkan pembayarannya dulu.', fn () => $this->service()->cancel($sale));
+        $this->assertSame(TransactionStatus::Posted, $sale->refresh()->status);
+        $this->assertSame('8.000', $water->refresh()->stock);
+
+        $this->service()->cancel($payment);
+        $this->service()->cancel($sale);
+
+        $this->assertSame([$sale->contact_id => 0], app(Ledger::class)->contactBalances($business));
+        $this->assertSame('10.000', $water->refresh()->stock);
+    }
+
+    public function test_a_transaction_is_cancelled_only_once(): void
+    {
+        $business = Business::factory()->create();
+        $drawing = $this->record($business, ['type' => 'modal', 'kind' => 'prive', 'method' => 'tunai', 'amount' => 50000]);
+        $this->service()->cancel($drawing);
+
+        $this->assertValidationError('transaction', 'Catatan ini sudah dibatalkan.', fn () => $this->service()->cancel($drawing));
+        $this->assertSame(2, $drawing->journalEntries()->count());
+    }
+
+    public function test_a_sale_of_an_archived_item_cannot_be_cancelled(): void
+    {
+        $business = Business::factory()->create();
+        $water = $this->stocked($business, 'Air Mineral', 10, 2500, price: 4000);
+        $sale = $this->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $water->id, 'qty' => 1, 'price' => 4000]]]);
+        $water->delete();
+
+        $this->assertValidationError('transaction', 'Air Mineral sudah diarsipkan, jadi stoknya tidak bisa dikembalikan.', fn () => $this->service()->cancel($sale));
+    }
+
+    public function test_editing_records_the_new_version_and_links_it_to_the_old_one(): void
+    {
+        $business = Business::factory()->create();
+        $water = $this->stocked($business, 'Air Mineral', 10, 2500, price: 15000);
+        $credit = fn (int $price) => [
+            'type' => 'penjualan', 'method' => 'kredit', 'paid_amount' => 10000, 'contact_name' => 'Bu Sari',
+            'lines' => [['item_id' => $water->id, 'qty' => 2, 'price' => $price]],
+        ];
+        $sale = $this->record($business, $credit(15000));
+        $this->record($business, ['type' => 'utang_piutang', 'kind' => 'terima_piutang', 'method' => 'tunai', 'contact_id' => $sale->contact_id, 'amount' => 15000]);
+
+        // Rp20.000 − Rp10.000 paid on the spot leaves less than the Rp15.000 already paid later.
+        $this->assertValidationError('transaction', 'Bu Sari sudah membayar sebagian tagihan ini, jadi sisa tagihannya akan minus Rp5.000. Batalkan pembayarannya dulu.', fn () => $this->service()->replace($sale, $credit(10000)));
+        $this->assertSame(TransactionStatus::Posted, $sale->refresh()->status);
+        $this->assertSame(2, Transaction::query()->count());
+
+        $replacement = $this->service()->replace($sale, $credit(14000));
+
+        $this->assertSame([TransactionStatus::Void, $replacement->id], [$sale->refresh()->status, $sale->replaced_by_id]);
+        $this->assertTrue($replacement->replaces->is($sale));
+        $this->assertSame(28000, $replacement->total);
+        $this->assertSame(3000, app(Ledger::class)->contactBalances($business)[$sale->contact_id]);
+        $this->assertSame('8.000', $water->refresh()->stock);
+    }
+
+    public function test_editing_a_payment_may_use_the_balance_it_frees(): void
+    {
+        $business = Business::factory()->create();
+        $supplier = $this->record($business, ['type' => 'biaya', 'kind' => 'sewa', 'method' => 'kredit', 'contact_name' => 'Pak Kos', 'amount' => 50000])->contact_id;
+        $payment = $this->record($business, ['type' => 'utang_piutang', 'kind' => 'bayar_utang', 'method' => 'tunai', 'contact_id' => $supplier, 'amount' => 30000]);
+
+        $this->service()->replace($payment, ['type' => 'utang_piutang', 'kind' => 'bayar_utang', 'method' => 'tunai', 'contact_id' => $supplier, 'amount' => 50000]);
+
+        $this->assertSame([$supplier => 0], app(Ledger::class)->contactBalances($business));
+        $this->assertSame(-50000, app(Ledger::class)->balance($business, '1101'));
+    }
+
+    private function service(): TransactionService
+    {
+        return app(TransactionService::class);
     }
 
     /**

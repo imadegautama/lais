@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\StockReason;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionSource;
+use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\Business;
@@ -23,7 +24,8 @@ use LogicException;
 /**
  * Records the five transaction types of PRD M2. Every transaction posts one
  * balanced journal entry (PRD §4.4) and its stock movements in one DB
- * transaction. The web form and, later, the WhatsApp bot both come through here.
+ * transaction. The web form and, later, the WhatsApp bot both come through here,
+ * and so do cancelling and editing (cancel(), replace()).
  */
 class TransactionService
 {
@@ -105,6 +107,99 @@ class TransactionService
 
             return $transaction;
         });
+    }
+
+    /**
+     * "Batalkan" (PRD §4): the record stays, marked void, with a mirror journal
+     * and reversed stock movements. Nothing is ever deleted.
+     */
+    public function cancel(Transaction $transaction, ?string $reason = null): Transaction
+    {
+        return DB::transaction(function () use ($transaction, $reason) {
+            $this->void($transaction, $reason);
+            $this->assertNotOverpaid($transaction);
+
+            return $transaction;
+        });
+    }
+
+    /**
+     * "Ubah": cancel and record again in one step, so leaving the form or a
+     * validation error never leaves the old record cancelled on its own.
+     *
+     * @param  array<string, mixed>  $data  validated TransactionRequest data
+     */
+    public function replace(Transaction $transaction, array $data): Transaction
+    {
+        return DB::transaction(function () use ($transaction, $data) {
+            $this->void($transaction, null);
+            $replacement = $this->record($transaction->business, $data);
+            $transaction->forceFill(['replaced_by_id' => $replacement->id])->save();
+            // Checked after recording again: a corrected total can still cover what was paid.
+            $this->assertNotOverpaid($transaction);
+
+            return $replacement;
+        });
+    }
+
+    /**
+     * The journal is mirrored on the original date, so that period nets to
+     * zero like the transaction list, which leaves void records out.
+     */
+    private function void(Transaction $transaction, ?string $reason): void
+    {
+        if (Transaction::query()->whereKey($transaction->id)->lockForUpdate()->value('status') !== TransactionStatus::Posted) {
+            throw ValidationException::withMessages(['transaction' => 'Catatan ini sudah dibatalkan.']);
+        }
+
+        $movements = $transaction->stockMovements()->orderBy('stock_movements.id')->get();
+        $items = Item::query()->withTrashed()->whereKey($movements->pluck('item_id')->unique()->sort()->values())
+            ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $archived = $items->filter(fn (Item $item) => $item->trashed());
+
+        if ($archived->isNotEmpty()) {
+            throw ValidationException::withMessages(['transaction' => "{$archived->pluck('name')->join(', ', ' dan ')} sudah diarsipkan, jadi stoknya tidak bisa dikembalikan."]);
+        }
+
+        $amounts = [];
+
+        foreach ($transaction->journalEntries()->with('lines.account')->get() as $entry) {
+            foreach ($entry->lines as $line) {
+                $amounts = self::add($amounts, [$line->account->code => $line->credit - $line->debit]);
+            }
+        }
+
+        foreach ($movements as $movement) {
+            $reversed = $this->inventory->reverse($items[$movement->item_id], $movement, $transaction->id);
+            // Zero when the stock went back exactly; otherwise the gap is HPP, as in Inventory's rules.
+            $gap = $reversed->value + $movement->value;
+            $amounts = self::add($amounts, [Account::INVENTORY => $gap, Account::COGS => -$gap]);
+        }
+
+        $this->ledger->post($transaction->business, mb_strimwidth("Pembatalan: {$transaction->description}", 0, 255, '…'), Ledger::lines($amounts), $transaction, $transaction->occurred_at);
+
+        $transaction->forceFill(['status' => TransactionStatus::Void, 'voided_at' => now(), 'void_reason' => $reason])->save();
+    }
+
+    /**
+     * A credit record cannot go while payments against it remain: the contact
+     * would end up owed money back.
+     */
+    private function assertNotOverpaid(Transaction $transaction): void
+    {
+        if ($transaction->contact_id === null) {
+            return;
+        }
+
+        $balance = $this->ledger->contactBalances($transaction->business, $transaction->contact_id)[$transaction->contact_id] ?? 0;
+
+        if ($balance < 0) {
+            $contact = $transaction->contact;
+
+            throw ValidationException::withMessages(['transaction' => $contact->type === ContactType::Pelanggan
+                ? "{$contact->name} sudah membayar sebagian tagihan ini, jadi sisa tagihannya akan minus ".self::rupiah(-$balance).'. Batalkan pembayarannya dulu.'
+                : "Pembayaran ke {$contact->name} sudah tercatat, jadi sisa utangnya akan minus ".self::rupiah(-$balance).'. Batalkan pembayarannya dulu.']);
+        }
     }
 
     /**

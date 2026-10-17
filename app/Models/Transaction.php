@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
@@ -33,6 +34,7 @@ use Illuminate\Support\Carbon;
  * @property TransactionStatus $status
  * @property Carbon|null $voided_at
  * @property string|null $void_reason
+ * @property int|null $replaced_by_id
  */
 #[Fillable(['type', 'kind', 'method', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source'])]
 class Transaction extends Model
@@ -77,6 +79,26 @@ class Transaction extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
+    }
+
+    /**
+     * The record "Ubah" saved in place of this voided one.
+     *
+     * @return BelongsTo<Transaction, $this>
+     */
+    public function replacedBy(): BelongsTo
+    {
+        return $this->belongsTo(Transaction::class, 'replaced_by_id');
+    }
+
+    /**
+     * The voided record this one replaced.
+     *
+     * @return HasOne<Transaction, $this>
+     */
+    public function replaces(): HasOne
+    {
+        return $this->hasOne(Transaction::class, 'replaced_by_id');
     }
 
     /**

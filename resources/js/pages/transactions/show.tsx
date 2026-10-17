@@ -1,5 +1,5 @@
-import { Head } from '@inertiajs/react';
-import { Ban, PackageOpen, ReceiptText } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { Ban, History, PackageOpen, Pencil, ReceiptText } from 'lucide-react';
 import {
     CategoryBadge,
     methodLabel,
@@ -12,11 +12,13 @@ import { Money } from '@/components/app/money';
 import { PageHeader } from '@/components/app/page-header';
 import { SectionCard } from '@/components/app/section-card';
 import { StockMovementList } from '@/components/app/stock-movement-list';
+import { Button } from '@/components/ui/button';
+import { CancelDialog } from '@/features/transactions/cancel-dialog';
 import { JournalCard } from '@/features/transactions/journal-card';
 import { contactTypeFor } from '@/features/transactions/record';
 import { formatDate, formatQty, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { index } from '@/routes/transactions';
+import { edit, index, show } from '@/routes/transactions';
 import type { TransactionDetailProps } from '@/types/domain';
 import {
     contactTypeLabels,
@@ -49,7 +51,35 @@ export default function TransactionShow({
                         )
                     }
                     description={`${formatDate(transaction.occurredAt, 'long')}, ${formatDate(transaction.occurredAt, 'time')} WIB`}
+                    actions={
+                        !transaction.voided && (
+                            <>
+                                <Button variant="outline" asChild>
+                                    <Link href={edit(transaction.id)}>
+                                        <Pencil aria-hidden />
+                                        Ubah
+                                    </Link>
+                                </Button>
+                                <CancelDialog id={transaction.id} />
+                            </>
+                        )
+                    }
                 />
+
+                {transaction.replacesId && (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <History className="size-4 shrink-0" aria-hidden />
+                        <span>
+                            Catatan ini mengganti versi sebelumnya.{' '}
+                            <Link
+                                href={show(transaction.replacesId)}
+                                className="font-medium text-foreground underline underline-offset-4"
+                            >
+                                Lihat versi lama
+                            </Link>
+                        </span>
+                    </p>
+                )}
 
                 {transaction.voided && (
                     <div
@@ -62,7 +92,9 @@ export default function TransactionShow({
                         />
                         <p>
                             <span className="font-semibold text-destructive">
-                                Dibatalkan
+                                {transaction.replacedById
+                                    ? 'Diubah'
+                                    : 'Dibatalkan'}
                                 {transaction.voidedAt &&
                                     ` ${formatDate(transaction.voidedAt, 'datetime')}`}
                                 .
@@ -70,6 +102,17 @@ export default function TransactionShow({
                             {transaction.voidReason &&
                                 `Alasan: ${transaction.voidReason}. `}
                             Stok dan pembukuannya sudah dikembalikan.
+                            {transaction.replacedById && (
+                                <>
+                                    {' '}
+                                    <Link
+                                        href={show(transaction.replacedById)}
+                                        className="font-medium underline underline-offset-4"
+                                    >
+                                        Lihat versi baru
+                                    </Link>
+                                </>
+                            )}
                         </p>
                     </div>
                 )}

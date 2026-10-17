@@ -1,4 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import AlertError from '@/components/alert-error';
+import { CategoryBadge } from '@/components/app/badges';
 import { ChoiceGroup } from '@/components/app/choice-group';
 import { Field } from '@/components/app/field';
 import { FormActionBar } from '@/components/app/form-action-bar';
@@ -22,7 +24,7 @@ import {
 import { TypeTabs } from '@/features/transactions/type-tabs';
 import { recordCopy } from '@/features/transactions/vocabulary';
 import { fieldSetter, focusFirstError, formErrors } from '@/lib/form';
-import { index, store } from '@/routes/transactions';
+import { index, show, store, update } from '@/routes/transactions';
 import type { TransactionCreateProps } from '@/types/domain';
 import {
     PaymentMethod,
@@ -38,18 +40,22 @@ export default function TransactionCreate({
     now,
     items,
     contacts,
+    editing,
+    initial,
 }: TransactionCreateProps) {
-    const form = useForm<RecordFormData>({
-        type: initialType,
-        kind: DEFAULT_KIND[initialType],
-        method: PaymentMethod.Tunai,
-        occurred_at: now,
-        lines: [emptyLine()],
-        amount: null,
-        paid_amount: null,
-        contact: '',
-        note: '',
-    });
+    const form = useForm<RecordFormData>(
+        initial ?? {
+            type: initialType,
+            kind: DEFAULT_KIND[initialType],
+            method: PaymentMethod.Tunai,
+            occurred_at: now,
+            lines: [emptyLine()],
+            amount: null,
+            paid_amount: null,
+            contact: '',
+            note: '',
+        },
+    );
     const { data, processing } = form;
     const errors = formErrors(form);
     const setField = fieldSetter(form);
@@ -66,7 +72,7 @@ export default function TransactionCreate({
         (again: boolean) => (event?: { preventDefault: () => void }) => {
             event?.preventDefault();
             form.transform((values) => toPayload(values, again, contactIds));
-            form.submit(store(), {
+            form.submit(editing ? update(editing.id) : store(), {
                 preserveScroll: true,
                 // Keep what was typed on errors; start fresh after "Simpan & catat lagi".
                 preserveState: 'errors',
@@ -77,15 +83,29 @@ export default function TransactionCreate({
     return (
         <>
             <Head
-                title={`Catat ${transactionTypeLabels[type].toLowerCase()}`}
+                title={
+                    editing
+                        ? 'Ubah catatan'
+                        : `Catat ${transactionTypeLabels[type].toLowerCase()}`
+                }
             />
             <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
-                <PageHeader
-                    title="Catat transaksi"
-                    description="Stok, kas, dan laba langsung dihitung saat disimpan."
-                />
-
-                <TypeTabs current={type} />
+                {editing ? (
+                    // The type stays: a record of the wrong type is cancelled and recorded anew.
+                    <PageHeader
+                        title="Ubah catatan"
+                        meta={<CategoryBadge type={type} />}
+                        description="Saat disimpan, catatan lama dibatalkan dan diganti yang baru. Riwayatnya tetap bisa dilihat."
+                    />
+                ) : (
+                    <>
+                        <PageHeader
+                            title="Catat transaksi"
+                            description="Stok, kas, dan laba langsung dihitung saat disimpan."
+                        />
+                        <TypeTabs current={type} />
+                    </>
+                )}
 
                 <form
                     onSubmit={submit(false)}
@@ -224,26 +244,46 @@ export default function TransactionCreate({
                         </div>
                     </div>
 
+                    {/* Refusals that belong to no field, e.g. payments already made against the old record. */}
+                    {errors.transaction && (
+                        <AlertError
+                            title="Perubahan belum disimpan"
+                            errors={[errors.transaction]}
+                        />
+                    )}
+
                     <FormActionBar>
                         <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan…' : recordCopy[type].save}
+                            {processing
+                                ? 'Menyimpan…'
+                                : editing
+                                  ? 'Simpan perubahan'
+                                  : recordCopy[type].save}
                         </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={processing}
-                            onClick={submit(true)}
-                        >
-                            Simpan & catat lagi
-                        </Button>
+                        {!editing && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={processing}
+                                onClick={submit(true)}
+                            >
+                                Simpan & catat lagi
+                            </Button>
+                        )}
                         {/* Phones leave with the back gesture or the bottom nav; the bar stays one row. */}
                         <Button
                             type="button"
                             variant="ghost"
                             asChild
-                            className="hidden sm:inline-flex lg:ml-auto"
+                            className={
+                                editing
+                                    ? 'lg:ml-auto'
+                                    : 'hidden sm:inline-flex lg:ml-auto'
+                            }
                         >
-                            <Link href={index()}>Batal</Link>
+                            <Link href={editing ? show(editing.id) : index()}>
+                                Batal
+                            </Link>
                         </Button>
                     </FormActionBar>
                 </form>
