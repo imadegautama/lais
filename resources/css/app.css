@@ -101,6 +101,10 @@
         inset 0 -2px 4px -2px rgb(154 52 18 / 0.08);
     /* FormActionBar: lifts the bar off the content scrolling under it. */
     --shadow-bar: 0 -6px 16px -10px rgb(154 52 18 / 0.18);
+    /* Toasts float over the page: the card highlight plus a deeper warm lift. */
+    --shadow-toast:
+        inset 0 1px 0 rgb(255 255 255 / 0.9), 0 2px 6px rgb(154 52 18 / 0.06),
+        0 16px 32px -12px rgb(154 52 18 / 0.22);
 }
 
 /* Light only: see "Mode tampilan" in docs/DESIGN.md for the reason. */
@@ -126,6 +130,9 @@
     /* Healthy summary tiles: cream with a warm, decorative border. */
     --surface-warm: #fffaf2;
     --border-warm: #f2e4d3;
+
+    /* Toasts sit above the bottom nav (< 1024px), then near the corner. */
+    --toast-offset-bottom: calc(4.25rem + 1rem + env(safe-area-inset-bottom));
     /* Owner override: 1.46:1, below the 3:1 non-text guideline (DESIGN.md). */
     --input: #dad5cf;
 
@@ -197,6 +204,12 @@
             animation-duration: 0.01ms !important;
             transition-duration: 0.01ms !important;
         }
+    }
+}
+
+@media (width >= 64rem) {
+    :root {
+        --toast-offset-bottom: 1.5rem;
     }
 }
 

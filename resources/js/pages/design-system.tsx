@@ -1046,7 +1046,7 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                 <Section
                     id="umpan-balik"
                     title="Umpan balik"
-                    intro="Toast untuk hasil aksi yang singkat. Dialog atau drawer untuk pilihan; drawer dipakai di HP supaya terjangkau jempol. Semua tertutup dengan Esc."
+                    intro="Toast untuk hasil aksi yang singkat: kartu putih dengan chip ikon sesuai status (warna badge yang sama), muncul di atas bottom nav di HP. Dialog atau drawer untuk pilihan; drawer dipakai di HP supaya terjangkau jempol. Semua tertutup dengan Esc."
                 >
                     <Panel className="flex flex-wrap gap-2">
                         <Button
@@ -1057,7 +1057,37 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 })
                             }
                         >
-                            Tampilkan toast
+                            Toast berhasil
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() =>
+                                toast.error('Kecap manis gagal diarsipkan', {
+                                    description:
+                                        'Stoknya masih ada. Koreksi stoknya ke 0 dulu.',
+                                })
+                            }
+                        >
+                            Toast gagal
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() =>
+                                toast.warning('Stok telur menipis', {
+                                    description:
+                                        'Sisa 8 butir, batas 30 butir.',
+                                })
+                            }
+                        >
+                            Toast peringatan
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() =>
+                                toast.info('Stok Gula pasir sudah sesuai.')
+                            }
+                        >
+                            Toast info
                         </Button>
                         <QuickRecordSheet
                             trigger={
