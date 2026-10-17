@@ -57,6 +57,7 @@ class ItemController extends Controller
             'item' => null,
             'initialKind' => $kind,
             'materials' => $this->materials($request->user()->currentBusiness()),
+            'units' => $this->units($request->user()->currentBusiness()),
             'movements' => [],
         ]);
     }
@@ -100,6 +101,7 @@ class ItemController extends Controller
             ],
             'initialKind' => $item->kind,
             'materials' => $this->materials($item->business, except: $item),
+            'units' => $this->units($item->business),
             'movements' => $item->stockMovements()->latest('occurred_at')->latest('id')->limit(20)->get()
                 ->map(fn (StockMovement $movement) => [
                     'id' => $movement->id,
@@ -229,7 +231,8 @@ class ItemController extends Controller
             'price' => $kind === 'bahan' ? null : $data['price'],
             'min_stock' => $kind === 'komposisi' ? null : ($data['min_stock'] ?? null),
             'show_in_store' => $kind !== 'bahan' && ($data['show_in_store'] ?? true),
-            'available' => $data['available'] ?? true,
+            // PRD US-08: stocked items are sold out by their stock; only recipe products have a switch.
+            'available' => $kind !== 'komposisi' || ($data['available'] ?? true),
         ];
     }
 
@@ -261,6 +264,16 @@ class ItemController extends Controller
     }
 
     /**
+     * Units this business already uses, offered next to the common ones.
+     *
+     * @return list<string>
+     */
+    private function units(Business $business): array
+    {
+        return array_values($business->items()->distinct()->orderBy('unit')->pluck('unit')->all());
+    }
+
+    /**
      * Items that can be used as recipe ingredients.
      *
      * @return list<array<string, mixed>>
@@ -274,6 +287,7 @@ class ItemController extends Controller
             ->get()
             ->map(fn (Item $item) => [
                 'id' => $item->id,
+                'kind' => $item->kind,
                 'name' => $item->name,
                 'unit' => $item->unit,
                 'averageCost' => round($item->averageCost(), 4),

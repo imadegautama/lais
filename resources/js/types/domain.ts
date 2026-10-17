@@ -136,6 +136,7 @@ export type RecipeLineInput = { material_id: number; qty: number };
 /** An item that can go into a recipe. */
 export type RecipeMaterial = {
     id: number;
+    kind: Extract<ItemKind, 'produk' | 'bahan'>;
     name: string;
     unit: string;
     averageCost: number;
@@ -170,5 +171,7 @@ export type ItemFormProps = {
     item: (ItemRow & { recipe: RecipeLineInput[] }) | null;
     initialKind: ItemKind;
     materials: RecipeMaterial[];
+    /** Units this business already uses. */
+    units: string[];
     movements: StockMovementRow[];
 };

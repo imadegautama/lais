@@ -7,9 +7,14 @@ import {
     MarginLabel,
     THIN_MARGIN_PERCENT,
 } from '@/components/app/badges';
+import { FormActionBar } from '@/components/app/form-action-bar';
 import { MetricInline } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
 import { MoneyInput } from '@/components/app/money-input';
+import {
+    SearchSelect,
+    type SearchSelectOption,
+} from '@/components/app/search-select';
 import { PageHeader } from '@/components/app/page-header';
 import { SectionCard } from '@/components/app/section-card';
 import { EmptyState } from '@/components/app/states';
@@ -28,15 +33,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { formatDate, formatQty } from '@/lib/format';
+import { formatDate, formatQty, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { create, destroy, index, store, update } from '@/routes/items';
 import type {
@@ -46,18 +44,31 @@ import type {
     StockMovementReason,
 } from '@/types/domain';
 
-const UNITS = [
-    'pcs',
-    'porsi',
-    'gelas',
-    'botol',
-    'bungkus',
-    'butir',
-    'kg',
-    'gram',
-    'liter',
-    'ml',
+// Common units, grouped the way owners think about them. Units are free
+// text in the database; one item has one unit until conversions land (v1.1).
+const UNIT_GROUPS: Array<[string, string[]]> = [
+    [
+        'Jumlah',
+        ['pcs', 'porsi', 'gelas', 'botol', 'bungkus', 'butir', 'kantong'],
+    ],
+    ['Berat', ['kg', 'gram']],
+    ['Volume', ['liter', 'ml']],
 ];
+
+function unitOptions(used: string[]): SearchSelectOption[] {
+    const common = UNIT_GROUPS.flatMap(([group, units]) =>
+        units.map((unit) => ({ value: unit, label: unit, group })),
+    );
+    const own = used
+        .filter((unit) => !common.some((option) => option.value === unit))
+        .map((unit) => ({
+            value: unit,
+            label: unit,
+            group: 'Dipakai di usahamu',
+        }));
+
+    return [...own, ...common];
+}
 
 const movementReasons: Record<StockMovementReason, string> = {
     stok_awal: 'Stok awal',
@@ -89,6 +100,7 @@ export default function ItemForm({
     item,
     initialKind,
     materials,
+    units,
     movements,
 }: ItemFormProps) {
     const editing = item !== null;
@@ -298,25 +310,23 @@ export default function ItemForm({
                                     label="Satuan"
                                     htmlFor="item-unit"
                                     error={errors.unit}
-                                    hint="Pilih atau ketik sendiri."
+                                    hint="Tidak ada di daftar? Ketik saja, misalnya ikat."
                                 >
-                                    <Input
+                                    <SearchSelect
                                         id="item-unit"
-                                        list="item-unit-options"
                                         value={data.unit}
-                                        onChange={(e) =>
-                                            setData('unit', e.target.value)
+                                        onChange={(unit) =>
+                                            setData('unit', unit.toLowerCase())
                                         }
-                                        aria-invalid={
-                                            Boolean(errors.unit) || undefined
+                                        options={unitOptions(units)}
+                                        placeholder="Pilih satuan"
+                                        searchPlaceholder="Cari atau ketik satuan"
+                                        emptyText="Ketik satuan yang kamu pakai."
+                                        creatable={(unit) =>
+                                            `Pakai satuan "${unit.toLowerCase()}"`
                                         }
-                                        autoComplete="off"
+                                        invalid={Boolean(errors.unit)}
                                     />
-                                    <datalist id="item-unit-options">
-                                        {UNITS.map((unit) => (
-                                            <option key={unit} value={unit} />
-                                        ))}
-                                    </datalist>
                                 </Field>
 
                                 {stocked && (
@@ -366,21 +376,24 @@ export default function ItemForm({
                                     <SwitchRow
                                         id="item-show-in-store"
                                         label="Tampil di halaman toko"
-                                        hint="Pembeli bisa memesan dari tautan toko."
+                                        hint="Halaman toko untuk pelanggan dibuka di tahap berikutnya. Pilihan ini sudah tersimpan."
                                         checked={data.show_in_store}
                                         onChange={(value) =>
                                             setData('show_in_store', value)
                                         }
                                     />
-                                    <SwitchRow
-                                        id="item-available"
-                                        label="Tersedia untuk dijual"
-                                        hint="Matikan kalau sedang habis atau tutup."
-                                        checked={data.available}
-                                        onChange={(value) =>
-                                            setData('available', value)
-                                        }
-                                    />
+                                    {/* Produk biasa is sold out by its stock (PRD US-08), so only recipes get this switch. */}
+                                    {kind === 'komposisi' && (
+                                        <SwitchRow
+                                            id="item-available"
+                                            label="Tersedia untuk dipesan"
+                                            hint="Matikan kalau bahannya habis atau warung tutup."
+                                            checked={data.available}
+                                            onChange={(value) =>
+                                                setData('available', value)
+                                            }
+                                        />
+                                    )}
                                 </div>
                             )}
                         </SectionCard>
@@ -447,6 +460,14 @@ export default function ItemForm({
                                 kind={kind}
                                 unitCost={unitCost}
                                 price={data.price}
+                                unit={data.unit}
+                            />
+                        )}
+
+                        {!editing && kind === 'bahan' && (
+                            <OpeningStockPanel
+                                qty={toNumber(data.opening_stock)}
+                                unitCost={data.opening_cost}
                                 unit={data.unit}
                             />
                         )}
@@ -522,23 +543,23 @@ export default function ItemForm({
                                 )}
                             </SectionCard>
                         )}
-
-                        <div className="flex flex-wrap items-center gap-2 lg:sticky lg:top-4">
-                            <Button type="submit" disabled={processing}>
-                                {processing
-                                    ? 'Menyimpan…'
-                                    : editing
-                                      ? 'Simpan perubahan'
-                                      : 'Simpan produk'}
-                            </Button>
-                            <Button type="button" variant="outline" asChild>
-                                <Link href={index()}>Batal</Link>
-                            </Button>
-                            {editing && (
-                                <ArchiveButton id={item.id} name={item.name} />
-                            )}
-                        </div>
                     </div>
+
+                    <FormActionBar className="lg:col-span-12">
+                        <Button type="submit" disabled={processing}>
+                            {processing
+                                ? 'Menyimpan…'
+                                : editing
+                                  ? 'Simpan perubahan'
+                                  : 'Simpan produk'}
+                        </Button>
+                        <Button type="button" variant="outline" asChild>
+                            <Link href={index()}>Batal</Link>
+                        </Button>
+                        {editing && (
+                            <ArchiveButton id={item.id} name={item.name} />
+                        )}
+                    </FormActionBar>
                 </form>
             </div>
         </>
@@ -724,47 +745,41 @@ function RecipeBuilder({
                                             >
                                                 Bahan
                                             </Label>
-                                            <Select
+                                            <SearchSelect
+                                                id={`recipe-${index}-material`}
                                                 value={line.material_id}
-                                                onValueChange={(value) =>
+                                                onChange={(value) =>
                                                     setLine(index, {
                                                         material_id: value,
                                                     })
                                                 }
-                                            >
-                                                <SelectTrigger
-                                                    id={`recipe-${index}-material`}
-                                                    className="w-full"
-                                                    aria-invalid={
-                                                        Boolean(
-                                                            errors[
-                                                                `recipe.${index}.material_id`
-                                                            ],
-                                                        ) || undefined
-                                                    }
-                                                >
-                                                    <SelectValue placeholder="Pilih bahan" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {materials.map((m) => (
-                                                        <SelectItem
-                                                            key={m.id}
-                                                            value={String(m.id)}
-                                                            disabled={lines.some(
-                                                                (other, i) =>
-                                                                    i !==
-                                                                        index &&
-                                                                    other.material_id ===
-                                                                        String(
-                                                                            m.id,
-                                                                        ),
-                                                            )}
-                                                        >
-                                                            {m.name} ({m.unit})
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                                options={materials.map((m) => ({
+                                                    value: String(m.id),
+                                                    label: m.name,
+                                                    group:
+                                                        m.kind === 'bahan'
+                                                            ? 'Bahan baku'
+                                                            : 'Produk biasa',
+                                                    description:
+                                                        m.averageCost > 0
+                                                            ? `${formatRupiah(m.averageCost)}/${m.unit}`
+                                                            : `belum ada biaya/${m.unit}`,
+                                                    disabled: lines.some(
+                                                        (other, i) =>
+                                                            i !== index &&
+                                                            other.material_id ===
+                                                                String(m.id),
+                                                    ),
+                                                }))}
+                                                placeholder="Pilih bahan"
+                                                searchPlaceholder="Cari bahan"
+                                                emptyText="Bahan tidak ditemukan. Tambahkan dulu di Produk & stok."
+                                                invalid={Boolean(
+                                                    errors[
+                                                        `recipe.${index}.material_id`
+                                                    ],
+                                                )}
+                                            />
                                         </div>
                                         <div className="flex flex-col gap-1.5">
                                             <Label
@@ -894,7 +909,7 @@ function CostPanel({
                     ? `Dihitung langsung dari resep, per ${unit || 'porsi'}.`
                     : `Dari harga beli per ${unit || 'satuan'}.`
             }
-            className="lg:sticky lg:top-4"
+            className="lg:sticky lg:top-18"
         >
             <div className="flex flex-col divide-y" aria-live="polite">
                 <MetricInline
@@ -948,6 +963,46 @@ function CostPanel({
                     atau cek lagi takaran resepnya.
                 </p>
             )}
+        </SectionCard>
+    );
+}
+
+/** Bahan baku has no price, so the side shows what the opening stock adds to the books. */
+function OpeningStockPanel({
+    qty,
+    unitCost,
+    unit,
+}: {
+    qty: number;
+    unitCost: number | null;
+    unit: string;
+}) {
+    const value =
+        Number.isFinite(qty) && qty > 0 && unitCost !== null
+            ? Math.round(qty * unitCost)
+            : null;
+
+    return (
+        <SectionCard
+            title="Nilai stok awal"
+            tone="focus"
+            description={`Jumlah × harga beli per ${unit || 'satuan'}.`}
+            className="lg:sticky lg:top-18"
+        >
+            <div aria-live="polite" className="flex flex-col gap-2">
+                {value === null ? (
+                    <p className="text-sm text-muted-foreground">
+                        Belum diisi. Stok bisa dicatat nanti saat belanja.
+                    </p>
+                ) : (
+                    <>
+                        <Money value={value} size="xl" />
+                        <p className="text-sm text-muted-foreground">
+                            Dicatat sebagai modal awal di pembukuan.
+                        </p>
+                    </>
+                )}
+            </div>
         </SectionCard>
     );
 }

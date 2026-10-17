@@ -11,7 +11,7 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 ## Sebelum mengubah UI
 
 1. Baca `docs/DESIGN.md` dan lihat `/design-system`.
-2. Pakai komponen yang sudah ada sebelum membuat yang baru: `resources/js/components/app/*` (PageHeader, SectionCard, MetricFocus/MetricInline, DeltaBadge, Money, badges, AppDataTable (mode client atau server), TransactionTable, FilterBar/ChipFilter/SearchFilter, `useTableQuery` + `App\Support\TableQuery` untuk tabel server, EmptyState/ErrorState/LoadingBlock, PeriodPicker, MoneyInput, QtyStepper, ActionButton, DemoDataBadge, QuickRecordSheet) dan `resources/js/components/ui/*` (shadcn).
+2. Pakai komponen yang sudah ada sebelum membuat yang baru: `resources/js/components/app/*` (PageHeader, SectionCard, MetricFocus/MetricInline, DeltaBadge, Money, badges, AppDataTable (mode client atau server), TransactionTable, FilterBar/ChipFilter/SearchFilter, `useTableQuery` + `App\Support\TableQuery` untuk tabel server, EmptyState/ErrorState/LoadingBlock, PeriodPicker, MoneyInput, QtyStepper, SearchSelect, FormActionBar, ActionButton, DemoDataBadge, QuickRecordSheet) dan `resources/js/components/ui/*` (shadcn).
 3. Muat skill UI: antislop (mode DURING + laporan Delivery Gate), frontend-design, ui-ux-pro-max. Mode ponytail aktif: perubahan terkecil yang lengkap.
 
 ## Aturan wajib

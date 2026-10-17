@@ -99,6 +99,8 @@
     --shadow-tile:
         inset 0 1px 0 rgb(255 255 255 / 0.95),
         inset 0 -2px 4px -2px rgb(154 52 18 / 0.08);
+    /* FormActionBar: lifts the bar off the content scrolling under it. */
+    --shadow-bar: 0 -6px 16px -10px rgb(154 52 18 / 0.18);
 }
 
 /* Light only: see "Mode tampilan" in docs/DESIGN.md for the reason. */

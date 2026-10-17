@@ -21,6 +21,7 @@ import {
     transactionTypes,
 } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
+import { FormActionBar } from '@/components/app/form-action-bar';
 import {
     ChipFilter,
     FilterBar,
@@ -42,6 +43,7 @@ import { QuickRecordSheet } from '@/components/app/quick-record-sheet';
 import { ReceiptCard } from '@/components/app/receipt-card';
 import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
+import { SearchSelect } from '@/components/app/search-select';
 import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
 import { TransactionTable } from '@/components/app/transaction-table';
 import { Button } from '@/components/ui/button';
@@ -296,6 +298,8 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
     const [period, setPeriod] = useState<PeriodKey>('hari_ini');
     const [delivery, setDelivery] = useState(false);
     const [types, setTypes] = useState<string[]>([]);
+    const [unit, setUnit] = useState('porsi');
+    const [material, setMaterial] = useState('');
     const [query, setQuery] = useState('');
     const [tableState, setTableState] = useState<
         'normal' | 'kosong' | 'memuat' | 'memuat ulang' | 'gagal'
@@ -566,7 +570,82 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 placeholder="Misalnya: pedas level 2"
                             />
                         </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="ds-unit">
+                                Satuan (SearchSelect, bisa ketik sendiri)
+                            </Label>
+                            <SearchSelect
+                                id="ds-unit"
+                                value={unit}
+                                onChange={(next) => setUnit(next.toLowerCase())}
+                                options={[
+                                    ['pcs', 'Jumlah'],
+                                    ['porsi', 'Jumlah'],
+                                    ['kg', 'Berat'],
+                                    ['liter', 'Volume'],
+                                ].map(([value, group]) => ({
+                                    value,
+                                    label: value,
+                                    group,
+                                }))}
+                                placeholder="Pilih satuan"
+                                searchPlaceholder="Cari atau ketik satuan"
+                                emptyText="Ketik satuan yang kamu pakai."
+                                creatable={(text) =>
+                                    `Pakai satuan "${text.toLowerCase()}"`
+                                }
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="ds-material">
+                                Bahan (SearchSelect berkelompok)
+                            </Label>
+                            <SearchSelect
+                                id="ds-material"
+                                value={material}
+                                onChange={setMaterial}
+                                options={[
+                                    {
+                                        value: 'beras',
+                                        label: 'Beras',
+                                        group: 'Bahan baku',
+                                        description: 'Rp14.000/kg',
+                                    },
+                                    {
+                                        value: 'telur',
+                                        label: 'Telur',
+                                        group: 'Bahan baku',
+                                        description: 'Rp2.200/butir',
+                                    },
+                                    {
+                                        value: 'kerupuk',
+                                        label: 'Kerupuk',
+                                        group: 'Produk biasa',
+                                        description: 'Rp1.000/bungkus',
+                                    },
+                                ]}
+                                placeholder="Pilih bahan"
+                                searchPlaceholder="Cari bahan"
+                                emptyText="Bahan tidak ditemukan."
+                            />
+                        </div>
                     </Panel>
+                    <p className="mt-4 mb-2 text-sm text-muted-foreground">
+                        FormActionBar: di halaman form bar ini menempel di bawah
+                        layar, di atas bottom nav HP. Di sini tampil statis.
+                    </p>
+                    <div className="overflow-hidden rounded-xl border">
+                        <FormActionBar className="static m-0 md:m-0">
+                            <Button
+                                onClick={() =>
+                                    toast.success('Contoh: produk tersimpan')
+                                }
+                            >
+                                Simpan produk
+                            </Button>
+                            <Button variant="outline">Batal</Button>
+                        </FormActionBar>
+                    </div>
                 </Section>
 
                 <Section

@@ -203,6 +203,34 @@ class ItemControllerTest extends TestCase
         $this->assertSame('0.000', $product->stock);
     }
 
+    public function test_the_unit_is_stored_trimmed_and_in_lower_case(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('items.store'), ['kind' => 'bahan', 'name' => 'Beras', 'unit' => '  Kg '])
+            ->assertRedirect(route('items.index'));
+
+        $this->assertSame('kg', Item::query()->sole()->unit);
+    }
+
+    public function test_only_recipe_products_can_be_switched_off_as_unavailable(): void
+    {
+        $business = Business::factory()->create();
+        $beras = Item::factory()->material()->for($business)->create();
+        $this->actingAs($business->user);
+
+        $this->post(route('items.store'), ['kind' => 'produk', 'name' => 'Kerupuk', 'unit' => 'bungkus', 'price' => 2000, 'available' => false]);
+        $this->post(route('items.store'), [
+            'kind' => 'komposisi', 'name' => 'Nasi Goreng', 'unit' => 'porsi', 'price' => 15000, 'available' => false,
+            'recipe' => [['material_id' => $beras->id, 'qty' => 0.15]],
+        ]);
+
+        // A stocked product is sold out by its stock, so the switch does not apply to it.
+        $this->assertTrue(Item::query()->where('name', 'Kerupuk')->sole()->available);
+        $this->assertFalse(Item::query()->where('name', 'Nasi Goreng')->sole()->available);
+    }
+
     public function test_a_recipe_product_needs_at_least_one_ingredient(): void
     {
         $user = User::factory()->create();

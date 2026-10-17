@@ -31,6 +31,13 @@ class ItemRequest extends FormRequest
                 'aliases' => array_values(array_filter(array_map('trim', explode(',', $aliases)))),
             ]);
         }
+
+        // Units are free text; lower case keeps "Kg" and "kg" from becoming two units.
+        $unit = $this->input('unit');
+
+        if (is_string($unit)) {
+            $this->merge(['unit' => mb_strtolower(trim($unit))]);
+        }
     }
 
     /**
