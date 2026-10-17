@@ -1,23 +1,30 @@
 import { usePage } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
+import { LogoWordmark } from '@/components/logo-wordmark';
+import { cn } from '@/lib/utils';
 
 /**
- * Text wordmark only. The product name is a placeholder and no logo has
- * been designed yet (antislop R-23), so nothing pretends to be one.
+ * The logo in the app chrome: the wordmark, or the small mark when the
+ * sidebar is collapsed to icons. Height comes from className (h-6 in the
+ * header and sidebar, larger on the sign-in pages).
  */
-export default function AppLogo() {
-    const { name } = usePage().props;
+export default function AppLogo({ className }: { className?: string }) {
+    const name = String(usePage().props.name);
 
     return (
-        <span className="flex min-w-0 items-baseline gap-2">
-            <span className="text-lg leading-none font-extrabold tracking-tight text-foreground group-data-[collapsible=icon]:hidden">
-                {name}
-            </span>
-            <span
-                aria-hidden
-                className="hidden text-lg leading-none font-extrabold text-foreground group-data-[collapsible=icon]:inline"
-            >
-                {String(name).charAt(0)}
-            </span>
+        <span className="flex min-w-0 items-center">
+            <LogoWordmark
+                title={name}
+                className={cn(
+                    'group-data-[collapsible=icon]:hidden',
+                    className,
+                )}
+            />
+            <AppLogoIcon
+                role="img"
+                aria-label={name}
+                className="hidden h-6 w-auto text-foreground group-data-[collapsible=icon]:block"
+            />
         </span>
     );
 }

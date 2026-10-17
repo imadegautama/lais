@@ -18,7 +18,7 @@ class VocabularyTest extends TestCase
         $this->assertSame(
             GenerateEnumTypes::render(),
             file_get_contents(resource_path(GenerateEnumTypes::PATH)),
-            'resources/js/types/enums.ts is out of date. Run php artisan laris:enums.',
+            'resources/js/types/enums.ts is out of date. Run php artisan lais:enums.',
         );
     }
 

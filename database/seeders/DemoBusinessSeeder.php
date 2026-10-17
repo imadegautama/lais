@@ -46,7 +46,7 @@ class DemoBusinessSeeder extends Seeder
 
     public function run(Inventory $inventory): void
     {
-        $user = User::query()->where('email', 'demo@laris.test')->first() ?? User::query()->first();
+        $user = User::query()->where('email', 'demo@lais.test')->first() ?? User::query()->first();
 
         if (! $user) {
             return;

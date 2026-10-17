@@ -1,4 +1,4 @@
-# Laris: backend guideline (wajib untuk setiap perubahan PHP)
+# Lais: backend guideline (wajib untuk setiap perubahan PHP)
 
 Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak dan bentuk kodenya.
 
@@ -17,7 +17,7 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - Logika bisnis tidak boleh memakai literal seperti `'kredit'` atau `'komposisi'`. Bandingkan dengan enumnya: `$transaction->method === PaymentMethod::Kredit`.
 - Kode akun memakai konstanta `App\Models\Account` (`Account::INVENTORY`, `Account::COGS`, dan seterusnya). Bentuknya konstanta, bukan enum, karena dipakai sebagai key array di `Ledger::lines()`.
 - Validasi daftar nilai memakai `Rule::enum(...)`. Untuk subset (cara bayar per jenis), pakai `Rule::in(array_column($type->methods(), 'value'))`, karena `Rule::enum()->only([])` justru meloloskan semuanya.
-- Setelah enum ditambah atau diubah, jalankan `php artisan laris:enums` supaya `resources/js/types/enums.ts` ikut berubah. `VocabularyTest` gagal kalau lupa.
+- Setelah enum ditambah atau diubah, jalankan `php artisan lais:enums` supaya `resources/js/types/enums.ts` ikut berubah. `VocabularyTest` gagal kalau lupa.
 
 ## Letak kode
 

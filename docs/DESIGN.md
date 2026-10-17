@@ -1,11 +1,11 @@
-# DESIGN.md: Pedoman Visual Laris
+# DESIGN.md: Pedoman Visual Lais
 
 Dokumen ini menjadi acuan visual untuk semua halaman. Referensi hidupnya ada di **`/design-system`**, yang hanya tersedia di lingkungan lokal (`APP_ENV=local`).
 
 - Nilai token ada di `resources/css/app.css`.
-- Komponen lintas fitur ada di `resources/js/components/app/`; komponen satu fitur ada di `resources/js/features/<fitur>/` (lihat "Letak kode" di `.ai/guidelines/laris-frontend.md`).
+- Komponen lintas fitur ada di `resources/js/components/app/`; komponen satu fitur ada di `resources/js/features/<fitur>/` (lihat "Letak kode" di `.ai/guidelines/lais-frontend.md`).
 - Kalau dokumen ini, halaman `/design-system`, dan kode tidak sama, **kode yang benar**. Perbarui dokumen ini di commit yang sama.
-- Aturan ringkas untuk agen AI ada di `.ai/guidelines/laris-frontend.md`, dan Laravel Boost menggabungkannya ke `CLAUDE.md`. Setelah clone, jalankan `composer install` lalu `php artisan boost:install --guidelines --skills --mcp -n`.
+- Aturan ringkas untuk agen AI ada di `.ai/guidelines/lais-frontend.md`, dan Laravel Boost menggabungkannya ke `CLAUDE.md`. Setelah clone, jalankan `composer install` lalu `php artisan boost:install --guidelines --skills --mcp -n`.
 
 > **Sumber arah desain.** Arah desain dipilih pemilik proyek:
 >
@@ -42,6 +42,7 @@ Struktur referensi Nexus dipakai sebagai inspirasi, bukan disalin. Dashboard dis
 | Inner shadow pada tombol                                               | Pilihan pemilik proyek: kilau tipis di atas dan sisi bawah gelap menandai "bisa ditekan", dan berubah saat ditekan                                                                                                                                                                        |
 | Border field `#DAD5CF` (override pemilik)                              | Border field 1,46:1 di bawah pedoman 3:1, dipilih pemilik; diimbangi label selalu terlihat dan ring fokus 3px                                                                                                                                                                             |
 | Ring fokus dua lapis (celah putih + oranye) di tombol dan toggle       | Ring `#EA580C` langsung di atas wash hanya 2,60:1. Dengan celah putih 2 px ring selalu 3,56:1, di latar apa pun                                                                                                                                                                           |
+| Logo Lais dari pemilik (17 Okt 2026); tanda kecil "L + titik"          | Wordmark terlalu lebar untuk 16 px dan sidebar yang diciutkan. Tanda kecil diambil dari logo itu sendiri: huruf L dan titik miring oranye, dipilih pemilik                                                                                                                                |
 | Lucide icons                                                           | Sudah dipakai komponen shadcn, jadi tidak ada dua gaya ikon. Ikon dipilih karena relevan dan selalu disertai label                                                                                                                                                                        |
 | Light mode saja                                                        | Pengguna utama memakai HP di warung yang terang, dan laporan dicetak ke PDF. Tidak ada toggle, jadi tidak ada mode setengah jadi                                                                                                                                                          |
 | Label grup sentence case                                               | Huruf kapital dengan spasi lebar adalah gaya default AI dan lebih sulit dibaca                                                                                                                                                                                                            |
@@ -118,6 +119,26 @@ Oranye tidak dipakai untuk ikon biasa, garis dekoratif, atau latar section lain 
 - Uang masuk: hijau dengan "+".
 - Uang keluar: tinta dengan "−" (U+2212).
 - Saldo: tanpa tanda.
+
+### Logo
+
+File asli pemilik: wordmark "Lais", rasio 1137 × 437 (2,6 : 1). Huruf memakai tinta (`foreground` `#1C1917`), titik miring di atas "i" memakai `brand-strong` `#EA580C`.
+
+| Bentuk                 | Komponen                                                         | Dipakai di                                           | Ukuran                                                                                           |
+| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Wordmark               | `LogoWordmark` (`components/logo-wordmark.tsx`), lewat `AppLogo` | Sidebar, header HP, halaman masuk/daftar             | `h-6` (24 px, lebar ±62 px) di app; `h-10` (40 px) di halaman masuk                              |
+| Tanda kecil: L + titik | `AppLogoIcon` (`components/app-logo-icon.tsx`)                   | Sidebar yang diciutkan, favicon, ikon layar utama HP | `h-6` di sidebar; `public/favicon.svg` + `favicon.ico` (16/32/48) + `apple-touch-icon.png` (180) |
+
+Aturan pakai:
+
+- **Proporsi:** selalu `h-*` dengan `w-auto`. Jangan meregangkan, memutar, atau mengatur ulang huruf.
+- **Ukuran minimum:** wordmark 20 px tinggi (titik masih ±4 px), tanda kecil 16 px. Di bawah itu, pakai tanda kecil.
+- **Ruang kosong:** di setiap sisi minimal setinggi titiknya (±20% tinggi logo). Jangan menempel ke tepi atau ke teks lain.
+- **Latar:** hanya permukaan putih (`background`, `card`, `sidebar`). Titik oranye 3,56:1 di putih, tapi hanya 2,85:1 di atas wash `#FAE3BD`, jadi logo tidak diletakkan di atas wash.
+- **Warna:** huruf ikut `text-foreground`, titik selalu `fill-brand-strong`. Jangan mewarnai huruf dengan oranye, dan jangan membuat versi gradien atau bayangan.
+- **Satu logo per layar:** header HP menyembunyikan logo di desktop, karena sidebar sudah menampilkannya.
+- **Aksesibilitas:** `role="img"` dengan `aria-label` berisi nama aplikasi (`APP_NAME`), sehingga link logo terbaca "Lais".
+- **File statis** (favicon, ikon HP) tidak bisa membaca token CSS, jadi nilai token ditulis langsung di file itu. Latarnya putih, agar tetap terlihat di tab browser yang gelap.
 
 ### Bentuk, spasi, bayangan
 

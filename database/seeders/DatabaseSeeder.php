@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         // email in backend milestone M0 (PRD US-01).
         User::factory()->create([
             'name' => 'Bu Rina',
-            'email' => 'demo@laris.test',
+            'email' => 'demo@lais.test',
         ]);
 
         $this->call(DemoBusinessSeeder::class);

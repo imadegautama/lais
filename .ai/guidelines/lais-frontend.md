@@ -1,4 +1,4 @@
-# Laris: frontend guideline (wajib untuk setiap perubahan UI)
+# Lais: frontend guideline (wajib untuk setiap perubahan UI)
 
 Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Laravel 13, Inertia 3, React 19, TypeScript, Tailwind 4, shadcn/ui. Spesifikasi produk ada di `docs/PRD.md`, daftar halaman di `docs/UI-PAGES.md`.
 
@@ -48,7 +48,7 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
     - `format.ts`
     - `form.ts`: `fieldSetter`, `focusFirstError`, `listEditor`, `rowError`
 - `hooks/`: hanya untuk yang memegang state React (`useTableQuery`).
-- `types/enums.ts` **dibuat otomatis** oleh `php artisan laris:enums` dari `app/Enums`. Jangan diubah manual. Nilai ditulis lewat konstantanya (`TransactionType.Penjualan`), label lewat `transactionTypeLabels` dan sejenisnya, bukan string tulisan tangan. `badges.tsx` hanya menambahkan ikon.
+- `types/enums.ts` **dibuat otomatis** oleh `php artisan lais:enums` dari `app/Enums`. Jangan diubah manual. Nilai ditulis lewat konstantanya (`TransactionType.Penjualan`), label lewat `transactionTypeLabels` dan sejenisnya, bukan string tulisan tangan. `badges.tsx` hanya menambahkan ikon.
 - Hitungan yang meniru server (HPP, rata-rata, biaya resep, efek kas) memakai `lib/stock.ts` atau `features/*`, dengan test yang memakai angka dari test PHP.
 
 ## Selesai berarti

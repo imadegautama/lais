@@ -1,4 +1,6 @@
 import { Head } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
+import { LogoWordmark } from '@/components/logo-wordmark';
 import {
     CircleCheck,
     CircleX,
@@ -76,6 +78,7 @@ type Props = {
 };
 
 const sections = [
+    ['logo', 'Logo'],
     ['warna', 'Warna'],
     ['tipografi', 'Tipografi'],
     ['bentuk', 'Bentuk'],
@@ -349,6 +352,83 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                         </a>
                     ))}
                 </nav>
+
+                <Section
+                    id="logo"
+                    title="Logo"
+                    intro="Wordmark Lais dari pemilik. Huruf memakai tinta dan titik di atas i memakai brand-strong. Ukuran selalu lewat tinggi (h-*) dengan lebar otomatis, dan hanya di atas permukaan putih."
+                >
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <Panel className="flex flex-col gap-5">
+                            {[
+                                ['h-10', 'Halaman masuk dan daftar, 40 px'],
+                                ['h-6', 'Sidebar dan header HP, 24 px'],
+                                ['h-5', 'Paling kecil, 20 px'],
+                            ].map(([size, use]) => (
+                                <div
+                                    key={size}
+                                    className="flex flex-wrap items-center gap-4"
+                                >
+                                    <LogoWordmark className={size} />
+                                    <span className="text-sm text-muted-foreground">
+                                        <code>{size}</code> · {use}
+                                    </span>
+                                </div>
+                            ))}
+                            <div className="flex flex-wrap items-center gap-4 border-t pt-4">
+                                {/* The dashed box shows the clear space: the height of the dot on every side. */}
+                                <span className="inline-flex rounded-md border border-dashed border-muted-foreground/40 p-2">
+                                    <LogoWordmark className="h-10" />
+                                </span>
+                                <span className="max-w-60 text-sm text-muted-foreground">
+                                    Ruang kosong di setiap sisi minimal setinggi
+                                    titiknya.
+                                </span>
+                            </div>
+                        </Panel>
+                        <Panel className="flex flex-col gap-5">
+                            <div className="flex flex-wrap items-center gap-4">
+                                <AppLogoIcon className="h-6 w-auto text-foreground" />
+                                <span className="text-sm text-muted-foreground">
+                                    Tanda kecil L + titik: sidebar yang
+                                    diciutkan, 24 px
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-end gap-4">
+                                <img
+                                    src="/favicon.svg"
+                                    alt=""
+                                    className="size-12 rounded-lg border"
+                                />
+                                <img
+                                    src="/favicon.svg"
+                                    alt=""
+                                    className="size-8"
+                                />
+                                <img
+                                    src="/favicon.svg"
+                                    alt=""
+                                    className="size-4"
+                                />
+                                <span className="text-sm text-muted-foreground">
+                                    Favicon dan ikon layar utama HP, 48, 32, dan
+                                    16 px
+                                </span>
+                            </div>
+                            <ul className="flex list-disc flex-col gap-1 border-t pt-4 pl-5 text-sm text-muted-foreground">
+                                <li>
+                                    Jangan di atas wash: titik oranye turun ke
+                                    2,85:1.
+                                </li>
+                                <li>
+                                    Jangan meregangkan, memutar, atau mewarnai
+                                    huruf dengan oranye.
+                                </li>
+                                <li>Satu logo per layar.</li>
+                            </ul>
+                        </Panel>
+                    </div>
+                </Section>
 
                 <Section
                     id="warna"
