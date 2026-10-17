@@ -11,7 +11,7 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 ## Sebelum mengubah UI
 
 1. Baca `docs/DESIGN.md` dan lihat `/design-system`.
-2. Pakai komponen yang sudah ada sebelum membuat yang baru: `resources/js/components/app/*` (PageHeader, SectionCard, MetricFocus/MetricInline, DeltaBadge, Money, badges, AppDataTable (mode client atau server), TransactionTable, FilterBar/ChipFilter/SearchFilter, `useTableQuery` + `App\Support\TableQuery` untuk tabel server, EmptyState/ErrorState/LoadingBlock, PeriodPicker, MoneyInput, QtyStepper, SearchSelect, FormActionBar, Field, ActionButton, DemoDataBadge, QuickRecordSheet) dan `resources/js/components/ui/*` (shadcn).
+2. Pakai komponen yang sudah ada sebelum membuat yang baru: `resources/js/components/app/*` (PageHeader, SectionCard, MetricFocus/MetricInline, DeltaBadge, Money, badges, AppDataTable (mode client atau server), FilterBar/ChipFilter/SearchFilter, `useTableQuery` + `App\Support\TableQuery` untuk tabel server, EmptyState/ErrorState/LoadingBlock, PeriodPicker, MoneyInput, QtyStepper, SearchSelect, ChoiceGroup, SwitchRow, DetailRow, StockMovementList, FormActionBar, Field, ActionButton, DemoDataBadge, QuickRecordSheet), `resources/js/features/*` (TransactionTable, ItemTable, StockAdjustDialog, dan komponen form per fitur), dan `resources/js/components/ui/*` (shadcn).
 3. Muat skill UI: antislop (mode DURING + laporan Delivery Gate), frontend-design, ui-ux-pro-max. Mode ponytail aktif: perubahan terkecil yang lengkap.
 
 ## Aturan wajib
@@ -33,6 +33,23 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 7. **Konten:** Bahasa Indonesia sehari-hari, CTA menyebut tindakannya, tanpa em dash, buzzword, atau emoji. Uang dan tanggal hanya lewat `resources/js/lib/format.ts` dan `<Money>`. Angka atau data contoh selalu berlabel `DemoDataBadge`.
 8. **Light mode saja.** Grafik tanpa animasi (MOTION 1). Hormati `prefers-reduced-motion`.
 9. **Perubahan keputusan desain** wajib memperbarui `docs/DESIGN.md` dan `/design-system` di commit yang sama.
+
+## Letak kode
+
+- `pages/`: halaman tipis. Isinya props, `useForm`, dan susunan komponen. Tidak ada aturan bisnis, peta label, atau helper di file halaman.
+- `features/<fitur>/` (`items`, `transactions`): komponen dan logika satu fitur.
+    - Aturan murni ditulis di file `.ts` dengan test di sebelahnya, misalnya `transactions/record.ts` dan `items/cost.ts`.
+    - Teks UI per jenis ditulis di `vocabulary.ts`.
+    - Satu fitur tidak mengimpor fitur lain. Halaman boleh mengimpor fitur mana pun.
+- `components/app/`: UI lintas fitur. Tidak mengimpor dari `features/`. Shell (header, bottom nav) termasuk di sini, karena itu `QuickRecordSheet` ada di sini.
+- `lib/`: fungsi murni bersama, masing-masing dengan test:
+    - `number.ts`: angka ketikan pemilik dan pembulatan cara PHP
+    - `stock.ts`: aturan nilai stok `Inventory`
+    - `format.ts`
+    - `form.ts`: `fieldSetter`, `focusFirstError`, `listEditor`, `rowError`
+- `hooks/`: hanya untuk yang memegang state React (`useTableQuery`).
+- `types/enums.ts` **dibuat otomatis** oleh `php artisan laris:enums` dari `app/Enums`. Jangan diubah manual. Nilai ditulis lewat konstantanya (`TransactionType.Penjualan`), label lewat `transactionTypeLabels` dan sejenisnya, bukan string tulisan tangan. `badges.tsx` hanya menambahkan ikon.
+- Hitungan yang meniru server (HPP, rata-rata, biaya resep, efek kas) memakai `lib/stock.ts` atau `features/*`, dengan test yang memakai angka dari test PHP.
 
 ## Selesai berarti
 
