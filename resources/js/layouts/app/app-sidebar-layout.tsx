@@ -23,7 +23,7 @@ export default function AppSidebarLayout({
                 id="konten"
                 tabIndex={-1}
                 variant="sidebar"
-                className="min-w-0 overflow-x-clip pb-[calc(4.5rem+env(safe-area-inset-bottom))] outline-none lg:pb-0"
+                className="min-w-0 overflow-x-clip bg-page-wash pb-[calc(4.5rem+env(safe-area-inset-bottom))] outline-none lg:pb-0"
             >
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {children}

@@ -130,7 +130,7 @@ export function MetricInline({
 
 const tileTones = {
     neutral: {
-        tile: 'border-transparent bg-secondary',
+        tile: 'border-border-warm bg-surface-warm',
         accent: 'text-muted-foreground',
     },
     warning: {
@@ -165,7 +165,7 @@ export function MetricTile({
     return (
         <div
             className={cn(
-                'flex min-w-0 flex-col gap-2 rounded-lg border p-3 md:p-4',
+                'flex min-w-0 flex-col gap-2 rounded-lg border p-3 shadow-tile md:p-4',
                 tileTones[tone].tile,
                 className,
             )}

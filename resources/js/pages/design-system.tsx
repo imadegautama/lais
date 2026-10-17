@@ -144,6 +144,18 @@ const swatches: Array<{
         ratio: '3,56:1 (non-teks)',
     },
     {
+        token: 'wash',
+        hex: '#FAE3BD',
+        use: 'Atas gradien halaman (bg-page-wash), pilihan pemilik',
+        ratio: 'Teks muted 4,65:1. Tanpa teks oranye',
+    },
+    {
+        token: 'surface-warm',
+        hex: '#FFFAF2',
+        use: 'Kotak ringkasan sehat, border #F2E4D3',
+        ratio: 'Teks muted 5,60:1',
+    },
+    {
         token: 'input',
         hex: '#DAD5CF',
         use: 'Border field form',
@@ -393,11 +405,12 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                 <Section
                     id="bentuk"
                     title="Bentuk"
-                    intro="Radius bertingkat: kartu 16 px, tombol dan input 12 px, badge 8 px. Kartu memakai border dan bayangan sangat halus supaya terpisah dari latar putih. Tombol memakai inner shadow sebagai tanda bisa ditekan. Bayangan besar hanya untuk lapisan di atas halaman."
+                    intro="Radius bertingkat: kartu 16 px, tombol dan input 12 px, badge 8 px. Tombol, kartu, dan kotak ringkasan memakai bahasa inner shadow yang sama: kilau putih di atas dan bayangan hangat tipis di bawah, makin pelan dari tombol ke kartu. Latar halaman memakai wash hangat di bawah header. Bayangan besar hanya untuk lapisan di atas halaman."
                 >
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <Panel className="text-sm">
-                            Kartu: rounded-xl, border, shadow-card
+                            Kartu: rounded-xl, border, shadow-card (inner shadow
+                            tipis + angkat hangat)
                         </Panel>
                         <div className="rounded-lg border border-input bg-card p-4 text-sm shadow-field">
                             Field: rounded-lg, border lembut, shadow-field

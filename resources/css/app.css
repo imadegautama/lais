@@ -59,6 +59,10 @@
     --color-brand-strong: var(--brand-strong);
     --color-brand-soft: var(--brand-soft);
 
+    --color-wash: var(--wash);
+    --color-surface-warm: var(--surface-warm);
+    --color-border-warm: var(--border-warm);
+
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -78,8 +82,9 @@
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
 
-    /* Inner shadows make buttons read as pressable; the card shadow only
-       separates white cards from the white page (DESIGN.md, "Bayangan"). */
+    /* Inner shadows make buttons read as pressable. Cards and tiles share the
+       same language in a quieter register: a white top highlight, a faint warm
+       inner edge, and a soft warm lift (DESIGN.md, "Bayangan"). */
     --shadow-button:
         inset 0 1px 0 rgb(255 255 255 / 0.45),
         inset 0 -2px 0 rgb(154 52 18 / 0.2);
@@ -88,7 +93,12 @@
         inset 0 -1px 0 rgb(28 25 23 / 0.06), 0 1px 2px rgb(28 25 23 / 0.05);
     --shadow-field: inset 0 1px 2px rgb(28 25 23 / 0.05);
     --shadow-card:
-        0 1px 2px rgb(28 25 23 / 0.04), 0 2px 6px rgb(28 25 23 / 0.03);
+        inset 0 1px 0 rgb(255 255 255 / 0.9),
+        inset 0 -4px 8px -6px rgb(154 52 18 / 0.1),
+        0 1px 2px rgb(154 52 18 / 0.05), 0 6px 16px -8px rgb(154 52 18 / 0.12);
+    --shadow-tile:
+        inset 0 1px 0 rgb(255 255 255 / 0.95),
+        inset 0 -2px 4px -2px rgb(154 52 18 / 0.08);
 }
 
 /* Light only: see "Mode tampilan" in docs/DESIGN.md for the reason. */
@@ -107,6 +117,13 @@
     --muted: #f5f3f0;
     --muted-foreground: #6b645e;
     --border: #ece8e4;
+
+    /* Owner's choice (Figma redesign, 17 Okt 2026): a warm wash at the top of
+       every app page, fading to white. Muted text on it is 4.65:1. */
+    --wash: #fae3bd;
+    /* Healthy summary tiles: cream with a warm, decorative border. */
+    --surface-warm: #fffaf2;
+    --border-warm: #f2e4d3;
     /* Owner override: 1.46:1, below the 3:1 non-text guideline (DESIGN.md). */
     --input: #dad5cf;
 
@@ -179,6 +196,16 @@
             transition-duration: 0.01ms !important;
         }
     }
+}
+
+/* The page wash starts under the 3.5rem header and is gone by ±370px,
+   so lists and forms below it sit on plain white. */
+@utility bg-page-wash {
+    background-image: linear-gradient(
+        to bottom,
+        var(--wash) 3.5rem,
+        var(--background) 26.5rem
+    );
 }
 
 @layer utilities {
