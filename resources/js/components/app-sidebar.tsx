@@ -23,6 +23,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import items from '@/routes/items';
 import { edit as editProfile } from '@/routes/profile';
 
 // Order follows how often an owner needs each page (UI-PAGES.md).
@@ -38,7 +39,7 @@ const groups: AppNavGroup[] = [
     {
         label: 'Operasional',
         items: [
-            { title: 'Produk & stok', icon: Package, comingSoon: true },
+            { title: 'Produk & stok', href: items.index(), icon: Package },
             { title: 'Utang-piutang', icon: NotebookPen, comingSoon: true },
             { title: 'Kontak', icon: BookUser, comingSoon: true },
         ],

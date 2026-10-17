@@ -19,13 +19,18 @@ export function formatRupiahCompact(value: number): string {
         [1_000, ' rb'],
     ];
 
-    for (const [size, suffix] of units) {
+    for (const [index, [size, suffix]] of units.entries()) {
         if (abs >= size) {
+            // 999.950 rounds to "1.000 rb"; step up and show "1 jt" instead.
+            const [unitSize, unitSuffix] =
+                index > 0 && Math.round((abs / size) * 10) >= 10_000
+                    ? units[index - 1]
+                    : [size, suffix];
             const short = new Intl.NumberFormat('id-ID', {
                 maximumFractionDigits: 1,
-            }).format(abs / size);
+            }).format(abs / unitSize);
 
-            return `${sign}Rp${short}${suffix}`;
+            return `${sign}Rp${short}${unitSuffix}`;
         }
     }
 
@@ -93,10 +98,11 @@ export function parseMoney(input: string): number | null {
     const multiplier =
         suffix === 'jt' || suffix === 'juta' ? 1_000_000 : suffix ? 1_000 : 1;
 
-    // With a suffix, "1,5" and "1.5" both mean one and a half.
+    // With a suffix, "1,5" and "1.5" both mean one and a half, but a "." before
+    // exactly three digits still groups thousands ("1.500rb").
     // Without one, Indonesian notation applies: "." groups thousands, "," is decimal.
     const normalized = suffix
-        ? digits.replace(',', '.')
+        ? digits.replace(/\.(?=\d{3}(?!\d))/g, '').replace(',', '.')
         : digits.replace(/\./g, '').replace(',', '.');
     const amount = Number.parseFloat(normalized);
 

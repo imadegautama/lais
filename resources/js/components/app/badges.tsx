@@ -3,20 +3,26 @@ import {
     CircleDashed,
     CircleX,
     Clock,
+    CookingPot,
     HandCoins,
     Monitor,
     MessageCircle,
     NotebookPen,
+    Package,
     PackageCheck,
     ReceiptText,
     ScanText,
+    Wheat,
     ShoppingBasket,
     Store,
+    TriangleAlert,
     Wallet,
     type LucideIcon,
 } from 'lucide-react';
+import { formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
+    ItemKind,
     OrderStatus,
     PaymentStatus,
     TransactionSource,
@@ -127,4 +133,76 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
     const { label, icon, tone } = paymentStatuses[status];
 
     return <LabelBadge icon={icon} label={label} tone={tone} />;
+}
+
+export const itemKinds: Record<
+    ItemKind,
+    { label: string; icon: LucideIcon; hint: string }
+> = {
+    produk: {
+        label: 'Produk biasa',
+        icon: Package,
+        hint: 'Dibeli atau dibuat lalu dijual apa adanya: air mineral, sabun jadi.',
+    },
+    bahan: {
+        label: 'Bahan baku',
+        icon: Wheat,
+        hint: 'Tidak dijual langsung, dipakai di resep: beras, telur, minyak.',
+    },
+    komposisi: {
+        label: 'Produk resep',
+        icon: CookingPot,
+        hint: 'Dibuat dari bahan saat dijual: nasi goreng, es teh, kue.',
+    },
+};
+
+/** Item kinds share one neutral tone; icon and word tell them apart. */
+export function ItemKindBadge({ kind }: { kind: ItemKind }) {
+    const { label, icon } = itemKinds[kind];
+
+    return <LabelBadge icon={icon} label={label} />;
+}
+
+/** Only a problem gets a badge; a healthy count stays plain text. */
+export function StockStatusBadge({
+    lowStock,
+    negativeStock,
+}: {
+    lowStock: boolean;
+    negativeStock: boolean;
+}) {
+    if (negativeStock) {
+        return <LabelBadge icon={CircleX} label="Minus" tone="danger" />;
+    }
+
+    if (lowStock) {
+        return (
+            <LabelBadge icon={TriangleAlert} label="Menipis" tone="warning" />
+        );
+    }
+
+    return null;
+}
+
+/** Below this the margin is flagged (UI-PAGES C5, C6). */
+export const THIN_MARGIN_PERCENT = 15;
+
+/** Margin as a percentage of price, toned per UI-PAGES C5. */
+export function MarginLabel({ percent }: { percent: number }) {
+    const [label, icon, tone]: [string, LucideIcon, Tone] =
+        percent < 0
+            ? ['Rugi', CircleX, 'danger']
+            : percent < THIN_MARGIN_PERCENT
+              ? ['Tipis', TriangleAlert, 'danger']
+              : percent < 30
+                ? ['Cukup', CircleDashed, 'warning']
+                : ['Sehat', CircleCheck, 'success'];
+
+    return (
+        <LabelBadge
+            icon={icon}
+            label={`${label} ${formatPercent(Math.abs(percent))}`}
+            tone={tone}
+        />
+    );
 }

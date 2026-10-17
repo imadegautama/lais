@@ -7,9 +7,11 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -46,5 +48,25 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return HasOne<Business, $this>
+     */
+    public function business(): HasOne
+    {
+        return $this->hasOne(Business::class);
+    }
+
+    /**
+     * The business every page and record is scoped to.
+     * shortcut: created on first access, replace with the onboarding wizard in M0.
+     */
+    public function currentBusiness(): Business
+    {
+        return $this->business()->firstOrCreate([], [
+            'name' => "Usaha {$this->name}",
+            'slug' => Str::slug($this->name).'-'.$this->id,
+        ]);
     }
 }

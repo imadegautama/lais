@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ItemController;
 use App\Support\DemoData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $request->query('keadaan') === 'kosong',
         ));
     })->name('dashboard');
+
+    Route::get('produk', [ItemController::class, 'index'])->name('items.index');
+    Route::get('produk/baru', [ItemController::class, 'create'])->name('items.create');
+    Route::post('produk', [ItemController::class, 'store'])->name('items.store');
+    Route::get('produk/{item}/ubah', [ItemController::class, 'edit'])->name('items.edit');
+    Route::put('produk/{item}', [ItemController::class, 'update'])->name('items.update');
+    Route::delete('produk/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
+    Route::post('produk/{item}/koreksi-stok', [ItemController::class, 'adjustStock'])->name('items.adjust-stock');
 });
 
 if (app()->isLocal()) {

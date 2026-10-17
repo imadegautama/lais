@@ -107,3 +107,60 @@ export type DashboardProps = {
     salesChart: Array<{ date: string; sales: Rupiah }>;
     recentTransactions: TransactionRow[];
 };
+
+/** One row of the product list, as sent by ItemController::row(). */
+export type ItemRow = {
+    id: number;
+    kind: ItemKind;
+    name: string;
+    aliases: string[];
+    unit: string;
+    /** Null for bahan, which is not sold. */
+    price: Rupiah | null;
+    stock: number;
+    stockValue: Rupiah;
+    minStock: number | null;
+    /** Recipe total for komposisi, weighted average cost otherwise. */
+    unitCost: Rupiah;
+    marginPercent: number | null;
+    showInStore: boolean;
+    available: boolean;
+    lowStock: boolean;
+    negativeStock: boolean;
+};
+
+export type RecipeLineInput = { material_id: number; qty: number };
+
+/** An item that can go into a recipe. */
+export type RecipeMaterial = {
+    id: number;
+    name: string;
+    unit: string;
+    averageCost: number;
+};
+
+export type StockMovementReason = 'stok_awal' | 'koreksi';
+
+export type StockMovementRow = {
+    id: number;
+    occurredAt: string;
+    reason: StockMovementReason;
+    qty: number;
+    value: Rupiah;
+};
+
+export type ItemsIndexProps = {
+    items: ItemRow[];
+    summary: {
+        inventoryValue: Rupiah;
+        lowStockCount: number;
+        negativeStockCount: number;
+    };
+};
+
+export type ItemFormProps = {
+    item: (ItemRow & { recipe: RecipeLineInput[] }) | null;
+    initialKind: ItemKind;
+    materials: RecipeMaterial[];
+    movements: StockMovementRow[];
+};

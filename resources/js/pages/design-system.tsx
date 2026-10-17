@@ -5,8 +5,11 @@ import { toast } from 'sonner';
 import { ActionButton, SoonTag } from '@/components/app/action-button';
 import {
     CategoryBadge,
+    ItemKindBadge,
+    MarginLabel,
     OrderStatusBadge,
     PaymentStatusBadge,
+    StockStatusBadge,
     SourceLabel,
     transactionTypes,
 } from '@/components/app/badges';
@@ -587,6 +590,22 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 ] as TransactionSource[]
                             ).map((source) => (
                                 <SourceLabel key={source} source={source} />
+                            ))}
+                        </BadgeRow>
+                        <BadgeRow label="Jenis produk">
+                            {(['produk', 'komposisi', 'bahan'] as const).map(
+                                (kind) => (
+                                    <ItemKindBadge key={kind} kind={kind} />
+                                ),
+                            )}
+                        </BadgeRow>
+                        <BadgeRow label="Stok (hanya kalau bermasalah)">
+                            <StockStatusBadge lowStock negativeStock={false} />
+                            <StockStatusBadge lowStock={false} negativeStock />
+                        </BadgeRow>
+                        <BadgeRow label="Margin">
+                            {[52, 22.5, 12, -4].map((percent) => (
+                                <MarginLabel key={percent} percent={percent} />
                             ))}
                         </BadgeRow>
                         <BadgeRow label="Label sistem">
