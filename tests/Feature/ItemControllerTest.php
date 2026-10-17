@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\StockReason;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\User;
@@ -24,7 +25,7 @@ class ItemControllerTest extends TestCase
     {
         $business = Business::factory()->create();
         $beras = Item::factory()->material()->for($business)->create(['name' => 'Beras', 'min_stock' => 5]);
-        app(Inventory::class)->receive($beras, 3, 14000, 'stok_awal', '3101');
+        app(Inventory::class)->receive($beras, 3, 14000, StockReason::StokAwal, '3101');
         Item::factory()->create(['name' => 'Milik orang lain']);
 
         $this->actingAs($business->user)
@@ -100,11 +101,11 @@ class ItemControllerTest extends TestCase
         $business = Business::factory()->create();
         $inventory = app(Inventory::class);
         $thin = Item::factory()->for($business)->create(['name' => 'Tipis', 'price' => 10000]);
-        $inventory->receive($thin, 1, 8000, 'stok_awal', '3101');
+        $inventory->receive($thin, 1, 8000, StockReason::StokAwal, '3101');
         $wide = Item::factory()->for($business)->create(['name' => 'Lebar', 'price' => 10000]);
-        $inventory->receive($wide, 1, 2500, 'stok_awal', '3101');
+        $inventory->receive($wide, 1, 2500, StockReason::StokAwal, '3101');
         $material = Item::factory()->material()->for($business)->create(['name' => 'Bahan']);
-        $inventory->receive($material, 10, 6000, 'stok_awal', '3101');
+        $inventory->receive($material, 10, 6000, StockReason::StokAwal, '3101');
         $recipe = Item::factory()->recipe()->for($business)->create(['name' => 'Resep', 'price' => 10000]);
         $recipe->recipeLines()->create(['material_id' => $material->id, 'qty' => 0.5]);
         $this->actingAs($business->user);
@@ -123,10 +124,10 @@ class ItemControllerTest extends TestCase
         $business = Business::factory()->create();
         $inventory = app(Inventory::class);
         $fraction = Item::factory()->material()->for($business)->create(['name' => 'Pecahan']);
-        $inventory->receive($fraction, 1, 3333, 'stok_awal', '3101');
-        $inventory->receive($fraction->refresh(), 2, 3334, 'stok_awal', '3101');
+        $inventory->receive($fraction, 1, 3333, StockReason::StokAwal, '3101');
+        $inventory->receive($fraction->refresh(), 2, 3334, StockReason::StokAwal, '3101');
         $whole = Item::factory()->material()->for($business)->create(['name' => 'Bulat']);
-        $inventory->receive($whole, 1, 3333, 'stok_awal', '3101');
+        $inventory->receive($whole, 1, 3333, StockReason::StokAwal, '3101');
         $this->actingAs($business->user);
 
         // 10.001 / 3 = 3.333,67 sorts after 3.333; integer division would tie them.
@@ -269,7 +270,7 @@ class ItemControllerTest extends TestCase
     {
         $business = Business::factory()->create();
         $item = Item::factory()->for($business)->create(['name' => 'Kerupuk']);
-        app(Inventory::class)->receive($item, 10, 1000, 'stok_awal', '3101');
+        app(Inventory::class)->receive($item, 10, 1000, StockReason::StokAwal, '3101');
 
         $this->actingAs($business->user)
             ->put(route('items.update', $item), ['name' => 'Kerupuk Udang', 'unit' => 'bungkus', 'price' => 2500])
@@ -294,7 +295,7 @@ class ItemControllerTest extends TestCase
     {
         $business = Business::factory()->create();
         $beras = Item::factory()->material()->for($business)->create();
-        app(Inventory::class)->receive($beras, 10, 14000, 'stok_awal', '3101');
+        app(Inventory::class)->receive($beras, 10, 14000, StockReason::StokAwal, '3101');
 
         $this->actingAs($business->user)
             ->from(route('items.index'))
@@ -324,7 +325,7 @@ class ItemControllerTest extends TestCase
     {
         $business = Business::factory()->create();
         $item = Item::factory()->for($business)->create();
-        app(Inventory::class)->receive($item, 3, 12000, 'stok_awal', '3101');
+        app(Inventory::class)->receive($item, 3, 12000, StockReason::StokAwal, '3101');
 
         $this->actingAs($business->user)
             ->from(route('items.edit', $item))

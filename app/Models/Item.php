@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\ItemKind;
 use Database\Factories\ItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property int $id
  * @property int $business_id
- * @property string $kind
+ * @property ItemKind $kind
  * @property string $name
  * @property list<string>|null $aliases
  * @property string $unit
@@ -30,8 +33,6 @@ class Item extends Model
     /** @use HasFactory<ItemFactory> */
     use HasFactory, SoftDeletes;
 
-    public const KINDS = ['produk', 'bahan', 'komposisi'];
-
     /**
      * Get the attributes that should be cast.
      *
@@ -40,6 +41,7 @@ class Item extends Model
     protected function casts(): array
     {
         return [
+            'kind' => ItemKind::class,
             'aliases' => 'array',
             'price' => 'integer',
             'stock' => 'decimal:3',
@@ -88,12 +90,59 @@ class Item extends Model
 
     public function hasStock(): bool
     {
-        return $this->kind !== 'komposisi';
+        return $this->kind->isStocked();
     }
 
     public function isSold(): bool
     {
-        return $this->kind !== 'bahan';
+        return $this->kind->isSold();
+    }
+
+    /**
+     * Below its minimum but not minus; minus has its own warning.
+     */
+    public function isLowStock(): bool
+    {
+        return $this->hasStock() && $this->min_stock !== null
+            && (float) $this->stock >= 0 && (float) $this->stock < (float) $this->min_stock;
+    }
+
+    public function isNegativeStock(): bool
+    {
+        return $this->hasStock() && (float) $this->stock < 0;
+    }
+
+    /**
+     * Items with a stock row of their own.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function stocked(Builder $query): void
+    {
+        $query->whereIn('items.kind', ItemKind::stocked());
+    }
+
+    /**
+     * SQL twin of isLowStock().
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function lowStock(Builder $query): void
+    {
+        $query->stocked()->whereNotNull('items.min_stock')->where('items.stock', '>=', 0)->whereColumn('items.stock', '<', 'items.min_stock');
+    }
+
+    /**
+     * SQL twin of isNegativeStock().
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function negativeStock(Builder $query): void
+    {
+        $query->stocked()->where('items.stock', '<', 0);
     }
 
     /**
@@ -111,7 +160,7 @@ class Item extends Model
      * "* 1.0" stops SQLite from dividing integers.
      * shortcut: a correlated subquery per row, fine for a few thousand items; store unit_cost if it gets slow.
      */
-    public const UNIT_COST_SQL = "(case when items.kind = 'komposisi' then coalesce((
+    public const UNIT_COST_SQL = "(case when items.kind = '".ItemKind::Komposisi->value."' then coalesce((
             select sum(rl.qty * case when m.stock > 0 then m.stock_value * 1.0 / m.stock else 0 end)
             from recipe_lines rl join items m on m.id = rl.material_id and m.deleted_at is null
             where rl.product_id = items.id), 0)
@@ -129,7 +178,7 @@ class Item extends Model
      */
     public function unitCost(): int
     {
-        if ($this->kind !== 'komposisi') {
+        if ($this->kind !== ItemKind::Komposisi) {
             return (int) round($this->averageCost());
         }
 

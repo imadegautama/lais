@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
  * One page of a server-driven AppDataTable, read from the URL:
  * ?cari=teks, ?urut=kolom or ?urut=-kolom, ?halaman=2, plus filter keys (?jenis[]=bahan).
  * Bad params are ignored rather than rejected, because these are bookmarkable GET URLs.
+ * Plain column names are qualified with the model's table, so a join added later stays unambiguous.
  */
 final class TableQuery
 {
@@ -48,7 +49,7 @@ final class TableQuery
             ));
 
             if ($values !== []) {
-                is_string($column) ? $query->whereIn($column, $values) : $column($query, $values);
+                is_string($column) ? $query->whereIn($query->qualifyColumn($column), $values) : $column($query, $values);
             }
 
             $state[$key] = $values;
@@ -61,7 +62,9 @@ final class TableQuery
             $like = '%'.mb_strtolower($term).'%';
             $query->where(function (Builder $where) use ($search, $like) {
                 foreach ($search as $expression) {
-                    $where->orWhereRaw("lower({$expression}) like ?", [$like]);
+                    preg_match('/^\w+$/', $expression) === 1
+                        ? $where->orWhereLike($where->qualifyColumn($expression), $like)
+                        : $where->orWhereRaw("lower({$expression}) like ?", [$like]);
                 }
             });
         }
@@ -76,7 +79,7 @@ final class TableQuery
 
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $orderer = $sorts[ltrim($sort, '-')];
-        is_string($orderer) ? $query->orderBy($orderer, $direction) : $orderer($query, $direction);
+        is_string($orderer) ? $query->orderBy($query->qualifyColumn($orderer), $direction) : $orderer($query, $direction);
         // Ties keep a stable order in the same direction, so no row shows up on two pages
         // and, newest first, the last one recorded in the same second comes first.
         $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);

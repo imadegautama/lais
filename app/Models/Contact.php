@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ContactType;
 use Database\Factories\ContactFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @property int $id
  * @property int $business_id
- * @property string $type
+ * @property ContactType $type
  * @property string $name
  * @property string|null $phone
  */
@@ -24,7 +25,17 @@ class Contact extends Model
     /** @use HasFactory<ContactFactory> */
     use HasFactory;
 
-    public const TYPES = ['pelanggan', 'supplier'];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'type' => ContactType::class,
+        ];
+    }
 
     /**
      * @return BelongsTo<Business, $this>

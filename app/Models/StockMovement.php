@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StockReason;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $stock_after
  * @property int $value
  * @property int|null $transaction_id
- * @property string $reason
+ * @property StockReason $reason
  * @property Carbon $occurred_at
  */
 #[Fillable(['business_id', 'item_id', 'qty', 'stock_after', 'value', 'reason', 'journal_entry_id', 'transaction_id', 'occurred_at'])]
@@ -31,6 +32,7 @@ class StockMovement extends Model
             'qty' => 'decimal:3',
             'stock_after' => 'decimal:3',
             'value' => 'integer',
+            'reason' => StockReason::class,
             'occurred_at' => 'datetime',
         ];
     }

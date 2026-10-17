@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ContactType;
+use App\Enums\StockReason;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
@@ -88,7 +90,7 @@ class TransactionControllerTest extends TestCase
     {
         $business = Business::factory()->create();
         $water = Item::factory()->for($business)->create(['name' => 'Air Mineral', 'price' => 4000]);
-        app(Inventory::class)->receive($water, 10, 2500, 'stok_awal', '3101');
+        app(Inventory::class)->receive($water, 10, 2500, StockReason::StokAwal, '3101');
 
         $response = $this->actingAs($business->user)->post(route('transactions.store'), [
             'type' => 'penjualan', 'method' => 'tunai',
@@ -120,7 +122,7 @@ class TransactionControllerTest extends TestCase
             ->post(route('transactions.store'), ['type' => 'biaya', 'kind' => 'sewa', 'method' => 'kredit', 'amount' => 750000, 'contact_name' => 'Pak Haji'])
             ->assertRedirect(route('transactions.index'));
 
-        $this->assertSame(['supplier', 'Pak Haji'], [Contact::query()->sole()->type, Contact::query()->sole()->name]);
+        $this->assertSame([ContactType::Supplier, 'Pak Haji'], [Contact::query()->sole()->type, Contact::query()->sole()->name]);
     }
 
     /**
@@ -164,7 +166,7 @@ class TransactionControllerTest extends TestCase
     {
         $business = Business::factory()->create();
         $water = Item::factory()->for($business)->create(['name' => 'Air Mineral', 'price' => 4000]);
-        app(Inventory::class)->receive($water, 10, 2500, 'stok_awal', '3101');
+        app(Inventory::class)->receive($water, 10, 2500, StockReason::StokAwal, '3101');
         $sale = $this->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $water->id, 'qty' => 3, 'price' => 4000]]]);
 
         $journal = $this->actingAs($business->user)

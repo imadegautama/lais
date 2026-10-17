@@ -104,11 +104,11 @@ class Ledger
                     ->where('journal_entries.source_type', (new Transaction)->getMorphClass());
             })
             ->where('journal_entries.business_id', $business->id)
-            ->whereIn('accounts.code', ['1201', '2101'])
+            ->whereIn('accounts.code', [Account::RECEIVABLE, Account::PAYABLE])
             ->whereNotNull('transactions.contact_id')
             ->when($contactId, fn ($query) => $query->where('transactions.contact_id', $contactId))
             ->groupBy('transactions.contact_id')
-            ->selectRaw("transactions.contact_id, sum(case when accounts.code = '1201' then journal_lines.debit else journal_lines.credit end) as raised, sum(case when accounts.code = '1201' then journal_lines.credit else journal_lines.debit end) as settled")
+            ->selectRaw('transactions.contact_id, sum(case when accounts.code = ? then journal_lines.debit else journal_lines.credit end) as raised, sum(case when accounts.code = ? then journal_lines.credit else journal_lines.debit end) as settled', [Account::RECEIVABLE, Account::RECEIVABLE])
             ->get()
             ->mapWithKeys(fn (object $row) => [(int) $row->contact_id => (int) $row->raised - (int) $row->settled])
             ->all();
@@ -122,9 +122,9 @@ class Ledger
         $account = Account::query()->where('code', $code)->firstOrFail();
 
         $totals = JournalLine::query()
-            ->where('account_id', $account->id)
-            ->whereHas('entry', fn ($query) => $query->where('business_id', $business->id))
-            ->selectRaw('COALESCE(SUM(debit), 0) as debit, COALESCE(SUM(credit), 0) as credit')
+            ->where('journal_lines.account_id', $account->id)
+            ->whereHas('entry', fn ($query) => $query->where('journal_entries.business_id', $business->id))
+            ->selectRaw('COALESCE(SUM(journal_lines.debit), 0) as debit, COALESCE(SUM(journal_lines.credit), 0) as credit')
             ->first();
 
         $net = (int) $totals->debit - (int) $totals->credit;

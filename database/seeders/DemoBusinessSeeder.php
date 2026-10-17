@@ -2,6 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ItemKind;
+use App\Enums\StockReason;
+use App\Models\Account;
 use App\Models\Business;
 use App\Models\User;
 use App\Services\Inventory;
@@ -16,18 +19,18 @@ class DemoBusinessSeeder extends Seeder
     /**
      * name, kind, unit, price, min stock, opening stock, unit cost, aliases
      *
-     * @var list<array{0: string, 1: string, 2: string, 3: int|null, 4: float|null, 5: float, 6: int, 7: list<string>}>
+     * @var list<array{0: string, 1: ItemKind, 2: string, 3: int|null, 4: float|null, 5: float, 6: int, 7: list<string>}>
      */
     private const STOCKED = [
-        ['Beras', 'bahan', 'kg', null, 5, 9, 14000, []],
-        ['Telur', 'bahan', 'butir', null, 30, 40, 2200, []],
-        ['Minyak goreng', 'bahan', 'liter', null, 2, 4, 18000, ['minyak']],
-        ['Bumbu & kecap', 'bahan', 'porsi', null, 20, 60, 1540, ['bumbu']],
-        ['Mie telur', 'bahan', 'bungkus', null, 15, 45, 3000, ['mie']],
-        ['Teh celup', 'bahan', 'kantong', null, 50, 90, 400, ['teh']],
-        ['Gula pasir', 'bahan', 'kg', null, 1, 2.5, 16000, ['gula']],
-        ['Air Mineral 600 ml', 'produk', 'botol', 4000, 12, 9, 2500, ['aqua', 'air mineral', 'air']],
-        ['Kerupuk', 'produk', 'bungkus', 2000, 20, 80, 1000, ['krupuk']],
+        ['Beras', ItemKind::Bahan, 'kg', null, 5, 9, 14000, []],
+        ['Telur', ItemKind::Bahan, 'butir', null, 30, 40, 2200, []],
+        ['Minyak goreng', ItemKind::Bahan, 'liter', null, 2, 4, 18000, ['minyak']],
+        ['Bumbu & kecap', ItemKind::Bahan, 'porsi', null, 20, 60, 1540, ['bumbu']],
+        ['Mie telur', ItemKind::Bahan, 'bungkus', null, 15, 45, 3000, ['mie']],
+        ['Teh celup', ItemKind::Bahan, 'kantong', null, 50, 90, 400, ['teh']],
+        ['Gula pasir', ItemKind::Bahan, 'kg', null, 1, 2.5, 16000, ['gula']],
+        ['Air Mineral 600 ml', ItemKind::Produk, 'botol', 4000, 12, 9, 2500, ['aqua', 'air mineral', 'air']],
+        ['Kerupuk', ItemKind::Produk, 'bungkus', 2000, 20, 80, 1000, ['krupuk']],
     ];
 
     /**
@@ -68,15 +71,15 @@ class DemoBusinessSeeder extends Seeder
                 'unit' => $unit,
                 'price' => $price,
                 'min_stock' => $min,
-                'show_in_store' => $kind === 'produk',
+                'show_in_store' => $kind === ItemKind::Produk,
             ]);
-            $inventory->receive($item, $stock, $cost, 'stok_awal', '3101');
+            $inventory->receive($item, $stock, $cost, StockReason::StokAwal, Account::OWNER_CAPITAL);
             $items[$name] = $item;
         }
 
         foreach (self::RECIPES as [$name, $price, $aliases, $ingredients]) {
             $product = $business->items()->create([
-                'kind' => 'komposisi',
+                'kind' => ItemKind::Komposisi,
                 'name' => $name,
                 'aliases' => $aliases,
                 'unit' => $name === 'Es Teh' ? 'gelas' : 'porsi',

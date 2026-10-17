@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ItemKind;
+use App\Enums\StockReason;
 use App\Http\Requests\ItemRequest;
+use App\Models\Account;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\StockMovement;
@@ -32,14 +35,14 @@ class ItemController extends Controller
                 map: fn (Item $item) => $this->row($item),
                 sorts: [
                     'nama' => 'name',
-                    'harga' => fn (Builder $query, string $direction) => $query->orderByRaw('price is null')->orderBy('price', $direction),
+                    'harga' => fn (Builder $query, string $direction) => $query->orderByRaw('items.price is null')->orderBy('items.price', $direction),
                     'biaya' => fn (Builder $query, string $direction) => $query->orderByRaw(Item::UNIT_COST_SQL." {$direction}"),
-                    'margin' => fn (Builder $query, string $direction) => $query->orderByRaw('coalesce(price, 0) = 0')->orderByRaw(Item::MARGIN_SQL." {$direction}"),
-                    'stok' => fn (Builder $query, string $direction) => $query->orderByRaw("kind = 'komposisi'")->orderBy('stock', $direction),
+                    'margin' => fn (Builder $query, string $direction) => $query->orderByRaw('coalesce(items.price, 0) = 0')->orderByRaw(Item::MARGIN_SQL." {$direction}"),
+                    'stok' => fn (Builder $query, string $direction) => $query->orderByRaw('items.kind = ?', [ItemKind::Komposisi->value])->orderBy('items.stock', $direction),
                 ],
                 defaultSort: 'nama',
-                filters: ['jenis' => ['kind', Item::KINDS]],
-                search: ['name', 'cast(aliases as char)'],
+                filters: ['jenis' => ['kind', ItemKind::values()]],
+                search: ['name', 'cast(items.aliases as char)'],
             ),
             // A closure, so a table reload with only: ['items'] skips these queries.
             'summary' => fn () => $this->summary($business),
@@ -51,11 +54,9 @@ class ItemController extends Controller
      */
     public function create(Request $request): Response
     {
-        $kind = in_array($request->query('jenis'), Item::KINDS, true) ? $request->query('jenis') : 'produk';
-
         return Inertia::render('items/form', [
             'item' => null,
-            'initialKind' => $kind,
+            'initialKind' => ItemKind::tryFrom((string) $request->query('jenis')) ?? ItemKind::Produk,
             'materials' => $this->materials($request->user()->currentBusiness()),
             'units' => $this->units($request->user()->currentBusiness()),
             'movements' => [],
@@ -68,14 +69,15 @@ class ItemController extends Controller
         $data = $request->validated();
 
         $item = DB::transaction(function () use ($business, $data, $inventory) {
-            $item = $business->items()->create(['kind' => $data['kind']] + $this->attributes($data, $data['kind']));
+            $kind = ItemKind::from($data['kind']);
+            $item = $business->items()->create(['kind' => $kind] + $this->attributes($data, $kind));
 
-            if ($item->kind === 'komposisi') {
+            if ($kind === ItemKind::Komposisi) {
                 $item->recipeLines()->createMany($data['recipe']);
             }
 
             if ((float) ($data['opening_stock'] ?? 0) > 0) {
-                $inventory->receive($item, (float) $data['opening_stock'], (int) $data['opening_cost'], 'stok_awal', '3101');
+                $inventory->receive($item, (float) $data['opening_stock'], (int) $data['opening_cost'], StockReason::StokAwal, Account::OWNER_CAPITAL);
             }
 
             return $item;
@@ -122,7 +124,7 @@ class ItemController extends Controller
         DB::transaction(function () use ($item, $data) {
             $item->update($this->attributes($data, $item->kind));
 
-            if ($item->kind === 'komposisi') {
+            if ($item->kind === ItemKind::Komposisi) {
                 $item->recipeLines()->delete();
                 $item->recipeLines()->createMany($data['recipe']);
             }
@@ -197,24 +199,24 @@ class ItemController extends Controller
     }
 
     /**
-     * Totals over every item, not just the current page. Low stock follows the same rule as row().
+     * Totals over every item, not just the current page.
      *
      * @return array<string, mixed>
      */
     private function summary(Business $business): array
     {
-        $stocked = fn () => $business->items()->where('kind', '<>', 'komposisi');
-        $low = fn () => $stocked()->whereNotNull('min_stock')->where('stock', '>=', 0)->whereColumn('stock', '<', 'min_stock');
-        $negative = fn () => $stocked()->where('stock', '<', 0);
+        $stocked = fn () => $business->items()->stocked();
+        $low = fn () => $business->items()->lowStock();
+        $negative = fn () => $business->items()->negativeStock();
 
         return [
             'itemCount' => $business->items()->count(),
             'stockedCount' => $stocked()->count(),
-            'inventoryValue' => (int) $stocked()->sum('stock_value'),
+            'inventoryValue' => (int) $stocked()->sum('items.stock_value'),
             'lowStockCount' => $low()->count(),
-            'lowStockNames' => $low()->orderBy('name')->limit(2)->pluck('name'),
+            'lowStockNames' => $low()->orderBy('items.name')->limit(2)->pluck('items.name'),
             'negativeStockCount' => $negative()->count(),
-            'negativeStockNames' => $negative()->orderBy('name')->limit(2)->pluck('name'),
+            'negativeStockNames' => $negative()->orderBy('items.name')->limit(2)->pluck('items.name'),
         ];
     }
 
@@ -222,17 +224,17 @@ class ItemController extends Controller
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function attributes(array $data, string $kind): array
+    private function attributes(array $data, ItemKind $kind): array
     {
         return [
             'name' => $data['name'],
             'aliases' => $data['aliases'] ?? [],
             'unit' => $data['unit'],
-            'price' => $kind === 'bahan' ? null : $data['price'],
-            'min_stock' => $kind === 'komposisi' ? null : ($data['min_stock'] ?? null),
-            'show_in_store' => $kind !== 'bahan' && ($data['show_in_store'] ?? true),
+            'price' => $kind->isSold() ? $data['price'] : null,
+            'min_stock' => $kind->isStocked() ? ($data['min_stock'] ?? null) : null,
+            'show_in_store' => $kind->isSold() && ($data['show_in_store'] ?? true),
             // PRD US-08: stocked items are sold out by their stock; only recipe products have a switch.
-            'available' => $kind !== 'komposisi' || ($data['available'] ?? true),
+            'available' => $kind->isStocked() || ($data['available'] ?? true),
         ];
     }
 
@@ -258,8 +260,8 @@ class ItemController extends Controller
             'marginPercent' => $item->marginPercent(),
             'showInStore' => $item->show_in_store,
             'available' => $item->available,
-            'lowStock' => $item->hasStock() && $minStock !== null && $stock >= 0 && $stock < $minStock,
-            'negativeStock' => $item->hasStock() && $stock < 0,
+            'lowStock' => $item->isLowStock(),
+            'negativeStock' => $item->isNegativeStock(),
         ];
     }
 
@@ -270,7 +272,7 @@ class ItemController extends Controller
      */
     private function units(Business $business): array
     {
-        return array_values($business->items()->distinct()->orderBy('unit')->pluck('unit')->all());
+        return array_values($business->items()->distinct()->orderBy('items.unit')->pluck('items.unit')->all());
     }
 
     /**
@@ -281,9 +283,9 @@ class ItemController extends Controller
     private function materials(Business $business, ?Item $except = null): array
     {
         return array_values($business->items()
-            ->whereIn('kind', ['produk', 'bahan'])
+            ->stocked()
             ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
-            ->orderBy('name')
+            ->orderBy('items.name')
             ->get()
             ->map(fn (Item $item) => [
                 'id' => $item->id,

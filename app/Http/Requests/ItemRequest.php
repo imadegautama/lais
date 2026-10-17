@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ItemKind;
 use App\Models\Item;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,11 +13,11 @@ class ItemRequest extends FormRequest
     /**
      * The kind is chosen on create and fixed afterwards.
      */
-    public function kind(): string
+    public function kind(): ?ItemKind
     {
         $item = $this->route('item');
 
-        return $item instanceof Item ? $item->kind : (string) $this->input('kind');
+        return $item instanceof Item ? $item->kind : ItemKind::tryFrom((string) $this->input('kind'));
     }
 
     /**
@@ -53,7 +54,7 @@ class ItemRequest extends FormRequest
         $kind = $this->kind();
 
         return [
-            'kind' => $creating ? ['required', Rule::in(Item::KINDS)] : ['prohibited'],
+            'kind' => $creating ? ['required', Rule::enum(ItemKind::class)] : ['prohibited'],
             'name' => [
                 'required', 'string', 'max:120',
                 Rule::unique('items')->where('business_id', $businessId)->whereNull('deleted_at')->ignore($item),
@@ -61,20 +62,20 @@ class ItemRequest extends FormRequest
             'aliases' => ['nullable', 'array', 'max:10'],
             'aliases.*' => ['string', 'max:60'],
             'unit' => ['required', 'string', 'max:20'],
-            'price' => $kind === 'bahan' ? ['nullable'] : ['required', 'integer', 'min:0'],
+            'price' => $kind === ItemKind::Bahan ? ['nullable'] : ['required', 'integer', 'min:0'],
             'min_stock' => ['nullable', 'numeric', 'min:0'],
             'show_in_store' => ['boolean'],
             'available' => ['boolean'],
-            'opening_stock' => $creating && $kind !== 'komposisi' ? ['nullable', 'numeric', 'min:0'] : ['prohibited'],
-            'opening_cost' => $creating && $kind !== 'komposisi'
+            'opening_stock' => $creating && $kind !== ItemKind::Komposisi ? ['nullable', 'numeric', 'min:0'] : ['prohibited'],
+            'opening_cost' => $creating && $kind !== ItemKind::Komposisi
                 ? [Rule::requiredIf(fn () => (float) $this->input('opening_stock') > 0), 'nullable', 'integer', 'min:0']
                 : ['prohibited'],
-            'recipe' => $kind === 'komposisi' ? ['required', 'array', 'min:1'] : ['prohibited'],
+            'recipe' => $kind === ItemKind::Komposisi ? ['required', 'array', 'min:1'] : ['prohibited'],
             'recipe.*.material_id' => [
                 'required', 'integer', 'distinct',
                 Rule::exists('items', 'id')
                     ->where('business_id', $businessId)
-                    ->whereIn('kind', ['produk', 'bahan'])
+                    ->whereIn('kind', ItemKind::stocked())
                     ->whereNull('deleted_at'),
             ],
             'recipe.*.qty' => ['required', 'numeric', 'gt:0'],

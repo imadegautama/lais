@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ContactType;
+use App\Enums\StockReason;
+use App\Enums\TransactionType;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
@@ -76,7 +79,7 @@ class LedgerTest extends TestCase
             $item = $items[$random->getInt(0, 3)]->refresh();
 
             if ($random->getInt(0, 2) > 0) {
-                $inventory->receive($item, $random->getInt(1, 200) / 10, $random->getInt(1, 200) * 100, 'stok_awal', '3101');
+                $inventory->receive($item, $random->getInt(1, 200) / 10, $random->getInt(1, 200) * 100, StockReason::StokAwal, '3101');
             } else {
                 $inventory->adjust($item, $random->getInt(0, 300) / 10);
             }
@@ -131,7 +134,7 @@ class LedgerTest extends TestCase
                 })(),
                 3 => $service->record($business, [
                     'type' => $type = $pick(['biaya', 'pembelian']),
-                    'kind' => $type === 'biaya' ? $pick(Transaction::KINDS['biaya']) : 'peralatan',
+                    'kind' => $type === 'biaya' ? $pick(array_column(TransactionType::Biaya->kinds(), 'value')) : 'peralatan',
                     'method' => $method(['tunai', 'non_tunai', 'kredit', 'pribadi']),
                     'contact_name' => $pick(['Toko A', 'Toko B']),
                     'amount' => $random->getInt(1, 500) * 1000,
@@ -148,7 +151,7 @@ class LedgerTest extends TestCase
                     $contact = Contact::query()->findOrFail($contactId);
                     $service->record($business, [
                         'type' => 'utang_piutang',
-                        'kind' => $contact->type === 'pelanggan' ? 'terima_piutang' : 'bayar_utang',
+                        'kind' => $contact->type === ContactType::Pelanggan ? 'terima_piutang' : 'bayar_utang',
                         'method' => $pick(['tunai', 'non_tunai']),
                         'contact_id' => $contactId,
                         'amount' => $random->getInt(1, $open[$contactId]),
@@ -177,8 +180,8 @@ class LedgerTest extends TestCase
             $balance('1101') + $balance('1102') + $balance('1201') + $balance('1301') + $balance('1401'),
             $balance('2101') + $balance('2201') + $balance('3101') - $balance('3201') + $balance('4101') - $balance('5101') - $balance('6101') - $balance('6201'),
         );
-        $this->assertSame($balance('1201'), $contactBalances->filter(fn ($amount, $id) => $contacts[$id]->type === 'pelanggan')->sum());
-        $this->assertSame($balance('2101'), $contactBalances->filter(fn ($amount, $id) => $contacts[$id]->type === 'supplier')->sum());
+        $this->assertSame($balance('1201'), $contactBalances->filter(fn ($amount, $id) => $contacts[$id]->type === ContactType::Pelanggan)->sum());
+        $this->assertSame($balance('2101'), $contactBalances->filter(fn ($amount, $id) => $contacts[$id]->type === ContactType::Supplier)->sum());
         $this->assertSame($balance('1101') + $balance('1102'), (int) Transaction::query()->where('status', 'posted')->sum('cash_flow'));
 
         $this->assertGreaterThan(100, Transaction::query()->count());

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\StockReason;
+use App\Models\Account;
 use App\Models\Item;
 use App\Models\StockMovement;
 use Carbon\CarbonInterface;
@@ -23,9 +25,9 @@ class Inventory
 
     /**
      * Add stock at a unit cost and journal it against $creditAccount
-     * (3101 Modal Pemilik for opening stock).
+     * (Account::OWNER_CAPITAL for opening stock).
      */
-    public function receive(Item $item, float $qty, int $unitCost, string $reason, string $creditAccount): StockMovement
+    public function receive(Item $item, float $qty, int $unitCost, StockReason $reason, string $creditAccount): StockMovement
     {
         $this->assertStocked($item);
 
@@ -38,7 +40,7 @@ class Inventory
         return DB::transaction(function () use ($item, $qty, $cost, $reason, $creditAccount) {
             $this->lock($item);
             $movement = $this->stockIn($item, $qty, $cost, $reason);
-            $lines = Ledger::lines(['1301' => $movement->value, '5101' => $cost - $movement->value, $creditAccount => -$cost]);
+            $lines = Ledger::lines([Account::INVENTORY => $movement->value, Account::COGS => $cost - $movement->value, $creditAccount => -$cost]);
 
             if ($lines !== []) {
                 $entry = $this->ledger->post($item->business, "Stok masuk: {$item->name}", $lines, $item);
@@ -73,10 +75,10 @@ class Inventory
             // Counting down to zero clears the remaining value exactly, so no rounding residue is left behind.
             $value = $physicalQty == 0.0 ? -$item->stock_value : (int) round($diff * $item->averageCost());
             $entry = $value !== 0
-                ? $this->ledger->post($item->business, "Koreksi stok: {$item->name}", Ledger::lines(['1301' => $value, '6201' => -$value]), $item)
+                ? $this->ledger->post($item->business, "Koreksi stok: {$item->name}", Ledger::lines([Account::INVENTORY => $value, Account::STOCK_DIFFERENCE => -$value]), $item)
                 : null;
 
-            return $this->move($item, $diff, $value, 'koreksi', $entry?->id);
+            return $this->move($item, $diff, $value, StockReason::Koreksi, $entry?->id);
         });
     }
 
@@ -85,7 +87,7 @@ class Inventory
      * inside the current DB transaction and book the journal. The movement value
      * goes to Persediaan; $cost minus that value is the cost of units already sold (HPP).
      */
-    public function stockIn(Item $item, float $qty, int $cost, string $reason, ?int $transactionId = null, ?CarbonInterface $occurredAt = null): StockMovement
+    public function stockIn(Item $item, float $qty, int $cost, StockReason $reason, ?int $transactionId = null, ?CarbonInterface $occurredAt = null): StockMovement
     {
         $this->assertStocked($item);
         $stock = (float) $item->stock;
@@ -105,7 +107,7 @@ class Inventory
      * Stock out at the current average cost; the movement value is negative.
      * Same locking contract as stockIn().
      */
-    public function stockOut(Item $item, float $qty, string $reason, int $transactionId, ?CarbonInterface $occurredAt = null): StockMovement
+    public function stockOut(Item $item, float $qty, StockReason $reason, int $transactionId, ?CarbonInterface $occurredAt = null): StockMovement
     {
         $this->assertStocked($item);
         $stock = (float) $item->stock;
@@ -133,7 +135,7 @@ class Inventory
             ->syncOriginalAttributes(['stock', 'stock_value']);
     }
 
-    private function move(Item $item, float $qty, int $value, string $reason, ?int $journalEntryId, ?int $transactionId = null, ?CarbonInterface $occurredAt = null): StockMovement
+    private function move(Item $item, float $qty, int $value, StockReason $reason, ?int $journalEntryId, ?int $transactionId = null, ?CarbonInterface $occurredAt = null): StockMovement
     {
         $after = round((float) $item->stock + $qty, 3);
 

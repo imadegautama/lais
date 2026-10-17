@@ -2,6 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentMethod;
+use App\Enums\TransactionKind;
+use App\Enums\TransactionSource;
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,9 +19,9 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $business_id
- * @property string $type
- * @property string|null $kind
- * @property string $method
+ * @property TransactionType $type
+ * @property TransactionKind|null $kind
+ * @property PaymentMethod $method
  * @property Carbon $occurred_at
  * @property int $total
  * @property int $paid_amount
@@ -24,43 +29,14 @@ use Illuminate\Support\Carbon;
  * @property string $description
  * @property string|null $note
  * @property int|null $contact_id
- * @property string $source
- * @property string $status
+ * @property TransactionSource $source
+ * @property TransactionStatus $status
  * @property Carbon|null $voided_at
  * @property string|null $void_reason
  */
 #[Fillable(['type', 'kind', 'method', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source'])]
 class Transaction extends Model
 {
-    public const TYPES = ['penjualan', 'pembelian', 'biaya', 'utang_piutang', 'modal'];
-
-    /**
-     * Sub-kinds per type; penjualan has none.
-     *
-     * @var array<string, list<string>>
-     */
-    public const KINDS = [
-        'pembelian' => ['barang', 'peralatan'],
-        'biaya' => ['listrik_air', 'gas_bbm', 'sewa', 'upah', 'transport', 'pemasaran', 'lain'],
-        'utang_piutang' => ['terima_piutang', 'bayar_utang'],
-        'modal' => ['setor', 'prive'],
-    ];
-
-    /**
-     * Payment methods each type accepts (PRD US-05: uang pribadi only for purchases and expenses).
-     *
-     * @var array<string, list<string>>
-     */
-    public const METHODS = [
-        'penjualan' => ['tunai', 'non_tunai', 'kredit'],
-        'pembelian' => ['tunai', 'non_tunai', 'kredit', 'pribadi'],
-        'biaya' => ['tunai', 'non_tunai', 'kredit', 'pribadi'],
-        'utang_piutang' => ['tunai', 'non_tunai'],
-        'modal' => ['tunai', 'non_tunai'],
-    ];
-
-    public const SOURCES = ['web', 'wa', 'toko', 'ocr'];
-
     /**
      * Get the attributes that should be cast.
      *
@@ -69,6 +45,11 @@ class Transaction extends Model
     protected function casts(): array
     {
         return [
+            'type' => TransactionType::class,
+            'kind' => TransactionKind::class,
+            'method' => PaymentMethod::class,
+            'source' => TransactionSource::class,
+            'status' => TransactionStatus::class,
             'occurred_at' => 'datetime',
             'voided_at' => 'datetime',
             'total' => 'integer',
@@ -79,7 +60,7 @@ class Transaction extends Model
 
     public function isVoid(): bool
     {
-        return $this->status === 'void';
+        return $this->status === TransactionStatus::Void;
     }
 
     /**

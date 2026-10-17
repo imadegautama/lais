@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ContactType;
+use App\Enums\StockReason;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\Transaction;
@@ -131,7 +133,7 @@ class TransactionServiceTest extends TestCase
         ]);
 
         $this->assertSame([1101 => 10000, 1201 => 20000, 1301 => -5000, 4101 => -30000, 5101 => 5000], $this->journal($sale));
-        $this->assertSame('pelanggan', $sale->contact->type);
+        $this->assertSame(ContactType::Pelanggan, $sale->contact->type);
         $this->assertSame([$sale->contact_id => 20000], app(Ledger::class)->contactBalances($business));
 
         $payment = $this->record($business, ['type' => 'utang_piutang', 'kind' => 'terima_piutang', 'method' => 'tunai', 'contact_id' => $sale->contact_id, 'amount' => 15000]);
@@ -154,7 +156,7 @@ class TransactionServiceTest extends TestCase
             'type' => 'pembelian', 'kind' => 'barang', 'method' => 'kredit', 'contact_name' => 'Toko Makmur',
             'lines' => [['item_id' => $egg->id, 'qty' => 25, 'price' => 2000]],
         ]);
-        $this->assertSame('supplier', $purchase->contact->type);
+        $this->assertSame(ContactType::Supplier, $purchase->contact->type);
 
         $payment = $this->record($business, ['type' => 'utang_piutang', 'kind' => 'bayar_utang', 'method' => 'non_tunai', 'contact_id' => $purchase->contact_id, 'amount' => 50000]);
 
@@ -213,7 +215,7 @@ class TransactionServiceTest extends TestCase
     {
         $factory = $material ? Item::factory()->material() : Item::factory();
         $item = $factory->for($business)->create(['name' => $name, 'price' => $material ? null : $price, 'unit' => $name === 'Telur' ? 'butir' : ($material ? 'kg' : 'botol')]);
-        app(Inventory::class)->receive($item, $qty, $unitCost, 'stok_awal', '3101');
+        app(Inventory::class)->receive($item, $qty, $unitCost, StockReason::StokAwal, '3101');
 
         return $item->refresh();
     }

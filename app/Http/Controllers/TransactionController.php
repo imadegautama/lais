@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PaymentMethod;
+use App\Enums\Period;
+use App\Enums\TransactionSource;
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
 use App\Http\Requests\TransactionRequest;
 use App\Models\Business;
 use App\Models\Contact;
@@ -15,7 +20,6 @@ use App\Models\TransactionLine;
 use App\Services\Ledger;
 use App\Services\TransactionService;
 use App\Support\TableQuery;
-use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,17 +29,6 @@ use Inertia\Response;
 
 class TransactionController extends Controller
 {
-    /**
-     * Toast titles per type.
-     */
-    private const SAVED = [
-        'penjualan' => 'Penjualan tersimpan.',
-        'pembelian' => 'Belanja tersimpan.',
-        'biaya' => 'Biaya tersimpan.',
-        'utang_piutang' => 'Pembayaran tersimpan.',
-        'modal' => 'Catatan modal tersimpan.',
-    ];
-
     /**
      * Transaction list (UI-PAGES C2), filtered and paginated on the server.
      */
@@ -52,21 +45,17 @@ class TransactionController extends Controller
                 defaultSort: '-waktu',
                 filters: [
                     'periode' => [
-                        fn (Builder $query, array $values) => $query->where('occurred_at', '>=', match ($values[0]) {
-                            'hari_ini' => now()->startOfDay(),
-                            'minggu_ini' => now()->startOfWeek(CarbonInterface::MONDAY),
-                            default => now()->startOfMonth(),
-                        }),
-                        ['hari_ini', 'minggu_ini', 'bulan_ini'],
+                        fn (Builder $query, array $values) => $query->where('transactions.occurred_at', '>=', Period::from($values[0])->start()),
+                        Period::values(),
                     ],
-                    'jenis' => ['type', Transaction::TYPES],
-                    'metode' => ['method', ['tunai', 'non_tunai', 'kredit', 'pribadi']],
-                    'sumber' => ['source', Transaction::SOURCES],
+                    'jenis' => ['type', TransactionType::values()],
+                    'metode' => ['method', PaymentMethod::values()],
+                    'sumber' => ['source', TransactionSource::values()],
                 ],
-                search: ['description', 'note', '(select name from contacts where contacts.id = transactions.contact_id)'],
+                search: ['description', 'note', '(select contacts.name from contacts where contacts.id = transactions.contact_id)'],
                 summary: fn (Builder $query) => [
-                    'cashIn' => (int) (clone $query)->where('status', 'posted')->where('cash_flow', '>', 0)->sum('cash_flow'),
-                    'cashOut' => -(int) (clone $query)->where('status', 'posted')->where('cash_flow', '<', 0)->sum('cash_flow'),
+                    'cashIn' => (int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.cash_flow', '>', 0)->sum('transactions.cash_flow'),
+                    'cashOut' => -(int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.cash_flow', '<', 0)->sum('transactions.cash_flow'),
                     'count' => (clone $query)->count(),
                 ],
             ),
@@ -81,11 +70,10 @@ class TransactionController extends Controller
     public function create(Request $request, Ledger $ledger): Response
     {
         $business = $request->user()->currentBusiness();
-        $type = in_array($request->query('jenis'), Transaction::TYPES, true) ? (string) $request->query('jenis') : 'penjualan';
         $balances = $ledger->contactBalances($business);
 
         return Inertia::render('transactions/create', [
-            'initialType' => $type,
+            'initialType' => TransactionType::tryFrom((string) $request->query('jenis')) ?? TransactionType::Penjualan,
             'now' => now()->format('Y-m-d\TH:i'),
             'items' => $business->items()->with('recipeLines')->orderBy('name')->get()->map(fn (Item $item) => [
                 'id' => $item->id,
@@ -116,13 +104,13 @@ class TransactionController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => self::SAVED[$transaction->type],
+            'message' => $transaction->type->savedMessage(),
             'description' => $transaction->description,
             'action' => ['label' => 'Lihat', 'href' => route('transactions.show', $transaction)],
         ]);
 
         return $request->boolean('again')
-            ? to_route('transactions.create', ['jenis' => $transaction->type])
+            ? to_route('transactions.create', ['jenis' => $transaction->type->value])
             : to_route('transactions.index');
     }
 
@@ -190,7 +178,7 @@ class TransactionController extends Controller
             'source' => $transaction->source,
             'amount' => $transaction->total,
             // Credit and personal-money records move no business cash, so they carry no +/− sign.
-            'direction' => $transaction->method === 'kredit' || $transaction->cash_flow === 0
+            'direction' => $transaction->method === PaymentMethod::Kredit || $transaction->cash_flow === 0
                 ? 'none'
                 : ($transaction->cash_flow > 0 ? 'in' : 'out'),
             'contact' => $transaction->contact?->name,
