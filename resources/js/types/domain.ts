@@ -1,3 +1,5 @@
+import type { TablePage } from '@/types/ui';
+
 // Domain vocabulary shared by pages and components. Mirrors PRD §4.2.
 // Money is integer rupiah everywhere.
 
@@ -150,11 +152,17 @@ export type StockMovementRow = {
 };
 
 export type ItemsIndexProps = {
-    items: ItemRow[];
+    items: TablePage<ItemRow>;
+    /** Totals over every item, not just the current page. */
     summary: {
+        itemCount: number;
+        stockedCount: number;
         inventoryValue: Rupiah;
         lowStockCount: number;
+        /** At most two names; the count says how many more. */
+        lowStockNames: string[];
         negativeStockCount: number;
+        negativeStockNames: string[];
     };
 };
 

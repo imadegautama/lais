@@ -107,6 +107,23 @@ class Item extends Model
     }
 
     /**
+     * SQL twin of unitCost(), used only to sort the product list; keep the two in step.
+     * "* 1.0" stops SQLite from dividing integers.
+     * shortcut: a correlated subquery per row, fine for a few thousand items; store unit_cost if it gets slow.
+     */
+    public const UNIT_COST_SQL = "(case when items.kind = 'komposisi' then coalesce((
+            select sum(rl.qty * case when m.stock > 0 then m.stock_value * 1.0 / m.stock else 0 end)
+            from recipe_lines rl join items m on m.id = rl.material_id and m.deleted_at is null
+            where rl.product_id = items.id), 0)
+        else case when items.stock > 0 then items.stock_value * 1.0 / items.stock else 0 end end)";
+
+    /**
+     * Margin as a fraction of price, null without a price. Written as 1 - cost/price
+     * because price - cost overflows MySQL's unsigned BIGINT when cost is higher.
+     */
+    public const MARGIN_SQL = '(case when items.price > 0 then 1 - '.self::UNIT_COST_SQL.' * 1.0 / items.price end)';
+
+    /**
      * Cost of one unit: the recipe total for komposisi, the average cost otherwise.
      * Callers must eager load recipeLines.material for komposisi items.
      */

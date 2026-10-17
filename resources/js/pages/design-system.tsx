@@ -21,7 +21,11 @@ import {
     transactionTypes,
 } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
-import { FilterBar } from '@/components/app/filter-bar';
+import {
+    ChipFilter,
+    FilterBar,
+    SearchFilter,
+} from '@/components/app/filter-bar';
 import {
     DeltaBadge,
     MetricCount,
@@ -282,7 +286,7 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
     const [types, setTypes] = useState<string[]>([]);
     const [query, setQuery] = useState('');
     const [tableState, setTableState] = useState<
-        'normal' | 'kosong' | 'memuat' | 'gagal'
+        'normal' | 'kosong' | 'memuat' | 'memuat ulang' | 'gagal'
     >('normal');
 
     const filtered = useMemo(
@@ -796,28 +800,30 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                 <Section
                     id="tabel"
                     title="Tabel"
-                    intro="Di desktop berbentuk tabel dengan kolom yang bisa diurutkan. Di bawah 768 px berubah jadi daftar kartu yang dikelompokkan per tanggal. Filter di sini berjalan di browser; di halaman asli memakai query Inertia."
+                    intro="Di desktop berbentuk tabel dengan kolom yang bisa diurutkan. Di bawah 768 px berubah jadi daftar kartu yang dikelompokkan per tanggal. Contoh ini memakai mode client (filter di browser). Halaman asli seperti Produk & stok memakai mode server: useTableQuery + TableQuery, 20 baris per halaman."
                 >
                     <Panel className="flex flex-col gap-4">
-                        <FilterBar
-                            label="Saring jenis transaksi"
-                            options={(
-                                Object.keys(
-                                    transactionTypes,
-                                ) as TransactionType[]
-                            ).map((type) => ({
-                                value: type,
-                                label: transactionTypes[type].label,
-                                icon: transactionTypes[type].icon,
-                            }))}
-                            value={types}
-                            onChange={setTypes}
-                            search={{
-                                value: query,
-                                onChange: setQuery,
-                                placeholder: 'Cari keterangan',
-                            }}
-                        />
+                        <FilterBar>
+                            <ChipFilter
+                                label="Saring jenis transaksi"
+                                options={(
+                                    Object.keys(
+                                        transactionTypes,
+                                    ) as TransactionType[]
+                                ).map((type) => ({
+                                    value: type,
+                                    label: transactionTypes[type].label,
+                                    icon: transactionTypes[type].icon,
+                                }))}
+                                value={types}
+                                onChange={setTypes}
+                            />
+                            <SearchFilter
+                                placeholder="Cari keterangan"
+                                value={query}
+                                onChange={setQuery}
+                            />
+                        </FilterBar>
                         <TransactionTable
                             rows={filtered}
                             pageSize={10}
@@ -861,7 +867,13 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                             className="w-fit bg-card"
                         >
                             {(
-                                ['normal', 'kosong', 'memuat', 'gagal'] as const
+                                [
+                                    'normal',
+                                    'kosong',
+                                    'memuat',
+                                    'memuat ulang',
+                                    'gagal',
+                                ] as const
                             ).map((state) => (
                                 <ToggleGroupItem
                                     key={state}
@@ -879,6 +891,36 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                     : transactions.slice(0, 5)
                             }
                             isLoading={tableState === 'memuat'}
+                            server={
+                                tableState === 'memuat ulang'
+                                    ? {
+                                          meta: {
+                                              page: 1,
+                                              perPage: 5,
+                                              total: 40,
+                                              lastPage: 8,
+                                          },
+                                          sorting: [
+                                              { id: 'waktu', desc: true },
+                                          ],
+                                          onSortingChange: () =>
+                                              toast(
+                                                  'Di halaman asli, urutan baru diambil dari server.',
+                                              ),
+                                          pagination: {
+                                              pageIndex: 0,
+                                              pageSize: 5,
+                                          },
+                                          onPaginationChange: () =>
+                                              toast(
+                                                  'Di halaman asli, halaman berikutnya diambil dari server.',
+                                              ),
+                                          isLoading: true,
+                                          failed: false,
+                                          retry: () => setTableState('normal'),
+                                      }
+                                    : undefined
+                            }
                             error={
                                 tableState === 'gagal' && (
                                     <ErrorState

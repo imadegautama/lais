@@ -32,11 +32,132 @@ class ItemControllerTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('items/index')
-                ->has('items', 1)
-                ->where('items.0.name', 'Beras')
-                ->where('items.0.unitCost', 14000)
-                ->where('items.0.lowStock', true)
-                ->where('summary.inventoryValue', 42000));
+                ->has('items.data', 1)
+                ->where('items.data.0.name', 'Beras')
+                ->where('items.data.0.unitCost', 14000)
+                ->where('items.data.0.lowStock', true)
+                ->where('summary.itemCount', 1)
+                ->where('summary.inventoryValue', 42000)
+                ->where('summary.lowStockNames', ['Beras']));
+    }
+
+    public function test_the_list_is_paginated_twenty_per_page(): void
+    {
+        $business = Business::factory()->create();
+        Item::factory()->count(25)->for($business)->create();
+        $this->actingAs($business->user);
+
+        $this->get(route('items.index'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('items.data', 20)
+            ->where('items.meta', ['page' => 1, 'perPage' => 20, 'total' => 25, 'lastPage' => 2]));
+
+        $this->get(route('items.index', ['halaman' => 2]))->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('items.data', 5)
+            ->where('items.meta.page', 2));
+
+        $this->get(route('items.index', ['halaman' => 99]))->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('items.data', 5)
+            ->where('items.meta.page', 2));
+
+        $this->get(route('items.index', ['halaman' => 'abc']))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('items.meta.page', 1));
+    }
+
+    public function test_search_matches_names_and_aliases_within_the_business(): void
+    {
+        $business = Business::factory()->create();
+        Item::factory()->for($business)->create(['name' => 'Air Mineral', 'aliases' => ['aqua', 'air']]);
+        Item::factory()->for($business)->create(['name' => 'Kopi Susu']);
+        Item::factory()->create(['name' => 'Aqua Botol']);
+        $this->actingAs($business->user);
+
+        $names = fn (array $query) => array_column($this->get(route('items.index', $query))->inertiaProps('items.data'), 'name');
+
+        $this->assertSame(['Air Mineral'], $names(['cari' => 'AQUA']));
+        $this->assertSame(['Kopi Susu'], $names(['cari' => 'kopi']));
+    }
+
+    public function test_the_kind_filter_keeps_only_known_kinds(): void
+    {
+        $business = Business::factory()->create();
+        Item::factory()->material()->for($business)->create(['name' => 'Beras']);
+        Item::factory()->for($business)->create(['name' => 'Kerupuk']);
+        $this->actingAs($business->user);
+
+        $this->get(route('items.index', ['jenis' => ['bahan', 'palsu']]))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('items.data', 1)
+                ->where('items.data.0.name', 'Beras')
+                ->where('items.query.jenis', ['bahan']));
+
+        $this->get(route('items.index', ['jenis' => [['palsu']]]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('items.data', 2));
+    }
+
+    public function test_sorting_by_margin_and_cost_follows_the_php_numbers_with_unpriced_items_last(): void
+    {
+        $business = Business::factory()->create();
+        $inventory = app(Inventory::class);
+        $thin = Item::factory()->for($business)->create(['name' => 'Tipis', 'price' => 10000]);
+        $inventory->receive($thin, 1, 8000, 'stok_awal', '3101');
+        $wide = Item::factory()->for($business)->create(['name' => 'Lebar', 'price' => 10000]);
+        $inventory->receive($wide, 1, 2500, 'stok_awal', '3101');
+        $material = Item::factory()->material()->for($business)->create(['name' => 'Bahan']);
+        $inventory->receive($material, 10, 6000, 'stok_awal', '3101');
+        $recipe = Item::factory()->recipe()->for($business)->create(['name' => 'Resep', 'price' => 10000]);
+        $recipe->recipeLines()->create(['material_id' => $material->id, 'qty' => 0.5]);
+        $this->actingAs($business->user);
+
+        $names = fn (string $sort) => array_column($this->get(route('items.index', ['urut' => $sort]))->inertiaProps('items.data'), 'name');
+
+        // Margins: Tipis 20%, Resep 70%, Lebar 75%; Bahan has no price.
+        $this->assertSame(['Tipis', 'Resep', 'Lebar', 'Bahan'], $names('margin'));
+        $this->assertSame(['Lebar', 'Resep', 'Tipis', 'Bahan'], $names('-margin'));
+        // Costs: Lebar 2.500, Resep 3.000 (0,5 × 6.000), Bahan 6.000, Tipis 8.000.
+        $this->assertSame(['Lebar', 'Resep', 'Bahan', 'Tipis'], $names('biaya'));
+    }
+
+    public function test_sorting_by_cost_keeps_fractions_of_a_rupiah(): void
+    {
+        $business = Business::factory()->create();
+        $inventory = app(Inventory::class);
+        $fraction = Item::factory()->material()->for($business)->create(['name' => 'Pecahan']);
+        $inventory->receive($fraction, 1, 3333, 'stok_awal', '3101');
+        $inventory->receive($fraction->refresh(), 2, 3334, 'stok_awal', '3101');
+        $whole = Item::factory()->material()->for($business)->create(['name' => 'Bulat']);
+        $inventory->receive($whole, 1, 3333, 'stok_awal', '3101');
+        $this->actingAs($business->user);
+
+        // 10.001 / 3 = 3.333,67 sorts after 3.333; integer division would tie them.
+        $order = array_column($this->get(route('items.index', ['urut' => 'biaya']))->inertiaProps('items.data'), 'name');
+
+        $this->assertSame(['Bulat', 'Pecahan'], $order);
+    }
+
+    public function test_an_unknown_sort_falls_back_to_name(): void
+    {
+        $business = Business::factory()->create();
+        Item::factory()->for($business)->create(['name' => 'Zebra']);
+        Item::factory()->for($business)->create(['name' => 'Apel']);
+        $this->actingAs($business->user);
+
+        foreach (['password', ['x']] as $sort) {
+            $this->get(route('items.index', ['urut' => $sort]))
+                ->assertInertia(fn (AssertableInertia $page) => $page
+                    ->where('items.data.0.name', 'Apel')
+                    ->where('items.query.urut', 'nama'));
+        }
+    }
+
+    public function test_reloading_the_table_skips_the_summary(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('items.index'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->reloadOnly('items', fn (AssertableInertia $reload) => $reload->missing('summary')));
     }
 
     public function test_storing_a_product_with_opening_stock_books_it_against_owners_capital(): void

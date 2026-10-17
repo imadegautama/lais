@@ -7,6 +7,7 @@ import {
 import { CategoryBadge, SourceLabel } from '@/components/app/badges';
 import { Money } from '@/components/app/money';
 import { EmptyState } from '@/components/app/states';
+import type { ServerTable } from '@/hooks/use-table-query';
 import { formatDate } from '@/lib/format';
 import type { TransactionRow } from '@/types/domain';
 
@@ -70,6 +71,7 @@ type TransactionTableProps = {
     isLoading?: boolean;
     error?: ReactNode;
     empty?: ReactNode;
+    server?: ServerTable;
 };
 
 export function TransactionTable({
@@ -78,6 +80,7 @@ export function TransactionTable({
     isLoading,
     error,
     empty,
+    server,
 }: TransactionTableProps) {
     return (
         <AppDataTable
@@ -90,6 +93,7 @@ export function TransactionTable({
             isLoading={isLoading}
             loadingLabel="Memuat transaksi"
             error={error}
+            server={server}
             layout={{
                 waktu: { className: 'w-32 whitespace-nowrap' },
                 nominal: { align: 'right', className: 'w-32' },

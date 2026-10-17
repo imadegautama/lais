@@ -7,6 +7,8 @@ use App\Models\Business;
 use App\Models\Item;
 use App\Models\StockMovement;
 use App\Services\Inventory;
+use App\Support\TableQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,25 +19,30 @@ use Inertia\Response;
 class ItemController extends Controller
 {
     /**
-     * Product and stock list (UI-PAGES C5).
-     * shortcut: sends every item and filters in the browser, fine below ~200 items; paginate server-side beyond that.
+     * Product and stock list (UI-PAGES C5), searched, filtered, sorted, and paginated on the server.
      */
     public function index(Request $request): Response
     {
-        $items = $request->user()->currentBusiness()->items()
-            ->with('recipeLines.material')
-            ->orderBy('name')
-            ->get();
-
-        $rows = $items->map(fn (Item $item) => $this->row($item));
+        $business = $request->user()->currentBusiness();
 
         return Inertia::render('items/index', [
-            'items' => $rows->values(),
-            'summary' => [
-                'inventoryValue' => $items->filter->hasStock()->sum('stock_value'),
-                'lowStockCount' => $rows->where('lowStock', true)->count(),
-                'negativeStockCount' => $rows->where('negativeStock', true)->count(),
-            ],
+            'items' => TableQuery::paginate(
+                $request,
+                $business->items()->getQuery()->with('recipeLines.material'),
+                map: fn (Item $item) => $this->row($item),
+                sorts: [
+                    'nama' => 'name',
+                    'harga' => fn (Builder $query, string $direction) => $query->orderByRaw('price is null')->orderBy('price', $direction),
+                    'biaya' => fn (Builder $query, string $direction) => $query->orderByRaw(Item::UNIT_COST_SQL." {$direction}"),
+                    'margin' => fn (Builder $query, string $direction) => $query->orderByRaw('coalesce(price, 0) = 0')->orderByRaw(Item::MARGIN_SQL." {$direction}"),
+                    'stok' => fn (Builder $query, string $direction) => $query->orderByRaw("kind = 'komposisi'")->orderBy('stock', $direction),
+                ],
+                defaultSort: 'nama',
+                filters: ['jenis' => ['kind', Item::KINDS]],
+                search: ['name', 'cast(aliases as char)'],
+            ),
+            // A closure, so a table reload with only: ['items'] skips these queries.
+            'summary' => fn () => $this->summary($business),
         ]);
     }
 
@@ -188,6 +195,28 @@ class ItemController extends Controller
     }
 
     /**
+     * Totals over every item, not just the current page. Low stock follows the same rule as row().
+     *
+     * @return array<string, mixed>
+     */
+    private function summary(Business $business): array
+    {
+        $stocked = fn () => $business->items()->where('kind', '<>', 'komposisi');
+        $low = fn () => $stocked()->whereNotNull('min_stock')->where('stock', '>=', 0)->whereColumn('stock', '<', 'min_stock');
+        $negative = fn () => $stocked()->where('stock', '<', 0);
+
+        return [
+            'itemCount' => $business->items()->count(),
+            'stockedCount' => $stocked()->count(),
+            'inventoryValue' => (int) $stocked()->sum('stock_value'),
+            'lowStockCount' => $low()->count(),
+            'lowStockNames' => $low()->orderBy('name')->limit(2)->pluck('name'),
+            'negativeStockCount' => $negative()->count(),
+            'negativeStockNames' => $negative()->orderBy('name')->limit(2)->pluck('name'),
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
@@ -238,7 +267,7 @@ class ItemController extends Controller
      */
     private function materials(Business $business, ?Item $except = null): array
     {
-        return $business->items()
+        return array_values($business->items()
             ->whereIn('kind', ['produk', 'bahan'])
             ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
             ->orderBy('name')
@@ -249,6 +278,6 @@ class ItemController extends Controller
                 'unit' => $item->unit,
                 'averageCost' => round($item->averageCost(), 4),
             ])
-            ->all();
+            ->all());
     }
 }

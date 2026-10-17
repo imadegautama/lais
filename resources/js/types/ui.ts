@@ -19,3 +19,16 @@ export type AuthLayoutProps = {
     title?: string;
     description?: string;
 };
+
+/** Query state a server table applied, as returned by App\Support\TableQuery. */
+export type TableQueryState = { cari: string; urut: string } & Record<
+    string,
+    string | string[]
+>;
+
+/** One page of a server-driven table. */
+export type TablePage<TRow> = {
+    data: TRow[];
+    meta: { page: number; perPage: number; total: number; lastPage: number };
+    query: TableQueryState;
+};
