@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\ItemKind;
 use App\Enums\StockReason;
 use App\Http\Requests\ItemRequest;
+use App\Http\Resources\ItemOptionResource;
+use App\Http\Resources\ItemResource;
+use App\Http\Resources\StockMovementResource;
 use App\Models\Account;
 use App\Models\Business;
 use App\Models\Item;
-use App\Models\StockMovement;
 use App\Services\Inventory;
 use App\Support\TableQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,7 +34,7 @@ class ItemController extends Controller
             'items' => TableQuery::paginate(
                 $request,
                 $business->items()->getQuery()->with('recipeLines.material'),
-                map: fn (Item $item) => $this->row($item),
+                map: fn (Item $item) => ItemResource::make($item)->resolve(),
                 sorts: [
                     'nama' => 'name',
                     'harga' => fn (Builder $query, string $direction) => $query->orderByRaw('items.price is null')->orderBy('items.price', $direction),
@@ -95,7 +97,8 @@ class ItemController extends Controller
         $item->load('recipeLines.material');
 
         return Inertia::render('items/form', [
-            'item' => $this->row($item) + [
+            // The recipe is form input, so it keeps the request's field names.
+            'item' => ItemResource::make($item)->resolve() + [
                 'recipe' => $item->recipeLines->map(fn ($line) => [
                     'material_id' => $line->material_id,
                     'qty' => (float) $line->qty,
@@ -104,14 +107,9 @@ class ItemController extends Controller
             'initialKind' => $item->kind,
             'materials' => $this->materials($item->business, except: $item),
             'units' => $this->units($item->business),
-            'movements' => $item->stockMovements()->latest('occurred_at')->latest('id')->limit(20)->get()
-                ->map(fn (StockMovement $movement) => [
-                    'id' => $movement->id,
-                    'occurredAt' => $movement->occurred_at->toIso8601String(),
-                    'reason' => $movement->reason,
-                    'qty' => (float) $movement->qty,
-                    'value' => $movement->value,
-                ]),
+            'movements' => StockMovementResource::collection(
+                $item->stockMovements()->latest('stock_movements.occurred_at')->latest('stock_movements.id')->limit(20)->get(),
+            )->resolve(),
         ]);
     }
 
@@ -239,33 +237,6 @@ class ItemController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    private function row(Item $item): array
-    {
-        $stock = (float) $item->stock;
-        $minStock = $item->min_stock !== null ? (float) $item->min_stock : null;
-
-        return [
-            'id' => $item->id,
-            'kind' => $item->kind,
-            'name' => $item->name,
-            'aliases' => $item->aliases ?? [],
-            'unit' => $item->unit,
-            'price' => $item->price,
-            'stock' => $stock,
-            'stockValue' => $item->stock_value,
-            'minStock' => $minStock,
-            'unitCost' => $item->unitCost(),
-            'marginPercent' => $item->marginPercent(),
-            'showInStore' => $item->show_in_store,
-            'available' => $item->available,
-            'lowStock' => $item->isLowStock(),
-            'negativeStock' => $item->isNegativeStock(),
-        ];
-    }
-
-    /**
      * Units this business already uses, offered next to the common ones.
      *
      * @return list<string>
@@ -278,22 +249,14 @@ class ItemController extends Controller
     /**
      * Items that can be used as recipe ingredients.
      *
-     * @return list<array<string, mixed>>
+     * @return array<int|string, mixed>
      */
     private function materials(Business $business, ?Item $except = null): array
     {
-        return array_values($business->items()
+        return ItemOptionResource::collection($business->items()
             ->stocked()
             ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
             ->orderBy('items.name')
-            ->get()
-            ->map(fn (Item $item) => [
-                'id' => $item->id,
-                'kind' => $item->kind,
-                'name' => $item->name,
-                'unit' => $item->unit,
-                'averageCost' => round($item->averageCost(), 4),
-            ])
-            ->all());
+            ->get())->resolve();
     }
 }

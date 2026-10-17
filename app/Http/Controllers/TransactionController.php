@@ -8,15 +8,15 @@ use App\Enums\TransactionSource;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Http\Requests\TransactionRequest;
-use App\Models\Business;
+use App\Http\Resources\ContactResource;
+use App\Http\Resources\ItemOptionResource;
+use App\Http\Resources\JournalEntryResource;
+use App\Http\Resources\StockMovementResource;
+use App\Http\Resources\TransactionDetailResource;
+use App\Http\Resources\TransactionLineResource;
+use App\Http\Resources\TransactionResource;
 use App\Models\Contact;
-use App\Models\Item;
-use App\Models\JournalEntry;
-use App\Models\JournalLine;
-use App\Models\RecipeLine;
-use App\Models\StockMovement;
 use App\Models\Transaction;
-use App\Models\TransactionLine;
 use App\Services\Ledger;
 use App\Services\TransactionService;
 use App\Support\TableQuery;
@@ -40,7 +40,7 @@ class TransactionController extends Controller
             'transactions' => TableQuery::paginate(
                 $request,
                 $business->transactions()->getQuery()->with('contact'),
-                map: fn (Transaction $transaction) => $this->row($transaction),
+                map: fn (Transaction $transaction) => TransactionResource::make($transaction)->resolve(),
                 sorts: ['waktu' => 'occurred_at', 'nominal' => 'total'],
                 defaultSort: '-waktu',
                 filters: [
@@ -75,26 +75,10 @@ class TransactionController extends Controller
         return Inertia::render('transactions/create', [
             'initialType' => TransactionType::tryFrom((string) $request->query('jenis')) ?? TransactionType::Penjualan,
             'now' => now()->format('Y-m-d\TH:i'),
-            'items' => $business->items()->with('recipeLines')->orderBy('name')->get()->map(fn (Item $item) => [
-                'id' => $item->id,
-                'kind' => $item->kind,
-                'name' => $item->name,
-                'aliases' => $item->aliases ?? [],
-                'unit' => $item->unit,
-                'price' => $item->price,
-                'stock' => (float) $item->stock,
-                'averageCost' => round($item->averageCost(), 4),
-                'recipe' => $item->recipeLines->map(fn (RecipeLine $line) => [
-                    'materialId' => $line->material_id,
-                    'qty' => (float) $line->qty,
-                ])->values()->all(),
-            ])->values()->all(),
-            'contacts' => $business->contacts()->orderBy('name')->get()->map(fn (Contact $contact) => [
-                'id' => $contact->id,
-                'type' => $contact->type,
-                'name' => $contact->name,
-                'balance' => $balances[$contact->id] ?? 0,
-            ])->values()->all(),
+            'items' => ItemOptionResource::collection($business->items()->with('recipeLines')->orderBy('items.name')->get())->resolve(),
+            'contacts' => $business->contacts()->orderBy('contacts.name')->get()
+                ->map(fn (Contact $contact) => (new ContactResource($contact, $balances[$contact->id] ?? 0))->resolve())
+                ->values()->all(),
         ]);
     }
 
@@ -124,65 +108,10 @@ class TransactionController extends Controller
         $transaction->load(['contact', 'lines.item', 'stockMovements.item', 'journalEntries.lines.account']);
 
         return Inertia::render('transactions/show', [
-            'transaction' => $this->row($transaction) + [
-                'kind' => $transaction->kind,
-                'note' => $transaction->note,
-                'paidAmount' => $transaction->paid_amount,
-                'cashFlow' => $transaction->cash_flow,
-                'voidedAt' => $transaction->voided_at?->toIso8601String(),
-                'voidReason' => $transaction->void_reason,
-            ],
-            'lines' => $transaction->lines->map(fn (TransactionLine $line) => [
-                'id' => $line->id,
-                'name' => $line->item->name,
-                'unit' => $line->item->unit,
-                'qty' => (float) $line->qty,
-                'price' => $line->price,
-                'subtotal' => $line->subtotal,
-                'hpp' => $line->hpp,
-            ])->values()->all(),
-            'movements' => $transaction->stockMovements->map(fn (StockMovement $movement) => [
-                'id' => $movement->id,
-                'name' => $movement->item->name,
-                'unit' => $movement->item->unit,
-                'qty' => (float) $movement->qty,
-                'value' => $movement->value,
-                'stockAfter' => $movement->stock_after === null ? null : (float) $movement->stock_after,
-                'reason' => $movement->reason,
-            ])->values()->all(),
-            'journal' => $transaction->journalEntries->map(fn (JournalEntry $entry) => [
-                'id' => $entry->id,
-                'description' => $entry->description,
-                'occurredAt' => $entry->occurred_at->toIso8601String(),
-                'lines' => $entry->lines->map(fn (JournalLine $line) => [
-                    'code' => $line->account->code,
-                    'account' => $line->account->name,
-                    'debit' => $line->debit,
-                    'credit' => $line->credit,
-                ])->values()->all(),
-            ])->values()->all(),
+            'transaction' => TransactionDetailResource::make($transaction)->resolve(),
+            'lines' => TransactionLineResource::collection($transaction->lines)->resolve(),
+            'movements' => StockMovementResource::collection($transaction->stockMovements)->resolve(),
+            'journal' => JournalEntryResource::collection($transaction->journalEntries)->resolve(),
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function row(Transaction $transaction): array
-    {
-        return [
-            'id' => $transaction->id,
-            'occurredAt' => $transaction->occurred_at->toIso8601String(),
-            'type' => $transaction->type,
-            'description' => $transaction->description,
-            'method' => $transaction->method,
-            'source' => $transaction->source,
-            'amount' => $transaction->total,
-            // Credit and personal-money records move no business cash, so they carry no +/− sign.
-            'direction' => $transaction->method === PaymentMethod::Kredit || $transaction->cash_flow === 0
-                ? 'none'
-                : ($transaction->cash_flow > 0 ? 'in' : 'out'),
-            'contact' => $transaction->contact?->name,
-            'voided' => $transaction->isVoid(),
-        ];
     }
 }
