@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\ItemKind;
+use App\Enums\MoneyAccountKind;
 use App\Enums\StockReason;
 use App\Models\Account;
 use App\Models\Business;
@@ -60,6 +61,10 @@ class DemoBusinessSeeder extends Seeder
         if ($business->items()->exists()) {
             return;
         }
+
+        // The rekening a warung typically has: its bank and an e-wallet for QRIS.
+        $business->moneyAccounts()->where('kind', MoneyAccountKind::NonTunai)->first()?->update(['name' => 'BCA']);
+        $business->moneyAccounts()->firstOrCreate(['name' => 'GoPay'], ['kind' => MoneyAccountKind::NonTunai]);
 
         $items = [];
 

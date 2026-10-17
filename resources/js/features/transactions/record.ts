@@ -10,12 +10,14 @@ import {
 } from '@/lib/stock';
 import type {
     ContactOption,
+    MoneyAccountOption,
     RecordFormData,
     RecordItem,
     RecordLine,
 } from '@/types/domain';
 import {
     ContactType,
+    MoneyAccountKind,
     PaymentMethod,
     TransactionKind,
     TransactionType,
@@ -48,6 +50,7 @@ export const DEFAULT_KIND: Record<TransactionType, TransactionKind | ''> = {
     biaya: '',
     utang_piutang: TransactionKind.TerimaPiutang,
     modal: TransactionKind.Setor,
+    pindah_dana: '',
 };
 
 /** Sales and goods purchases list items; everything else is one amount. */
@@ -96,7 +99,11 @@ export function cashEffect(
     total: number,
     paid: number,
 ): number {
-    if (method === PaymentMethod.Pribadi) {
+    // Personal money is not the business's; a transfer only moves it between rekening.
+    if (
+        method === PaymentMethod.Pribadi ||
+        type === TransactionType.PindahDana
+    ) {
         return 0;
     }
 
@@ -105,6 +112,98 @@ export function cashEffect(
     }
 
     return isIncoming(type, kind) ? total : -total;
+}
+
+/**
+ * The rekening the money goes through, picked the way TransactionService
+ * does: Kas tunai for tunai, the only non-tunai rekening or the chosen one.
+ */
+export function chosenMoneyAccount(
+    data: Pick<RecordFormData, 'type' | 'method' | 'money_account_id'>,
+    moneyAccounts: MoneyAccountOption[],
+): MoneyAccountOption | null {
+    const byId = moneyAccounts.find(
+        (account) => String(account.id) === data.money_account_id,
+    );
+
+    if (data.type === TransactionType.PindahDana) {
+        return byId ?? null;
+    }
+
+    if (data.method === PaymentMethod.Tunai) {
+        return (
+            moneyAccounts.find(
+                (account) => account.kind === MoneyAccountKind.Tunai,
+            ) ?? null
+        );
+    }
+
+    if (data.method !== PaymentMethod.NonTunai) {
+        return null;
+    }
+
+    const nonCash = moneyAccounts.filter(
+        (account) => account.kind === MoneyAccountKind.NonTunai,
+    );
+
+    return nonCash.length === 1
+        ? nonCash[0]
+        : byId?.kind === MoneyAccountKind.NonTunai
+          ? byId
+          : null;
+}
+
+/** Each rekening's balance before and after saving, for the impact panel. */
+export function moneyImpact(
+    data: RecordFormData,
+    total: number,
+    moneyAccounts: MoneyAccountOption[],
+): Array<{ account: MoneyAccountOption; before: number; after: number }> {
+    const move = (
+        account: MoneyAccountOption | undefined | null,
+        by: number,
+    ) =>
+        account
+            ? [
+                  {
+                      account,
+                      before: account.balance,
+                      after: account.balance + by,
+                  },
+              ]
+            : [];
+
+    if (data.type === TransactionType.PindahDana) {
+        const from = chosenMoneyAccount(data, moneyAccounts);
+        const to = moneyAccounts.find(
+            (account) => String(account.id) === data.to_money_account_id,
+        );
+
+        return [...move(from, -total), ...(to === from ? [] : move(to, total))];
+    }
+
+    const cash = cashEffect(
+        data.type,
+        data.kind,
+        data.method,
+        total,
+        data.paid_amount ?? 0,
+    );
+
+    if (cash === 0) {
+        return [];
+    }
+
+    // The part of a credit sale paid on the spot goes to Kas tunai (TransactionService::moneyLines).
+    return move(
+        data.method === PaymentMethod.Kredit
+            ? chosenMoneyAccount(
+                  { ...data, method: PaymentMethod.Tunai },
+                  moneyAccounts,
+              )
+            : chosenMoneyAccount(data, moneyAccounts),
+        cash,
+    );
 }
 
 /** What a contact still owes, or is owed, after this payment. */
@@ -282,6 +381,20 @@ export function toPayload(
     const canAddContact =
         values.type !== TransactionType.Modal &&
         values.type !== TransactionType.UtangPiutang;
+    const idOrNull = (value: string) => (value === '' ? null : Number(value));
+
+    // A transfer is two rekening and an amount; its method follows the source.
+    if (values.type === TransactionType.PindahDana) {
+        return {
+            type: values.type,
+            money_account_id: idOrNull(values.money_account_id),
+            to_money_account_id: idOrNull(values.to_money_account_id),
+            amount: values.amount,
+            occurred_at: values.occurred_at || null,
+            note: values.note.trim() || null,
+            again,
+        };
+    }
 
     return {
         type: values.type,
@@ -289,6 +402,11 @@ export function toPayload(
             ? {}
             : { kind: values.kind }),
         method: values.method,
+        // Only non-tunai names its rekening; with one, the server picks it.
+        ...(values.method === PaymentMethod.NonTunai &&
+        values.money_account_id !== ''
+            ? { money_account_id: Number(values.money_account_id) }
+            : {}),
         occurred_at: values.occurred_at || null,
         note: values.note.trim() || null,
         again,

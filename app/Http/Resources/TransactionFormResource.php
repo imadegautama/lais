@@ -42,6 +42,9 @@ class TransactionFormResource extends JsonResource
             'amount' => $hasLines ? null : $this->total,
             'paid_amount' => $this->type === TransactionType::Penjualan && $this->method === PaymentMethod::Kredit ? $this->paid_amount : null,
             'contact' => $this->contact_id === null ? '' : (string) $this->contact_id,
+            // Kas tunai is implied by Tunai, so only a chosen rekening is sent back.
+            'money_account_id' => $this->method === PaymentMethod::NonTunai || $this->type === TransactionType::PindahDana ? (string) $this->money_account_id : '',
+            'to_money_account_id' => $this->to_money_account_id === null ? '' : (string) $this->to_money_account_id,
             'note' => $this->note ?? '',
         ];
     }

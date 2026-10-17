@@ -56,6 +56,7 @@ Starter kit tinggal disesuaikan. Login diganti ke nomor WA (Fortify `username` �
 | C19   | Asisten AI                    | `/asisten` (+ panel samping)          | Pemilik              | P0                    | US-14             |
 | C20   | Pengaturan                    | `/pengaturan/*`                       | Pemilik              | P0 (WA), P1 (lainnya) | US-01, US-15      |
 | C21   | Log aktivitas                 | `/log-aktivitas`                      | Pemilik              | P1                    | §4.5              |
+| C22   | Kas & rekening                | `/rekening`                           | Pemilik              | P1                    | US-07             |
 | **D** | **Sistem**                    |                                       |                      |                       |                   |
 | D1    | Halaman error & kosong        | 404, 403, 500, toko tutup             | Semua                | P2                    |                   |
 
@@ -69,7 +70,7 @@ Totalnya sekitar 30 layar. Sebanyak 19 di antaranya P0.
 
 - **Desktop (≥ 1024 px):** sidebar kiri yang bisa diciutkan jadi ikon, plus top bar.
 - **Mobile:** top bar + bottom navigation berisi 5 slot: Beranda · Transaksi · **[ + Catat ]** · Pesanan · Lainnya. Tombol tengah lebih menonjol.
-- **Menu sidebar:** Dashboard, Transaksi, Pesanan, Produk & Stok, Utang-Piutang, Laporan, Kontak, Asisten AI, Log aktivitas, Pengaturan.
+- **Menu sidebar:** Dashboard, Transaksi, Pesanan, Kas & Rekening, Produk & Stok, Utang-Piutang, Laporan, Kontak, Asisten AI, Log aktivitas, Pengaturan.
 - **Top bar:**
     - nama usaha
     - tombol **Catat** (desktop)
@@ -236,7 +237,7 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 
 ### C3. Catat transaksi `/transaksi/baru?jenis=…`
 
-Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal**. Di desktop, form ada di kiri dan **panel pratinjau dampak** di kanan. Di mobile, pratinjau tampil di bawah, di atas tombol simpan.
+Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal · Pindah dana**. Di desktop, form ada di kiri dan **panel pratinjau dampak** di kanan. Di mobile, pratinjau tampil di bawah, di atas tombol simpan.
 
 - **Penjualan:**
     - tanggal (default sekarang)
@@ -263,6 +264,11 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
     - toggle **Setor modal** / **Ambil untuk pribadi**
     - nominal, dari/ke tunai atau non-tunai, catatan
     - info box: "Mengambil uang pribadi tidak mengurangi laba, tetapi mengurangi modal usaha"
+- **Pindah dana:**
+    - **dari** dan **ke** (pilihan rekening, termasuk Kas tunai), nominal, dan catatan
+    - keterangan dibuat otomatis: "Setor tunai ke BCA", "Tarik tunai dari BCA", "Pindah dari BCA ke GoPay"
+    - _Pratinjau:_ saldo kedua rekening sebelum → sesudah; uang usaha tetap
+- **Rekening non-tunai:** kalau rekening non-tunainya lebih dari satu, pilihan rekening muncul saat Non-tunai dipilih. Kalau cuma satu, rekening itu langsung dipakai. Panel pratinjau menampilkan saldo rekening itu sebelum → sesudah.
 - **Input uang** mengerti format "15rb", "1,5jt", dan "15k", lalu otomatis ditampilkan sebagai `Rp15.000`.
 - **Tombol Simpan** (+ "Simpan & catat lagi"). Setelah tersimpan, muncul toast dengan tautan ke detail.
 
@@ -466,6 +472,19 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 - Kalimat aktivitas menautkan ke datanya selama data itu masih bisa dibuka.
 - **Hanya baca:** tidak ada tombol ubah atau hapus.
 - **Di HP:** daftar per tanggal.
+
+### C22. Kas & rekening `/rekening`
+
+- **Isi:** daftar Kas tunai dan rekening non-tunai beserta saldonya (dari jurnal), lalu total uang usaha di bawahnya.
+- **Aksi:**
+    - **Pindah dana** (aksi utama, membuka C3 tab Pindah dana)
+    - **Tambah rekening** (dialog nama)
+    - **Ganti nama** per rekening
+    - **Arsipkan** per rekening non-tunai, dengan aturan:
+        - ditolak kalau saldonya belum Rp0 (pindahkan dulu lewat Pindah dana)
+        - Kas tunai dan rekening non-tunai terakhir tidak bisa diarsipkan
+- **Saldo minus** diberi keterangan bahwa saldo awalnya mungkin belum dicatat.
+- **Tidak ada hapus:** rekening punya riwayat, jadi hanya bisa diarsipkan.
 
 ---
 

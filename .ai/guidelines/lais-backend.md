@@ -15,6 +15,9 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - Label dan aturan yang menempel pada istilah ditulis sebagai method di enumnya, misalnya `label()`, `TransactionType::methods()`, `savedMessage()`, dan `ContactType::for()`.
     - Kolomnya di-cast ke enum di model.
 - Logika bisnis tidak boleh memakai literal seperti `'kredit'` atau `'komposisi'`. Bandingkan dengan enumnya: `$transaction->method === PaymentMethod::Kredit`.
+- Baris jurnal 1101/1102 selalu menyebut rekeningnya (`money_account_id`), dan `Ledger::post()` menolak baris kas tanpa rekening atau dengan jenis rekening yang salah.
+    - Di `Ledger::lines()` kuncinya `kode@rekening`, lewat `Ledger::cashKey($moneyAccount)`. Dengan begitu satu jurnal bisa memuat dua rekening 1102 (Pindah dana BCA → GoPay).
+    - Saldo rekening dibaca dari `Ledger::moneyBalances()`, tidak disimpan di tabel.
 - Kode akun memakai konstanta `App\Models\Account` (`Account::INVENTORY`, `Account::COGS`, dan seterusnya). Bentuknya konstanta, bukan enum, karena dipakai sebagai key array di `Ledger::lines()`.
 - Validasi daftar nilai memakai `Rule::enum(...)`. Untuk subset (cara bayar per jenis), pakai `Rule::in(array_column($type->methods(), 'value'))`, karena `Rule::enum()->only([])` justru meloloskan semuanya.
 - Setelah enum ditambah atau diubah, jalankan `php artisan lais:enums` supaya `resources/js/types/enums.ts` ikut berubah. `VocabularyTest` gagal kalau lupa.

@@ -28,6 +28,8 @@ class JournalEntryResource extends JsonResource
             'lines' => $this->lines->map(fn (JournalLine $line) => [
                 'code' => $line->account->code,
                 'account' => $line->account->name,
+                // Load lines.moneyAccount: "Kas Non-Tunai" alone does not say which rekening.
+                'moneyAccount' => $line->moneyAccount?->name,
                 'debit' => $line->debit,
                 'credit' => $line->credit,
             ])->values()->all(),

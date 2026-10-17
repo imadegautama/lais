@@ -40,6 +40,7 @@ export default function TransactionCreate({
     now,
     items,
     contacts,
+    moneyAccounts,
     editing,
     initial,
 }: TransactionCreateProps) {
@@ -54,6 +55,8 @@ export default function TransactionCreate({
             paid_amount: null,
             contact: '',
             note: '',
+            money_account_id: '',
+            to_money_account_id: '',
         },
     );
     const { data, processing } = form;
@@ -211,12 +214,13 @@ export default function TransactionCreate({
                                 </div>
                             </SectionCard>
 
-                            <SectionCard title="Pembayaran">
+                            <SectionCard title={recordCopy[type].paymentTitle}>
                                 <PaymentFields
                                     data={data}
                                     errors={errors}
                                     setField={setField}
                                     contacts={contacts}
+                                    moneyAccounts={moneyAccounts}
                                     now={now}
                                 />
                             </SectionCard>
@@ -240,6 +244,7 @@ export default function TransactionCreate({
                                             String(contact.id) === data.contact,
                                     ) ?? null
                                 }
+                                moneyAccounts={moneyAccounts}
                             />
                         </div>
                     </div>

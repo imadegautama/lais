@@ -44,6 +44,7 @@ export default function TransactionShow({
 }: TransactionDetailProps) {
     const hpp = lines.reduce((sum, line) => sum + (line.hpp ?? 0), 0);
     const isSale = transaction.type === TransactionType.Penjualan;
+    const isTransfer = transaction.type === TransactionType.PindahDana;
     const contactType = contactTypeFor(transaction.type, transaction.kind);
 
     return (
@@ -257,24 +258,49 @@ export default function TransactionShow({
                                         />
                                     </>
                                 )}
-                                <MetricInline
-                                    label="Cara bayar"
-                                    value={
-                                        <span className="text-sm font-medium">
-                                            {methodLabel(
-                                                transaction.type,
-                                                transaction.method,
-                                            )}
-                                        </span>
-                                    }
-                                    detail={
-                                        isSale &&
-                                        transaction.method ===
-                                            PaymentMethod.Kredit
-                                            ? `Dibayar di tempat ${formatRupiah(transaction.paidAmount)}`
-                                            : undefined
-                                    }
-                                />
+                                {isTransfer ? (
+                                    <>
+                                        <MetricInline
+                                            label="Dari"
+                                            value={
+                                                <span className="text-sm font-medium">
+                                                    {transaction.moneyAccount}
+                                                </span>
+                                            }
+                                        />
+                                        <MetricInline
+                                            label="Ke"
+                                            value={
+                                                <span className="text-sm font-medium">
+                                                    {transaction.toMoneyAccount}
+                                                </span>
+                                            }
+                                        />
+                                    </>
+                                ) : (
+                                    <MetricInline
+                                        label="Cara bayar"
+                                        value={
+                                            <span className="text-sm font-medium">
+                                                {methodLabel(
+                                                    transaction.type,
+                                                    transaction.method,
+                                                )}
+                                                {transaction.method ===
+                                                    PaymentMethod.NonTunai &&
+                                                    transaction.moneyAccount &&
+                                                    ` · ${transaction.moneyAccount}`}
+                                            </span>
+                                        }
+                                        detail={
+                                            isSale &&
+                                            transaction.method ===
+                                                PaymentMethod.Kredit
+                                                ? `Dibayar di tempat ${formatRupiah(transaction.paidAmount)}`
+                                                : undefined
+                                        }
+                                    />
+                                )}
                                 {transaction.contact && (
                                     <MetricInline
                                         label={contactTypeLabels[contactType]}
@@ -300,9 +326,11 @@ export default function TransactionShow({
                                         />
                                     }
                                     detail={
-                                        transaction.cashFlow === 0
-                                            ? 'Tidak ada uang usaha yang bergerak.'
-                                            : undefined
+                                        isTransfer
+                                            ? 'Uang hanya pindah tempat, jumlah uang usaha tetap.'
+                                            : transaction.cashFlow === 0
+                                              ? 'Tidak ada uang usaha yang bergerak.'
+                                              : undefined
                                     }
                                 />
                                 <MetricInline

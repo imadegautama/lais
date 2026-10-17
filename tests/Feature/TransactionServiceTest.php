@@ -7,6 +7,7 @@ use App\Enums\StockReason;
 use App\Enums\TransactionStatus;
 use App\Models\Business;
 use App\Models\Item;
+use App\Models\MoneyAccount;
 use App\Models\Transaction;
 use App\Services\Inventory;
 use App\Services\Ledger;
@@ -346,6 +347,88 @@ class TransactionServiceTest extends TestCase
 
         $this->assertSame([$supplier => 0], app(Ledger::class)->contactBalances($business));
         $this->assertSame(-50000, app(Ledger::class)->balance($business, '1101'));
+    }
+
+    public function test_non_cash_money_lands_on_the_chosen_rekening_and_asks_when_there_are_several(): void
+    {
+        $business = Business::factory()->create();
+        $bca = $business->moneyAccounts()->where('kind', 'non_tunai')->sole();
+        $modal = fn (array $extra = []) => $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'non_tunai', 'amount' => 100_000] + $extra);
+
+        // One rekening: no need to ask.
+        $this->assertSame($bca->id, $modal()->money_account_id);
+
+        $gopay = MoneyAccount::factory()->for($business)->create(['name' => 'GoPay']);
+        $this->assertValidationError('money_account_id', 'Pilih rekeningnya.', fn () => $modal());
+        $this->assertSame($gopay->id, $modal(['money_account_id' => $gopay->id])->money_account_id);
+        $this->assertSame($business->cashBox()->id, $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 5000])->money_account_id);
+
+        $this->assertSame([$business->cashBox()->id => 5000, $bca->id => 100_000, $gopay->id => 100_000], app(Ledger::class)->moneyBalances($business));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string, 2: string}>
+     */
+    public static function transfers(): array
+    {
+        return [
+            'setor tunai' => ['tunai', 'bca', 'Setor tunai ke BCA'],
+            'tarik tunai' => ['bca', 'tunai', 'Tarik tunai dari BCA'],
+            'antar rekening' => ['bca', 'gopay', 'Pindah dari BCA ke GoPay'],
+        ];
+    }
+
+    #[DataProvider('transfers')]
+    public function test_a_transfer_moves_money_between_rekening_without_changing_business_cash(string $from, string $to, string $description): void
+    {
+        $business = Business::factory()->create();
+        $accounts = [
+            'tunai' => $business->cashBox(),
+            'bca' => tap($business->moneyAccounts()->where('kind', 'non_tunai')->sole())->update(['name' => 'BCA']),
+            'gopay' => MoneyAccount::factory()->for($business)->create(['name' => 'GoPay']),
+        ];
+        $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 200_000]);
+
+        $transfer = $this->record($business, ['type' => 'pindah_dana', 'money_account_id' => $accounts[$from]->id, 'to_money_account_id' => $accounts[$to]->id, 'amount' => 50_000]);
+
+        $this->assertSame($description, $transfer->description);
+        $this->assertSame(0, $transfer->cash_flow);
+        $this->assertSame($accounts[$from]->kind->method(), $transfer->method);
+        $balances = app(Ledger::class)->moneyBalances($business);
+        $this->assertSame(($from === 'tunai' ? 200_000 : 0) - 50_000, $balances[$accounts[$from]->id]);
+        $this->assertSame(($to === 'tunai' ? 200_000 : 0) + 50_000, $balances[$accounts[$to]->id]);
+
+        $this->service()->cancel($transfer);
+
+        $this->assertSame($from === 'tunai' ? 200_000 : 0, app(Ledger::class)->moneyBalances($business)[$accounts[$from]->id]);
+    }
+
+    public function test_a_transfer_needs_two_different_active_rekening_of_the_business(): void
+    {
+        $business = Business::factory()->create();
+        $cashBox = $business->cashBox();
+        $bca = $business->moneyAccounts()->where('kind', 'non_tunai')->sole();
+        $foreign = Business::factory()->create()->cashBox();
+        $transfer = fn (int $from, int $to) => $this->record($business, ['type' => 'pindah_dana', 'money_account_id' => $from, 'to_money_account_id' => $to, 'amount' => 1000]);
+
+        $this->assertValidationError('to_money_account_id', 'Rekening asal dan tujuan harus berbeda.', fn () => $transfer($cashBox->id, $cashBox->id));
+        $this->assertValidationError('to_money_account_id', 'Rekening tidak ditemukan atau sudah diarsipkan.', fn () => $transfer($cashBox->id, $foreign->id));
+        $bca->delete();
+        $this->assertValidationError('money_account_id', 'Rekening tidak ditemukan atau sudah diarsipkan.', fn () => $transfer($bca->id, $cashBox->id));
+        $this->assertSame(0, Transaction::query()->count());
+    }
+
+    public function test_editing_can_move_a_record_to_another_rekening(): void
+    {
+        $business = Business::factory()->create();
+        $bca = $business->moneyAccounts()->where('kind', 'non_tunai')->sole();
+        $gopay = MoneyAccount::factory()->for($business)->create(['name' => 'GoPay']);
+        $setor = ['type' => 'modal', 'kind' => 'setor', 'method' => 'non_tunai', 'amount' => 80_000];
+        $deposit = $this->record($business, $setor + ['money_account_id' => $bca->id]);
+
+        $this->service()->replace($deposit, $setor + ['money_account_id' => $gopay->id]);
+
+        $this->assertSame([$bca->id => 0, $gopay->id => 80_000], app(Ledger::class)->moneyBalances($business));
     }
 
     private function service(): TransactionService

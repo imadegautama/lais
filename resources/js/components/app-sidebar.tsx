@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import {
     BookUser,
     ChartColumn,
+    Landmark,
     LayoutDashboard,
     MessageCircleQuestion,
     NotebookPen,
@@ -26,6 +27,7 @@ import {
 import { dashboard } from '@/routes';
 import activity from '@/routes/activity';
 import items from '@/routes/items';
+import moneyAccounts from '@/routes/money-accounts';
 import transactions from '@/routes/transactions';
 import { edit as editProfile } from '@/routes/profile';
 
@@ -46,6 +48,11 @@ const groups: AppNavGroup[] = [
     {
         label: 'Operasional',
         items: [
+            {
+                title: 'Kas & rekening',
+                href: moneyAccounts.index(),
+                icon: Landmark,
+            },
             { title: 'Produk & stok', href: items.index(), icon: Package },
             { title: 'Utang-piutang', icon: NotebookPen, comingSoon: true },
             { title: 'Kontak', icon: BookUser, comingSoon: true },

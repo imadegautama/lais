@@ -35,6 +35,9 @@ class TransactionResource extends JsonResource
                 ? 'none'
                 : ($this->cash_flow > 0 ? 'in' : 'out'),
             'contact' => $this->contact?->name,
+            // Load moneyAccount and toMoneyAccount; the target is set on a Pindah dana only.
+            'moneyAccount' => $this->moneyAccount?->name,
+            'toMoneyAccount' => $this->toMoneyAccount?->name,
             'voided' => $this->isVoid(),
         ];
     }

@@ -23,6 +23,8 @@ use Illuminate\Support\Carbon;
  * @property TransactionType $type
  * @property TransactionKind|null $kind
  * @property PaymentMethod $method
+ * @property int|null $money_account_id
+ * @property int|null $to_money_account_id
  * @property Carbon $occurred_at
  * @property int $total
  * @property int $paid_amount
@@ -36,7 +38,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $void_reason
  * @property int|null $replaced_by_id
  */
-#[Fillable(['type', 'kind', 'method', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source'])]
+#[Fillable(['type', 'kind', 'method', 'money_account_id', 'to_money_account_id', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source'])]
 class Transaction extends Model
 {
     /**
@@ -79,6 +81,26 @@ class Transaction extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
+    }
+
+    /**
+     * The rekening the money moved through; the source of a Pindah dana.
+     *
+     * @return BelongsTo<MoneyAccount, $this>
+     */
+    public function moneyAccount(): BelongsTo
+    {
+        return $this->belongsTo(MoneyAccount::class)->withTrashed();
+    }
+
+    /**
+     * The target of a Pindah dana.
+     *
+     * @return BelongsTo<MoneyAccount, $this>
+     */
+    public function toMoneyAccount(): BelongsTo
+    {
+        return $this->belongsTo(MoneyAccount::class, 'to_money_account_id')->withTrashed();
     }
 
     /**

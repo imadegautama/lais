@@ -1,4 +1,5 @@
 import {
+    ArrowLeftRight,
     CircleCheck,
     CircleDashed,
     Ban,
@@ -100,6 +101,7 @@ export const transactionTypes = withIcons<TransactionType>(
         biaya: ReceiptText,
         utang_piutang: NotebookPen,
         modal: Wallet,
+        pindah_dana: ArrowLeftRight,
     },
 );
 

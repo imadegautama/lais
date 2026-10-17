@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property int $account_id
+ * @property int|null $money_account_id
  * @property int $debit
  * @property int $credit
  */
-#[Fillable(['account_id', 'debit', 'credit'])]
+#[Fillable(['account_id', 'money_account_id', 'debit', 'credit'])]
 class JournalLine extends Model
 {
     public $timestamps = false;
@@ -41,5 +42,15 @@ class JournalLine extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
+    }
+
+    /**
+     * The rekening of a 1101/1102 line.
+     *
+     * @return BelongsTo<MoneyAccount, $this>
+     */
+    public function moneyAccount(): BelongsTo
+    {
+        return $this->belongsTo(MoneyAccount::class)->withTrashed();
     }
 }

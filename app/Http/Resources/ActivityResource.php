@@ -6,10 +6,12 @@ use App\Enums\ActivityCategory;
 use App\Enums\ActivityEvent;
 use App\Enums\ContactType;
 use App\Enums\ItemKind;
+use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
 use App\Models\Activity;
 use App\Models\Contact;
 use App\Models\Item;
+use App\Models\MoneyAccount;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Support\Format;
@@ -56,7 +58,13 @@ class ActivityResource extends JsonResource
             'description' => ['Keterangan', 'text'],
             'method' => ['Cara bayar', PaymentMethod::class],
             'contact' => ['Kontak', 'text'],
+            'money_account' => ['Rekening', 'text'],
+            'to_money_account' => ['Ke rekening', 'text'],
             'occurred_at' => ['Waktu', 'datetime'],
+        ],
+        MoneyAccount::class => [
+            'name' => ['Nama', 'text'],
+            'kind' => ['Jenis', MoneyAccountKind::class],
         ],
         User::class => [
             'name' => ['Nama', 'text'],
@@ -86,6 +94,7 @@ class ActivityResource extends JsonResource
             'href' => match (true) {
                 $this->subject instanceof Transaction => route('transactions.show', $this->subject),
                 $this->subject instanceof Item && ! $this->subject->trashed() => route('items.edit', $this->subject),
+                $this->subject instanceof MoneyAccount && ! $this->subject->trashed() => route('money-accounts.index'),
                 default => null,
             },
             'changes' => $this->changes(),

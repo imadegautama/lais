@@ -28,6 +28,7 @@ const hints: Record<TransactionType, string> = {
     biaya: 'Listrik, gas, sewa, upah karyawan',
     utang_piutang: 'Terima bayaran pelanggan atau bayar supplier',
     modal: 'Setor modal atau ambil uang untuk rumah',
+    pindah_dana: 'Setor tunai ke bank, tarik tunai, atau antar rekening',
 };
 
 function Options({ onChoose }: { onChoose: () => void }) {

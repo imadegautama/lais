@@ -18,12 +18,24 @@ import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { show } from '@/routes/transactions';
 import type { TransactionRow } from '@/types/domain';
+import { PaymentMethod, TransactionType } from '@/types/enums';
 
-/** "Tunai · Bu Sari" under the description. */
+/** "Tunai · Bu Sari", "Non-tunai · BCA", or "Kas tunai → BCA" under the description. */
 function MethodLine({ row }: { row: TransactionRow }) {
+    if (row.type === TransactionType.PindahDana) {
+        return (
+            <span className="text-xs text-muted-foreground">
+                {row.moneyAccount} → {row.toMoneyAccount}
+            </span>
+        );
+    }
+
     return (
         <span className="text-xs text-muted-foreground">
             {methodLabel(row.type, row.method)}
+            {row.method === PaymentMethod.NonTunai &&
+                row.moneyAccount &&
+                ` · ${row.moneyAccount}`}
             {row.contact && ` · ${row.contact}`}
         </span>
     );

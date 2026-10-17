@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vite-plus/test';
-import type { RecordItem } from '@/types/domain';
+import type { MoneyAccountOption, RecordItem } from '@/types/domain';
 import {
     cashEffect,
+    chosenMoneyAccount,
     contactFieldFor,
+    moneyImpact,
     purchaseImpact,
     recordTotal,
     saleImpact,
@@ -38,6 +40,8 @@ const form = (patch: Partial<RecordFormData>): RecordFormData => ({
     paid_amount: null,
     contact: '',
     note: '',
+    money_account_id: '',
+    to_money_account_id: '',
     ...patch,
 });
 
@@ -168,6 +172,7 @@ describe('cashEffect', () => {
         ['biaya', 'sewa', 'non_tunai', -30_000],
         ['utang_piutang', 'terima_piutang', 'tunai', 30_000],
         ['modal', 'prive', 'tunai', -30_000],
+        ['pindah_dana', '', 'tunai', 0],
     ] as const)('%s %s %s moves %i', (type, kind, method, expected) => {
         expect(cashEffect(type, kind, method, 30_000, 10_000)).toBe(expected);
     });
@@ -236,5 +241,168 @@ describe('toPayload', () => {
         expect(toPayload(unknown, false, new Set())).not.toHaveProperty(
             'contact_name',
         );
+    });
+});
+
+const cashBox: MoneyAccountOption = {
+    id: 1,
+    kind: 'tunai',
+    name: 'Kas tunai',
+    balance: 200_000,
+};
+const bca: MoneyAccountOption = {
+    id: 2,
+    kind: 'non_tunai',
+    name: 'BCA',
+    balance: 50_000,
+};
+const gopay: MoneyAccountOption = {
+    id: 3,
+    kind: 'non_tunai',
+    name: 'GoPay',
+    balance: 0,
+};
+
+// The way TransactionService::moneyAccountFor() picks it.
+describe('chosenMoneyAccount', () => {
+    it('is Kas tunai for tunai and the only non-tunai rekening without asking', () => {
+        expect(
+            chosenMoneyAccount(form({ method: 'tunai' }), [cashBox, bca]),
+        ).toBe(cashBox);
+        expect(
+            chosenMoneyAccount(form({ method: 'non_tunai' }), [cashBox, bca]),
+        ).toBe(bca);
+    });
+
+    it('waits for a choice when there are several, and never takes Kas tunai as non-tunai', () => {
+        const accounts = [cashBox, bca, gopay];
+
+        expect(
+            chosenMoneyAccount(form({ method: 'non_tunai' }), accounts),
+        ).toBeNull();
+        expect(
+            chosenMoneyAccount(
+                form({ method: 'non_tunai', money_account_id: '3' }),
+                accounts,
+            ),
+        ).toBe(gopay);
+        expect(
+            chosenMoneyAccount(
+                form({ method: 'non_tunai', money_account_id: '1' }),
+                accounts,
+            ),
+        ).toBeNull();
+        expect(
+            chosenMoneyAccount(form({ method: 'kredit' }), accounts),
+        ).toBeNull();
+    });
+});
+
+describe('moneyImpact', () => {
+    const accounts = [cashBox, bca, gopay];
+
+    it('moves both sides of a transfer', () => {
+        const transfer = form({
+            type: 'pindah_dana',
+            money_account_id: '1',
+            to_money_account_id: '2',
+        });
+
+        expect(moneyImpact(transfer, 100_000, accounts)).toEqual([
+            { account: cashBox, before: 200_000, after: 100_000 },
+            { account: bca, before: 50_000, after: 150_000 },
+        ]);
+    });
+
+    it('puts the part of a credit sale paid on the spot in Kas tunai', () => {
+        const sale = form({ method: 'kredit', paid_amount: 10_000 });
+
+        expect(moneyImpact(sale, 30_000, accounts)).toEqual([
+            { account: cashBox, before: 200_000, after: 210_000 },
+        ]);
+    });
+
+    it('shows nothing until the rekening is known or when no money moves', () => {
+        expect(
+            moneyImpact(
+                form({ type: 'biaya', kind: 'sewa', method: 'non_tunai' }),
+                5_000,
+                accounts,
+            ),
+        ).toEqual([]);
+        expect(
+            moneyImpact(
+                form({ type: 'biaya', kind: 'sewa', method: 'pribadi' }),
+                5_000,
+                accounts,
+            ),
+        ).toEqual([]);
+        expect(
+            moneyImpact(
+                form({
+                    type: 'biaya',
+                    kind: 'sewa',
+                    method: 'non_tunai',
+                    money_account_id: '2',
+                }),
+                5_000,
+                accounts,
+            ),
+        ).toEqual([{ account: bca, before: 50_000, after: 45_000 }]);
+    });
+});
+
+describe('toPayload with rekening', () => {
+    it('sends the chosen rekening only for non-tunai', () => {
+        expect(
+            toPayload(
+                form({
+                    type: 'modal',
+                    kind: 'setor',
+                    method: 'non_tunai',
+                    money_account_id: '3',
+                    amount: 1,
+                }),
+                false,
+                new Set(),
+            ),
+        ).toMatchObject({ money_account_id: 3 });
+        expect(
+            toPayload(
+                form({
+                    type: 'modal',
+                    kind: 'setor',
+                    method: 'tunai',
+                    money_account_id: '3',
+                    amount: 1,
+                }),
+                false,
+                new Set(),
+            ),
+        ).not.toHaveProperty('money_account_id');
+    });
+
+    it('sends a transfer as two rekening and an amount, without a method', () => {
+        expect(
+            toPayload(
+                form({
+                    type: 'pindah_dana',
+                    money_account_id: '1',
+                    to_money_account_id: '',
+                    amount: 5_000,
+                    note: ' setoran ',
+                }),
+                false,
+                new Set(),
+            ),
+        ).toEqual({
+            type: 'pindah_dana',
+            money_account_id: 1,
+            to_money_account_id: null,
+            amount: 5_000,
+            occurred_at: null,
+            note: 'setoran',
+            again: false,
+        });
     });
 });

@@ -4,8 +4,9 @@ import { Field } from '@/components/app/field';
 import { MoneyInput } from '@/components/app/money-input';
 import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
-import type { ContactOption } from '@/types/domain';
+import type { ContactOption, MoneyAccountOption } from '@/types/domain';
 import {
+    MoneyAccountKind,
     PaymentMethod,
     TransactionKind,
     TransactionType,
@@ -18,20 +19,23 @@ import {
     type RecordFieldSetter,
     type RecordFormData,
 } from './record';
+import { TransferFields } from './transfer-fields';
 import { recordCopy } from './vocabulary';
 
-/** How it was paid, by or to whom, when, and a note. */
+/** How it was paid (or, for a transfer, between which rekening), by or to whom, when, and a note. */
 export function PaymentFields({
     data,
     errors,
     setField,
     contacts,
+    moneyAccounts,
     now,
 }: {
     data: RecordFormData;
     errors: Record<string, string | undefined>;
     setField: RecordFieldSetter;
     contacts: ContactOption[];
+    moneyAccounts: MoneyAccountOption[];
     /** Latest allowed time, from the server (WIB). */
     now: string;
 }) {
@@ -40,24 +44,27 @@ export function PaymentFields({
     const isEquipment =
         type === TransactionType.Pembelian &&
         kind === TransactionKind.Peralatan;
+    const nonCash = moneyAccounts.filter(
+        (account) => account.kind === MoneyAccountKind.NonTunai,
+    );
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-                <span id="tx-method-label" className="text-sm font-medium">
-                    {isIncoming(type, kind) ? 'Diterima lewat' : 'Dibayar dari'}
-                </span>
-                <ChoiceGroup
-                    labelledBy="tx-method-label"
-                    value={method}
-                    options={transactionTypeMethods[type].map((option) => ({
-                        value: option,
-                        label: methodLabel(type, option),
-                    }))}
-                    onChange={(option) => setField('method', option)}
+            {type === TransactionType.PindahDana ? (
+                <TransferFields
+                    data={data}
+                    errors={errors}
+                    setField={setField}
+                    moneyAccounts={moneyAccounts}
                 />
-                <InputError message={errors.method} />
-            </div>
+            ) : (
+                <MethodFields
+                    data={data}
+                    errors={errors}
+                    setField={setField}
+                    nonCash={nonCash}
+                />
+            )}
 
             {contactField && (
                 <ContactField
@@ -128,5 +135,62 @@ export function PaymentFields({
                 )}
             </div>
         </div>
+    );
+}
+
+/**
+ * Tunai, non-tunai, credit, or personal money. Non-tunai asks which rekening
+ * only when there is more than one; the server takes the only one otherwise.
+ */
+function MethodFields({
+    data,
+    errors,
+    setField,
+    nonCash,
+}: {
+    data: RecordFormData;
+    errors: Record<string, string | undefined>;
+    setField: RecordFieldSetter;
+    nonCash: MoneyAccountOption[];
+}) {
+    const { type, kind, method } = data;
+
+    return (
+        <>
+            <div className="flex flex-col gap-1.5">
+                <span id="tx-method-label" className="text-sm font-medium">
+                    {isIncoming(type, kind) ? 'Diterima lewat' : 'Dibayar dari'}
+                </span>
+                <ChoiceGroup
+                    labelledBy="tx-method-label"
+                    value={method}
+                    options={transactionTypeMethods[type].map((option) => ({
+                        value: option,
+                        label: methodLabel(type, option),
+                    }))}
+                    onChange={(option) => setField('method', option)}
+                />
+                <InputError message={errors.method} />
+            </div>
+
+            {method === PaymentMethod.NonTunai && nonCash.length > 1 && (
+                <div className="flex flex-col gap-1.5">
+                    <span id="tx-account-label" className="text-sm font-medium">
+                        Rekening
+                    </span>
+                    <ChoiceGroup
+                        labelledBy="tx-account-label"
+                        value={data.money_account_id}
+                        options={nonCash.map((account) => ({
+                            value: String(account.id),
+                            label: account.name,
+                        }))}
+                        onChange={(id) => setField('money_account_id', id)}
+                        wrap
+                    />
+                    <InputError message={errors.money_account_id} />
+                </div>
+            )}
+        </>
     );
 }

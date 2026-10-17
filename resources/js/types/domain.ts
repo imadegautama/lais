@@ -2,6 +2,7 @@ import type {
     ActivityCategory,
     ContactType,
     ItemKind,
+    MoneyAccountKind,
     PaymentMethod,
     Period as PeriodKey,
     StockReason as StockMovementReason,
@@ -18,6 +19,7 @@ export type {
     ActivityCategory,
     ContactType,
     ItemKind,
+    MoneyAccountKind,
     PaymentMethod,
     PeriodKey,
     StockMovementReason,
@@ -63,7 +65,24 @@ export type TransactionRow = {
     direction: MoneyDirection;
     /** Customer or supplier name, when there is one. */
     contact: string | null;
+    /** The rekening the money moved through; the source of a Pindah dana. */
+    moneyAccount?: string | null;
+    /** The target of a Pindah dana. */
+    toMoneyAccount?: string | null;
     voided: boolean;
+};
+
+/** A rekening with its balance (MoneyAccountResource). */
+export type MoneyAccountOption = {
+    id: number;
+    kind: MoneyAccountKind;
+    name: string;
+    balance: Rupiah;
+};
+
+export type MoneyAccountsIndexProps = {
+    /** Kas tunai first, then the rekening in the order they were added. */
+    accounts: MoneyAccountOption[];
 };
 
 /** A link target that exists, or an honest "not built yet" marker. */
@@ -235,6 +254,10 @@ export type RecordFormData = {
     /** A contact id, or a new name typed into the field. */
     contact: string;
     note: string;
+    /** The chosen rekening (non-tunai), or the source of a Pindah dana. */
+    money_account_id: string;
+    /** The target of a Pindah dana. */
+    to_money_account_id: string;
 };
 
 export type TransactionCreateProps = {
@@ -243,6 +266,8 @@ export type TransactionCreateProps = {
     now: string;
     items: RecordItem[];
     contacts: ContactOption[];
+    /** Active rekening with their balances; as if the edited record were cancelled. */
+    moneyAccounts: MoneyAccountOption[];
     /** Set when the form edits a record ("Ubah"). */
     editing?: { id: number; description: string };
     initial?: RecordFormData;
@@ -278,6 +303,8 @@ export type TransactionDetailProps = {
         lines: Array<{
             code: string;
             account: string;
+            /** Which rekening, on a 1101/1102 line. */
+            moneyAccount: string | null;
             debit: Rupiah;
             credit: Rupiah;
         }>;

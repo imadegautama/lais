@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\ContactType;
 use App\Enums\ItemKind;
+use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionType;
@@ -12,7 +13,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Shape checks for the five transaction types. Money rules that need the
+ * Shape checks for the six transaction types. Money rules that need the
  * ledger (balances, paid in full) live in TransactionService.
  */
 class TransactionRequest extends FormRequest
@@ -30,14 +31,27 @@ class TransactionRequest extends FormRequest
         $method = PaymentMethod::tryFrom((string) $this->input('method'));
         $hasLines = $type === TransactionType::Penjualan || ($type === TransactionType::Pembelian && $kind === TransactionKind::Barang);
         $needsContact = $method === PaymentMethod::Kredit || $type === TransactionType::UtangPiutang;
+        $isTransfer = $type === TransactionType::PindahDana;
+        $activeMoneyAccount = fn (?MoneyAccountKind $kind = null) => Rule::exists('money_accounts', 'id')
+            ->where('business_id', $businessId)
+            ->whereNull('deleted_at')
+            ->when($kind, fn ($rule) => $rule->where('kind', $kind?->value));
 
         return [
             'type' => ['required', Rule::enum(TransactionType::class)],
             // Without a known type nothing else can pass; the type error is the one shown.
-            'kind' => $type === TransactionType::Penjualan
+            'kind' => $type === TransactionType::Penjualan || $isTransfer
                 ? ['prohibited']
                 : ['required', Rule::in(array_column($type?->kinds() ?? [], 'value'))],
-            'method' => ['required', Rule::in(array_column($type?->methods() ?? [], 'value'))],
+            // A transfer's method follows its source rekening (TransactionService).
+            'method' => $isTransfer ? ['prohibited'] : ['required', Rule::in(array_column($type?->methods() ?? [], 'value'))],
+            // Non-tunai with one rekening needs none; the service asks when there are more.
+            'money_account_id' => match (true) {
+                $isTransfer => ['required', 'integer', $activeMoneyAccount()],
+                $method === PaymentMethod::NonTunai => ['nullable', 'integer', $activeMoneyAccount(MoneyAccountKind::NonTunai)],
+                default => ['prohibited'],
+            },
+            'to_money_account_id' => $isTransfer ? ['required', 'integer', 'different:money_account_id', $activeMoneyAccount()] : ['prohibited'],
             'occurred_at' => ['nullable', 'date', 'before_or_equal:now'],
             'note' => [$type === TransactionType::Pembelian && $kind === TransactionKind::Peralatan ? 'required' : 'nullable', 'string', 'max:200'],
             'lines' => $hasLines ? ['required', 'array', 'min:1', 'max:50'] : ['prohibited'],
@@ -52,14 +66,14 @@ class TransactionRequest extends FormRequest
             'lines.*.price' => ['required', 'integer', 'min:0', 'max:1000000000000'],
             'amount' => $hasLines ? ['prohibited'] : ['required', 'integer', 'min:1', 'max:1000000000000'],
             'paid_amount' => $type === TransactionType::Penjualan && $method === PaymentMethod::Kredit ? ['nullable', 'integer', 'min:0'] : ['prohibited'],
-            'contact_id' => [
+            'contact_id' => $isTransfer ? ['prohibited'] : [
                 Rule::requiredIf(fn () => $needsContact && trim((string) $this->input('contact_name')) === ''),
                 'nullable', 'integer',
                 Rule::exists('contacts', 'id')->where('business_id', $businessId)
                     ->where('type', $type ? ContactType::for($type, $kind)->value : null),
             ],
             // Paying off a balance needs an existing contact; there is nothing to pay to a new one.
-            'contact_name' => in_array($type, [TransactionType::Modal, TransactionType::UtangPiutang], true) ? ['prohibited'] : ['nullable', 'string', 'max:120'],
+            'contact_name' => in_array($type, [TransactionType::Modal, TransactionType::UtangPiutang, TransactionType::PindahDana], true) ? ['prohibited'] : ['nullable', 'string', 'max:120'],
             'again' => ['boolean'],
         ];
     }
@@ -109,6 +123,11 @@ class TransactionRequest extends FormRequest
                 : 'Pilih atau tambahkan nama suppliernya.',
             'contact_id.exists' => 'Kontak tidak ditemukan.',
             'contact_name.max' => 'Nama paling panjang 120 huruf.',
+            'money_account_id.required' => 'Pilih rekening asalnya.',
+            'money_account_id.exists' => 'Rekening tidak ditemukan atau sudah diarsipkan.',
+            'to_money_account_id.required' => 'Pilih rekening tujuannya.',
+            'to_money_account_id.different' => 'Rekening asal dan tujuan harus berbeda.',
+            'to_money_account_id.exists' => 'Rekening tidak ditemukan atau sudah diarsipkan.',
         ];
     }
 }

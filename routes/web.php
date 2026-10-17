@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\MoneyAccountController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
 use Illuminate\Http\Request;
@@ -36,6 +37,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
 
     Route::get('log-aktivitas', [ActivityController::class, 'index'])->name('activity.index');
+
+    Route::get('rekening', [MoneyAccountController::class, 'index'])->name('money-accounts.index');
+    Route::post('rekening', [MoneyAccountController::class, 'store'])->name('money-accounts.store');
+    Route::put('rekening/{moneyAccount}', [MoneyAccountController::class, 'update'])->name('money-accounts.update');
+    Route::delete('rekening/{moneyAccount}', [MoneyAccountController::class, 'destroy'])->name('money-accounts.destroy');
 });
 
 if (app()->isLocal()) {

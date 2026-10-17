@@ -5,7 +5,7 @@ namespace App\Enums;
 use App\Concerns\EnumValues;
 
 /**
- * The five things an owner records (PRD M2).
+ * What an owner records: the five kinds of PRD M2, plus Pindah dana between rekening.
  */
 enum TransactionType: string
 {
@@ -16,6 +16,7 @@ enum TransactionType: string
     case Biaya = 'biaya';
     case UtangPiutang = 'utang_piutang';
     case Modal = 'modal';
+    case PindahDana = 'pindah_dana';
 
     public function label(): string
     {
@@ -25,6 +26,7 @@ enum TransactionType: string
             self::Biaya => 'Biaya',
             self::UtangPiutang => 'Utang-piutang',
             self::Modal => 'Modal',
+            self::PindahDana => 'Pindah dana',
         };
     }
 
@@ -39,6 +41,7 @@ enum TransactionType: string
             self::Biaya => 'Biaya tersimpan.',
             self::UtangPiutang => 'Pembayaran tersimpan.',
             self::Modal => 'Catatan modal tersimpan.',
+            self::PindahDana => 'Pindah dana tersimpan.',
         };
     }
 
@@ -52,7 +55,8 @@ enum TransactionType: string
         return match ($this) {
             self::Penjualan => [PaymentMethod::Tunai, PaymentMethod::NonTunai, PaymentMethod::Kredit],
             self::Pembelian, self::Biaya => PaymentMethod::cases(),
-            self::UtangPiutang, self::Modal => [PaymentMethod::Tunai, PaymentMethod::NonTunai],
+            // A transfer's method is its source rekening's kind, never chosen.
+            self::UtangPiutang, self::Modal, self::PindahDana => [PaymentMethod::Tunai, PaymentMethod::NonTunai],
         };
     }
 

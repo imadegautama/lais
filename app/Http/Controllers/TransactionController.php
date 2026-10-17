@@ -12,6 +12,7 @@ use App\Http\Resources\ActivityResource;
 use App\Http\Resources\ContactResource;
 use App\Http\Resources\ItemOptionResource;
 use App\Http\Resources\JournalEntryResource;
+use App\Http\Resources\MoneyAccountResource;
 use App\Http\Resources\StockMovementResource;
 use App\Http\Resources\TransactionDetailResource;
 use App\Http\Resources\TransactionFormResource;
@@ -21,6 +22,7 @@ use App\Models\Activity;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
+use App\Models\MoneyAccount;
 use App\Models\StockMovement;
 use App\Models\Transaction;
 use App\Services\Ledger;
@@ -45,7 +47,7 @@ class TransactionController extends Controller
         return Inertia::render('transactions/index', [
             'transactions' => TableQuery::paginate(
                 $request,
-                $business->transactions()->getQuery()->with('contact'),
+                $business->transactions()->getQuery()->with(['contact', 'moneyAccount', 'toMoneyAccount']),
                 map: fn (Transaction $transaction) => TransactionResource::make($transaction)->resolve(),
                 sorts: ['waktu' => 'occurred_at', 'nominal' => 'total'],
                 defaultSort: '-waktu',
@@ -90,9 +92,10 @@ class TransactionController extends Controller
     {
         Gate::authorize('manage', $transaction);
 
-        $transaction->load(['lines.item', 'stockMovements.item']);
+        $transaction->load(['lines.item', 'stockMovements.item', 'moneyAccount', 'toMoneyAccount']);
         $archived = $transaction->lines->pluck('item')->merge($transaction->stockMovements->pluck('item'))
-            ->filter(fn (Item $item) => $item->trashed())->pluck('name')->unique();
+            ->merge([$transaction->moneyAccount, $transaction->toMoneyAccount])
+            ->filter(fn (mixed $model): bool => ($model instanceof Item || $model instanceof MoneyAccount) && $model->trashed())->pluck('name')->unique();
 
         if ($transaction->isVoid() || $archived->isNotEmpty()) {
             Inertia::flash('toast', [
@@ -171,7 +174,7 @@ class TransactionController extends Controller
     {
         Gate::authorize('manage', $transaction);
 
-        $transaction->load(['contact', 'replaces:id,replaced_by_id', 'lines.item', 'stockMovements.item', 'journalEntries.lines.account']);
+        $transaction->load(['contact', 'moneyAccount', 'toMoneyAccount', 'replaces:id,replaced_by_id', 'lines.item', 'stockMovements.item', 'journalEntries.lines.account', 'journalEntries.lines.moneyAccount']);
 
         return Inertia::render('transactions/show', [
             'transaction' => TransactionDetailResource::make($transaction)->resolve(),
@@ -187,11 +190,12 @@ class TransactionController extends Controller
      * read as if $editing were already cancelled, so the impact preview adds up.
      * shortcut: sends every item and contact, fine for a few hundred; search on the server beyond that.
      *
-     * @return array{now: string, items: array<mixed>, contacts: array<mixed>}
+     * @return array{now: string, items: array<mixed>, contacts: array<mixed>, moneyAccounts: array<mixed>}
      */
     private function formOptions(Business $business, Ledger $ledger, ?Transaction $editing = null): array
     {
         $balances = $ledger->contactBalances($business, excluding: $editing?->id);
+        $moneyBalances = $ledger->moneyBalances($business, excluding: $editing?->id);
         $movements = $editing?->stockMovements->groupBy('item_id') ?? collect();
         $items = $business->items()->with('recipeLines')->orderBy('items.name')->get()
             ->each(function (Item $item) use ($movements) {
@@ -207,6 +211,9 @@ class TransactionController extends Controller
             'items' => ItemOptionResource::collection($items)->resolve(),
             'contacts' => $business->contacts()->orderBy('contacts.name')->get()
                 ->map(fn (Contact $contact) => (new ContactResource($contact, $balances[$contact->id] ?? 0))->resolve())
+                ->values()->all(),
+            'moneyAccounts' => $business->moneyAccounts()->orderBy('money_accounts.id')->get()
+                ->map(fn (MoneyAccount $moneyAccount) => (new MoneyAccountResource($moneyAccount, $moneyBalances[$moneyAccount->id] ?? 0))->resolve())
                 ->values()->all(),
         ];
     }
