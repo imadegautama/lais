@@ -1,5 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
-import { Package, PackageSearch, Plus } from 'lucide-react';
+import {
+    CircleCheck,
+    CircleX,
+    Coins,
+    Package,
+    PackageSearch,
+    Plus,
+    TriangleAlert,
+    Warehouse,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
     AppDataTable,
@@ -12,7 +21,7 @@ import {
     StockStatusBadge,
 } from '@/components/app/badges';
 import { FilterBar } from '@/components/app/filter-bar';
-import { MetricInline } from '@/components/app/metric';
+import { MetricCount, MetricTile } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
 import { PageHeader } from '@/components/app/page-header';
 import { SectionCard } from '@/components/app/section-card';
@@ -150,6 +159,81 @@ const kindOptions = (Object.keys(itemKinds) as ItemKind[]).map((kind) => ({
     icon: itemKinds[kind].icon,
 }));
 
+/** "Air Mineral 600 ml" / "Beras dan Telur" / "Beras, Telur, dan 3 lainnya" */
+function nameList(names: string[]): string {
+    if (names.length <= 2) {
+        return names.join(' dan ');
+    }
+
+    return `${names.slice(0, 2).join(', ')}, dan ${names.length - 2} lainnya`;
+}
+
+// The page's one focus card: what the stock is worth, and whether anything needs attention.
+function InventorySummary({ items, summary }: ItemsIndexProps) {
+    const low = items.filter((item) => item.lowStock).map((item) => item.name);
+    const negative = items
+        .filter((item) => item.negativeStock)
+        .map((item) => item.name);
+    const stockedCount = items.filter(
+        (item) => item.kind !== 'komposisi',
+    ).length;
+
+    return (
+        <SectionCard
+            title="Persediaan sekarang"
+            description="Dinilai dengan biaya rata-rata tiap bahan dan produk."
+            icon={Warehouse}
+            tone="focus"
+        >
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <MetricTile
+                    label="Nilai persediaan"
+                    icon={Coins}
+                    value={<Money value={summary.inventoryValue} size="xl" />}
+                    detail={`${stockedCount} bahan baku dan produk biasa`}
+                    className="col-span-2 md:col-span-1"
+                />
+                <MetricTile
+                    label="Stok menipis"
+                    icon={
+                        summary.lowStockCount > 0 ? TriangleAlert : CircleCheck
+                    }
+                    tone={summary.lowStockCount > 0 ? 'warning' : 'neutral'}
+                    value={
+                        <MetricCount
+                            value={summary.lowStockCount}
+                            unit="item"
+                        />
+                    }
+                    detail={
+                        summary.lowStockCount > 0
+                            ? nameList(low)
+                            : 'Semua di atas stok minimum.'
+                    }
+                />
+                <MetricTile
+                    label="Stok minus"
+                    icon={
+                        summary.negativeStockCount > 0 ? CircleX : CircleCheck
+                    }
+                    tone={summary.negativeStockCount > 0 ? 'danger' : 'neutral'}
+                    value={
+                        <MetricCount
+                            value={summary.negativeStockCount}
+                            unit="item"
+                        />
+                    }
+                    detail={
+                        summary.negativeStockCount > 0
+                            ? `${nameList(negative)}. Catat belanja atau koreksi stok.`
+                            : 'Tidak ada stok minus.'
+                    }
+                />
+            </div>
+        </SectionCard>
+    );
+}
+
 export default function ItemsIndex({ items, summary }: ItemsIndexProps) {
     const [kinds, setKinds] = useState<string[]>([]);
     const [query, setQuery] = useState('');
@@ -212,50 +296,7 @@ export default function ItemsIndex({ items, summary }: ItemsIndexProps) {
                     />
                 ) : (
                     <>
-                        <SectionCard
-                            title="Persediaan sekarang"
-                            description="Dinilai dengan biaya rata-rata tiap bahan dan produk."
-                        >
-                            <div className="flex flex-col divide-y md:grid md:grid-cols-3 md:gap-6 md:divide-y-0">
-                                {[
-                                    {
-                                        label: 'Nilai persediaan',
-                                        value: (
-                                            <Money
-                                                value={summary.inventoryValue}
-                                                size="lg"
-                                            />
-                                        ),
-                                        detail: 'Bahan baku dan produk biasa',
-                                    },
-                                    {
-                                        label: 'Stok menipis',
-                                        value: (
-                                            <span className="num text-xl font-semibold">
-                                                {summary.lowStockCount}
-                                            </span>
-                                        ),
-                                        detail: 'Di bawah stok minimum',
-                                    },
-                                    {
-                                        label: 'Stok minus',
-                                        value: (
-                                            <span className="num text-xl font-semibold">
-                                                {summary.negativeStockCount}
-                                            </span>
-                                        ),
-                                        detail: 'Terjual sebelum belanjanya dicatat',
-                                    },
-                                ].map((metric) => (
-                                    <div
-                                        key={metric.label}
-                                        className="py-3 first:pt-0 last:pb-0 md:py-0"
-                                    >
-                                        <MetricInline {...metric} />
-                                    </div>
-                                ))}
-                            </div>
-                        </SectionCard>
+                        <InventorySummary items={items} summary={summary} />
 
                         <SectionCard
                             title="Daftar produk"

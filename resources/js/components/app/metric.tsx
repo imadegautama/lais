@@ -1,4 +1,4 @@
-import { Minus, TrendingDown, TrendingUp } from 'lucide-react';
+import { Minus, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Money } from '@/components/app/money';
 import { formatPercent, formatRupiah } from '@/lib/format';
@@ -125,5 +125,81 @@ export function MetricInline({
                 </div>
             )}
         </div>
+    );
+}
+
+const tileTones = {
+    neutral: {
+        tile: 'border-transparent bg-secondary',
+        accent: 'text-muted-foreground',
+    },
+    warning: {
+        tile: 'border-warning/25 bg-warning-soft',
+        accent: 'text-warning',
+    },
+    danger: {
+        tile: 'border-destructive/25 bg-destructive-soft',
+        accent: 'text-destructive',
+    },
+} as const;
+
+type MetricTileProps = {
+    label: string;
+    icon: LucideIcon;
+    value: ReactNode;
+    detail?: ReactNode;
+    /** Status tones only for a real problem; a healthy number stays neutral. */
+    tone?: keyof typeof tileTones;
+    className?: string;
+};
+
+/** A boxed number for summary rows, read at a glance: what it is, then how much. */
+export function MetricTile({
+    label,
+    icon: Icon,
+    value,
+    detail,
+    tone = 'neutral',
+    className,
+}: MetricTileProps) {
+    return (
+        <div
+            className={cn(
+                'flex min-w-0 flex-col gap-2 rounded-lg border p-3 md:p-4',
+                tileTones[tone].tile,
+                className,
+            )}
+        >
+            <span
+                className={cn(
+                    'flex items-center gap-1.5 text-sm font-medium',
+                    tone === 'neutral'
+                        ? 'text-foreground'
+                        : tileTones[tone].accent,
+                )}
+            >
+                <Icon
+                    className={cn('size-4 shrink-0', tileTones[tone].accent)}
+                    aria-hidden
+                />
+                {label}
+            </span>
+            {value}
+            {detail && (
+                <span className="text-xs text-muted-foreground">{detail}</span>
+            )}
+        </div>
+    );
+}
+
+/** A count in the same type size as <Money size="xl">, with its unit. */
+export function MetricCount({ value, unit }: { value: number; unit: string }) {
+    return (
+        <span className="inline-flex items-baseline gap-1.5">
+            <span className="num text-[28px] leading-none font-bold tracking-tight md:text-[32px]">
+                {new Intl.NumberFormat('id-ID').format(value)}
+            </span>
+            <span className="text-sm text-muted-foreground">{unit}</span>
+        </span>
     );
 }

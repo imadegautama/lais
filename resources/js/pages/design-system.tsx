@@ -1,5 +1,12 @@
 import { Head } from '@inertiajs/react';
-import { Plus, Search } from 'lucide-react';
+import {
+    CircleCheck,
+    CircleX,
+    Coins,
+    Plus,
+    Search,
+    TriangleAlert,
+} from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ActionButton, SoonTag } from '@/components/app/action-button';
@@ -15,7 +22,13 @@ import {
 } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { FilterBar } from '@/components/app/filter-bar';
-import { DeltaBadge, MetricFocus, MetricInline } from '@/components/app/metric';
+import {
+    DeltaBadge,
+    MetricCount,
+    MetricFocus,
+    MetricInline,
+    MetricTile,
+} from '@/components/app/metric';
 import { Money } from '@/components/app/money';
 import { MoneyInput } from '@/components/app/money-input';
 import { PageHeader } from '@/components/app/page-header';
@@ -687,6 +700,51 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                     (kosong)
                                 </span>
                             </p>
+                        </Panel>
+                        <Panel className="flex flex-col gap-3 md:col-span-2">
+                            <p className="text-sm font-semibold">
+                                Kotak ringkasan
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Untuk baris ringkasan di dalam kartu fokus.
+                                Kuning dan merah hanya jika ada masalah nyata.
+                                Angka sehat tetap abu dengan tanda centang.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                                <MetricTile
+                                    label="Nilai persediaan"
+                                    icon={Coins}
+                                    value={<Money value={684_900} size="xl" />}
+                                    detail="9 bahan baku dan produk biasa"
+                                    className="col-span-2 md:col-span-1"
+                                />
+                                <MetricTile
+                                    label="Stok menipis"
+                                    icon={TriangleAlert}
+                                    tone="warning"
+                                    value={
+                                        <MetricCount value={2} unit="item" />
+                                    }
+                                    detail="Beras dan Telur"
+                                />
+                                <MetricTile
+                                    label="Stok minus"
+                                    icon={CircleX}
+                                    tone="danger"
+                                    value={
+                                        <MetricCount value={1} unit="item" />
+                                    }
+                                    detail="Gula pasir. Catat belanja atau koreksi stok."
+                                />
+                                <MetricTile
+                                    label="Stok minus"
+                                    icon={CircleCheck}
+                                    value={
+                                        <MetricCount value={0} unit="item" />
+                                    }
+                                    detail="Tidak ada stok minus."
+                                />
+                            </div>
                         </Panel>
                     </div>
                 </Section>
