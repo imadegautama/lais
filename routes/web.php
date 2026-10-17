@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
@@ -33,6 +34,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('transaksi/{transaction}/ubah', [TransactionController::class, 'edit'])->name('transactions.edit');
     Route::put('transaksi/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
+
+    Route::get('log-aktivitas', [ActivityController::class, 'index'])->name('activity.index');
 });
 
 if (app()->isLocal()) {

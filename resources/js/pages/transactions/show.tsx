@@ -1,5 +1,13 @@
 import { Head, Link } from '@inertiajs/react';
-import { Ban, History, PackageOpen, Pencil, ReceiptText } from 'lucide-react';
+import {
+    Ban,
+    History,
+    PackageOpen,
+    Pencil,
+    ReceiptText,
+    ScrollText,
+} from 'lucide-react';
+import { ActivityList } from '@/components/app/activity-list';
 import {
     CategoryBadge,
     methodLabel,
@@ -32,6 +40,7 @@ export default function TransactionShow({
     lines,
     movements,
     journal,
+    activities,
 }: TransactionDetailProps) {
     const hpp = lines.reduce((sum, line) => sum + (line.hpp ?? 0), 0);
     const isSale = transaction.type === TransactionType.Penjualan;
@@ -199,6 +208,14 @@ export default function TransactionShow({
                         )}
 
                         <JournalCard journal={journal} />
+
+                        <SectionCard
+                            title="Riwayat"
+                            icon={ScrollText}
+                            description="Siapa mencatat, mengubah, atau membatalkan catatan ini, dan lewat mana."
+                        >
+                            <ActivityList entries={activities} />
+                        </SectionCard>
                     </div>
 
                     {/* On phones the totals come first; on desktop they sit on the right. */}

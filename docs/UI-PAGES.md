@@ -55,6 +55,7 @@ Starter kit tinggal disesuaikan. Login diganti ke nomor WA (Fortify `username` �
 | C18   | Produk terlaris & margin      | `/laporan/produk`                     | Pemilik              | P1                    | US-12             |
 | C19   | Asisten AI                    | `/asisten` (+ panel samping)          | Pemilik              | P0                    | US-14             |
 | C20   | Pengaturan                    | `/pengaturan/*`                       | Pemilik              | P0 (WA), P1 (lainnya) | US-01, US-15      |
+| C21   | Log aktivitas                 | `/log-aktivitas`                      | Pemilik              | P1                    | §4.5              |
 | **D** | **Sistem**                    |                                       |                      |                       |                   |
 | D1    | Halaman error & kosong        | 404, 403, 500, toko tutup             | Semua                | P2                    |                   |
 
@@ -68,7 +69,7 @@ Totalnya sekitar 30 layar. Sebanyak 19 di antaranya P0.
 
 - **Desktop (≥ 1024 px):** sidebar kiri yang bisa diciutkan jadi ikon, plus top bar.
 - **Mobile:** top bar + bottom navigation berisi 5 slot: Beranda · Transaksi · **[ + Catat ]** · Pesanan · Lainnya. Tombol tengah lebih menonjol.
-- **Menu sidebar:** Dashboard, Transaksi, Pesanan, Produk & Stok, Utang-Piutang, Laporan, Kontak, Asisten AI, Pengaturan.
+- **Menu sidebar:** Dashboard, Transaksi, Pesanan, Produk & Stok, Utang-Piutang, Laporan, Kontak, Asisten AI, Log aktivitas, Pengaturan.
 - **Top bar:**
     - nama usaha
     - tombol **Catat** (desktop)
@@ -277,6 +278,7 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
     - **Batalkan**: dialog konfirmasi + alasan (opsional), lalu membuat jurnal dan mutasi stok pembalik. Tidak ada baris transaksi pembalik.
     - **Ubah** (`/transaksi/{id}/ubah`): membuka C3 dengan data yang sudah terisi, tanpa tab jenis. Saat disimpan, transaksi lama dibatalkan dan yang baru dicatat dalam satu langkah. Kalau pemilik keluar dari form, tidak ada yang berubah.
 - Banner jika sudah dibatalkan. Kalau dibatalkan karena diubah, banner menautkan ke versi baru, dan versi baru menautkan ke versi lama. Jurnal pembaliknya tampil di "Lihat jurnal".
+- **Riwayat:** siapa yang mencatat, mengubah, atau membatalkan catatan ini, kapan, dan lewat mana. Kalau diubah, yang berubah ditampilkan lama → baru. Datanya dari Log aktivitas (C21).
 
 ### C5. Daftar produk & stok `/produk`
 
@@ -309,6 +311,7 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 - **Khusus produk dengan resep: pembuat resep**
     - Baris berisi combobox bahan (+ "buat bahan baru" inline), qty, satuan (mengikuti bahan), dan biaya (otomatis dihitung).
     - **Panel HPP langsung:** HPP per porsi, harga jual, **margin Rp dan %**, dengan peringatan jika margin < 15%.
+- **Riwayat perubahan** (hanya saat mengubah): siapa yang mengubah harga, resep, satuan, atau stok (koreksi), dan kapan, dengan nilai lama → baru.
 
 ### C7. Detail produk `/produk/{id}`
 
@@ -454,6 +457,15 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
     - ambang peringatan stok (hari)
     - **riwayat 20 pesan terakhir** dengan bot (P2, berguna saat demo dan debugging)
 - **Tampilan:** light / dark / sistem (sudah ada di starter kit).
+- **Keamanan:** di bawah pengaturan password dan 2FA ada **Aktivitas akun**, berisi 10 aktivitas terbaru (masuk, gagal masuk dengan email yang dicoba dan IP, ganti password), dengan tautan ke C21.
+
+### C21. Log aktivitas `/log-aktivitas`
+
+- Semua aktivitas usaha, terbaru di atas. Kolomnya waktu, aktivitas (kalimat + perubahan lama → baru + keterangan seperti alasan batal), siapa, dan lewat (Web/WA).
+- **Saringan:** periode, kategori (Transaksi, Produk, Kontak, Akun), dan pencarian aktivitas atau nama.
+- Kalimat aktivitas menautkan ke datanya selama data itu masih bisa dibuka.
+- **Hanya baca:** tidak ada tombol ubah atau hapus.
+- **Di HP:** daftar per tanggal.
 
 ---
 

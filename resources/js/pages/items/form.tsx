@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { History } from 'lucide-react';
+import { History, ScrollText } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { ActivityList } from '@/components/app/activity-list';
 import { itemKinds } from '@/components/app/badges';
 import { Field } from '@/components/app/field';
 import { FormActionBar } from '@/components/app/form-action-bar';
@@ -42,6 +43,7 @@ export default function ItemForm({
     materials,
     units,
     movements,
+    activities = [],
 }: ItemFormProps) {
     const editing = item !== null;
     const form = useForm<ItemFormData>(initialItemForm(item, initialKind));
@@ -367,6 +369,16 @@ export default function ItemForm({
                                             unit={item.unit}
                                         />
                                     )}
+                                </SectionCard>
+                            )}
+
+                            {editing && (
+                                <SectionCard
+                                    title="Riwayat perubahan"
+                                    icon={ScrollText}
+                                    description="Siapa mengubah harga, resep, atau data lain, dan kapan."
+                                >
+                                    <ActivityList entries={activities} />
                                 </SectionCard>
                             )}
                         </div>

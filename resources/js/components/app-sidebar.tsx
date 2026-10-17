@@ -7,6 +7,7 @@ import {
     NotebookPen,
     NotebookText,
     Package,
+    ScrollText,
     Settings,
     ShoppingBag,
 } from 'lucide-react';
@@ -23,6 +24,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import activity from '@/routes/activity';
 import items from '@/routes/items';
 import transactions from '@/routes/transactions';
 import { edit as editProfile } from '@/routes/profile';
@@ -62,7 +64,14 @@ const groups: AppNavGroup[] = [
     },
     {
         label: 'Akun',
-        items: [{ title: 'Pengaturan', href: editProfile(), icon: Settings }],
+        items: [
+            {
+                title: 'Log aktivitas',
+                href: activity.index(),
+                icon: ScrollText,
+            },
+            { title: 'Pengaturan', href: editProfile(), icon: Settings },
+        ],
     },
 ];
 

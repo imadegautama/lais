@@ -27,6 +27,22 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - Controller hanya mengatur alur: otorisasi, panggil service, render, flash.
 - Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
 
+## Log aktivitas (audit)
+
+- `spatie/laravel-activitylog` v5, dengan model `App\Models\Activity`. Log hanya bisa ditambah: model itu menolak update dan delete, dan `activitylog:clean` tidak pernah dijadwalkan. `business_id` diisi otomatis dari subject atau causer.
+- Data master (`Item`, `Contact`, `User`) memakai trait `LogsActivity` dengan `logOnly` untuk kolom yang diatur pemilik, ditambah `logOnlyDirty()->dontLogEmptyChanges()`. Kolom yang bergerak sendiri, seperti stok, jangan ikut dicatat.
+- Peristiwa yang tidak tertangkap event model dicatat eksplisit dengan `activity(ActivityCategory::…)->event(ActivityEvent::…->value)`:
+    - transaksi (`TransactionService`)
+    - resep (`ItemController::update`, karena resep disimpan dengan hapus lalu buat ulang)
+    - koreksi stok (`Inventory::adjust`)
+
+    Perbedaan nilai lama dan baru dikirim lewat `withChanges(['old' => …, 'attributes' => …])`.
+
+- Jurnal dan mutasi stok tidak dicatat ke log aktivitas, karena keduanya sudah menjadi jejak audit uang.
+- Label field dan format tampilannya ada di `ActivityResource::FIELDS`. Field baru yang perlu terlihat di riwayat ditambahkan di sana.
+- Jalur tanpa sesi login, misalnya bot WhatsApp, memanggil `Activity::defaultCauser($business->user)` (facade `Spatie\Activitylog\Facades\Activity`) dan `Context::add('activity_source', 'wa')` di titik masuknya.
+- Password, token, kode OTP/2FA, dan secret lain tidak pernah masuk `properties` atau `logOnly`.
+
 ## Test
 
 - Test fitur class-based dengan `RefreshDatabase`.

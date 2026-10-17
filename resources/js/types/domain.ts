@@ -1,4 +1,5 @@
 import type {
+    ActivityCategory,
     ContactType,
     ItemKind,
     PaymentMethod,
@@ -14,6 +15,7 @@ import type { TablePage } from '@/types/ui';
 // through the generated enums.ts. Money is integer rupiah everywhere.
 
 export type {
+    ActivityCategory,
     ContactType,
     ItemKind,
     PaymentMethod,
@@ -186,6 +188,8 @@ export type ItemFormProps = {
     /** Units this business already uses. */
     units: string[];
     movements: StockMovementRow[];
+    /** The product's Riwayat; only when editing. */
+    activities?: ActivityEntry[];
 };
 
 /** An item the record form can sell or buy, with what the impact preview needs. */
@@ -278,4 +282,27 @@ export type TransactionDetailProps = {
             credit: Rupiah;
         }>;
     }>;
+    activities: ActivityEntry[];
+};
+
+/** One audit-log entry (ActivityResource): Log aktivitas and each record's Riwayat. */
+export type ActivityEntry = {
+    id: number;
+    at: string;
+    category: ActivityCategory;
+    event: string | null;
+    /** Who did it; "Tidak dikenal" for a failed sign-in, "Sistem" without a user. */
+    actor: string;
+    source: TransactionSource | null;
+    /** The whole sentence, written when it happened: "Mengubah produk Nasi Goreng". */
+    description: string;
+    /** Reason, email tried, IP, or the value of a stock count. */
+    detail: string | null;
+    /** The record it is about, while it can still be opened. */
+    href: string | null;
+    changes: Array<{ label: string; old: string; new: string }>;
+};
+
+export type ActivityIndexProps = {
+    activities: TablePage<ActivityEntry>;
 };

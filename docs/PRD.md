@@ -496,6 +496,13 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 - **Rahasia:** semua kunci di `.env` dan tidak masuk repo. GOWA dan 9Router hanya bisa diakses dari jaringan internal Docker. HTTPS dipaksa.
 - **AI:** data yang dikirim ke LLM dibatasi ke yang dibutuhkan (nama item, harga, nama kontak), tanpa password atau token. Tool tulis hanya membuat draf.
 - **Data pribadi pelanggan:** hanya nama, nomor WA, dan alamat (jika diantar), mengikuti prinsip minimalisasi UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi. Pemilik bisa menghapus data kontak.
+- **Jejak audit (Log aktivitas):** mencatat siapa, kapan, lewat mana, dan apa yang berubah (nilai lama → baru) untuk:
+    - transaksi: dicatat, dibatalkan, diubah
+    - data master: produk, resep, koreksi stok, kontak
+    - akun: masuk, gagal masuk, ganti password, verifikasi dua langkah
+
+    Log hanya bisa ditambah. Aplikasi tidak bisa mengubah atau menghapusnya, dan setiap usaha hanya melihat lognya sendiri. Jurnal dan mutasi stok tidak ikut dicatat karena keduanya sudah menjadi jejak audit uang. Password dan kode rahasia tidak pernah dicatat.
+
 - **Backup:** `mysqldump` harian, disimpan 7 hari.
 - **Kepatuhan lomba:** kode 100% ditulis sendiri. Library open-source dicantumkan di README. Repo publik, situs live, responsif.
 

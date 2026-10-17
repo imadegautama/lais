@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityCategory;
+use App\Enums\ActivityEvent;
 use App\Enums\ContactType;
 use App\Enums\PaymentMethod;
 use App\Enums\StockReason;
@@ -14,6 +16,7 @@ use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
 use App\Models\Transaction;
+use App\Support\Format;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +38,19 @@ class TransactionService
      * @param  array<string, mixed>  $data  validated TransactionRequest data
      */
     public function record(Business $business, array $data, TransactionSource $source = TransactionSource::Web): Transaction
+    {
+        return DB::transaction(function () use ($business, $data, $source) {
+            $transaction = $this->write($business, $data, $source);
+            $this->log($transaction, ActivityEvent::Created, ['total' => $transaction->total, 'source' => $source->value]);
+
+            return $transaction;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function write(Business $business, array $data, TransactionSource $source): Transaction
     {
         $type = TransactionType::from((string) $data['type']);
         $kind = isset($data['kind']) ? TransactionKind::from((string) $data['kind']) : null;
@@ -118,6 +134,7 @@ class TransactionService
         return DB::transaction(function () use ($transaction, $reason) {
             $this->void($transaction, $reason);
             $this->assertNotOverpaid($transaction);
+            $this->log($transaction, ActivityEvent::Cancelled, ['reason' => $reason]);
 
             return $transaction;
         });
@@ -133,10 +150,13 @@ class TransactionService
     {
         return DB::transaction(function () use ($transaction, $data) {
             $this->void($transaction, null);
-            $replacement = $this->record($transaction->business, $data);
+            $replacement = $this->write($transaction->business, $data, TransactionSource::Web);
             $transaction->forceFill(['replaced_by_id' => $replacement->id])->save();
             // Checked after recording again: a corrected total can still cover what was paid.
             $this->assertNotOverpaid($transaction);
+
+            $this->log($transaction, ActivityEvent::Replaced, ['replacement_id' => $replacement->id], self::differences($transaction, $replacement));
+            $this->log($replacement, ActivityEvent::Created, ['total' => $replacement->total, 'replaces_id' => $transaction->id]);
 
             return $replacement;
         });
@@ -197,9 +217,58 @@ class TransactionService
             $contact = $transaction->contact;
 
             throw ValidationException::withMessages(['transaction' => $contact->type === ContactType::Pelanggan
-                ? "{$contact->name} sudah membayar sebagian tagihan ini, jadi sisa tagihannya akan minus ".self::rupiah(-$balance).'. Batalkan pembayarannya dulu.'
-                : "Pembayaran ke {$contact->name} sudah tercatat, jadi sisa utangnya akan minus ".self::rupiah(-$balance).'. Batalkan pembayarannya dulu.']);
+                ? "{$contact->name} sudah membayar sebagian tagihan ini, jadi sisa tagihannya akan minus ".Format::rupiah(-$balance).'. Batalkan pembayarannya dulu.'
+                : "Pembayaran ke {$contact->name} sudah tercatat, jadi sisa utangnya akan minus ".Format::rupiah(-$balance).'. Batalkan pembayarannya dulu.']);
         }
+    }
+
+    /**
+     * Audit log entry for a transaction (Log aktivitas). The journal already
+     * records the money; this records who did it and through which channel.
+     *
+     * @param  array<string, mixed>  $properties
+     * @param  array{old?: array<string, mixed>, attributes?: array<string, mixed>}  $changes
+     */
+    private function log(Transaction $transaction, ActivityEvent $event, array $properties = [], array $changes = []): void
+    {
+        $verb = match (true) {
+            $event !== ActivityEvent::Created => $event->verb(),
+            isset($properties['replaces_id']) => 'Mencatat ulang',
+            default => 'Mencatat',
+        };
+        $logger = activity(ActivityCategory::Transaksi)
+            ->event($event->value)
+            ->performedOn($transaction)
+            ->withProperties(array_filter($properties, fn ($value) => $value !== null));
+
+        if ($changes !== []) {
+            $logger->withChanges($changes);
+        }
+
+        $logger->log("{$verb} ".mb_strtolower($transaction->type->label()).": {$transaction->description}");
+    }
+
+    /**
+     * What "Ubah" changed, old and new side by side, for the audit log.
+     *
+     * @return array{old?: array<string, mixed>, attributes?: array<string, mixed>}
+     */
+    private static function differences(Transaction $old, Transaction $new): array
+    {
+        $fields = fn (Transaction $transaction) => [
+            'total' => $transaction->total,
+            'description' => $transaction->description,
+            'method' => $transaction->method->value,
+            'contact' => $transaction->contact?->name,
+            'occurred_at' => $transaction->occurred_at->toIso8601String(),
+        ];
+        [$before, $after] = [$fields($old), $fields($new)];
+        $changed = array_keys(array_filter($after, fn ($value, $key) => $value !== $before[$key], ARRAY_FILTER_USE_BOTH));
+
+        return $changed === [] ? [] : [
+            'old' => array_intersect_key($before, array_flip($changed)),
+            'attributes' => array_intersect_key($after, array_flip($changed)),
+        ];
     }
 
     /**
@@ -259,7 +328,7 @@ class TransactionService
             }
 
             if ($total > $balance) {
-                throw ValidationException::withMessages(['amount' => "Sisa tagihan {$contact->name} ".self::rupiah($balance).'. Nominal tidak boleh lebih dari itu.']);
+                throw ValidationException::withMessages(['amount' => "Sisa tagihan {$contact->name} ".Format::rupiah($balance).'. Nominal tidak boleh lebih dari itu.']);
             }
         }
     }
@@ -366,7 +435,7 @@ class TransactionService
     {
         $parts = array_map(function (array $line) use ($type, $items) {
             $item = $items[(int) $line['item_id']];
-            $qty = rtrim(rtrim(number_format((float) $line['qty'], 3, ',', '.'), '0'), ',');
+            $qty = Format::qty($line['qty']);
 
             // Purchases read better with the unit ("30 butir Telur"); sales follow how owners talk ("3 Nasi Goreng").
             return $type === TransactionType::Penjualan ? "{$qty} {$item->name}" : "{$qty} {$item->unit} {$item->name}";
@@ -391,10 +460,5 @@ class TransactionService
         }
 
         return $amounts;
-    }
-
-    private static function rupiah(int $amount): string
-    {
-        return 'Rp'.number_format($amount, 0, ',', '.');
     }
 }

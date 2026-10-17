@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityCategory;
+use App\Enums\ActivityEvent;
 use App\Enums\StockReason;
 use App\Models\Account;
 use App\Models\Item;
@@ -78,7 +80,16 @@ class Inventory
                 ? $this->ledger->post($item->business, "Koreksi stok: {$item->name}", Ledger::lines([Account::INVENTORY => $value, Account::STOCK_DIFFERENCE => -$value]), $item)
                 : null;
 
-            return $this->move($item, $diff, $value, StockReason::Koreksi, $entry?->id);
+            $movement = $this->move($item, $diff, $value, StockReason::Koreksi, $entry?->id);
+
+            activity(ActivityCategory::Produk)
+                ->event(ActivityEvent::StockAdjusted->value)
+                ->performedOn($item)
+                ->withChanges(['old' => ['stock' => round($physicalQty - $diff, 3)], 'attributes' => ['stock' => $physicalQty]])
+                ->withProperties(['value' => $value])
+                ->log(ActivityEvent::StockAdjusted->verb()." {$item->name}");
+
+            return $movement;
         });
     }
 

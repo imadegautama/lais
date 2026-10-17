@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ActivityCategory;
+use App\Enums\ActivityEvent;
 use App\Enums\ItemKind;
 use App\Enums\StockReason;
 use App\Http\Requests\ItemRequest;
+use App\Http\Resources\ActivityResource;
 use App\Http\Resources\ItemOptionResource;
 use App\Http\Resources\ItemResource;
 use App\Http\Resources\StockMovementResource;
 use App\Models\Account;
+use App\Models\Activity;
 use App\Models\Business;
 use App\Models\Item;
 use App\Services\Inventory;
@@ -110,6 +114,7 @@ class ItemController extends Controller
             'movements' => StockMovementResource::collection(
                 $item->stockMovements()->latest('stock_movements.occurred_at')->latest('stock_movements.id')->limit(20)->get(),
             )->resolve(),
+            'activities' => ActivityResource::collection(Activity::historyOf($item))->resolve(),
         ]);
     }
 
@@ -123,8 +128,19 @@ class ItemController extends Controller
             $item->update($this->attributes($data, $item->kind));
 
             if ($item->kind === ItemKind::Komposisi) {
+                $before = $item->load('recipeLines.material')->recipeText();
                 $item->recipeLines()->delete();
                 $item->recipeLines()->createMany($data['recipe']);
+                $after = $item->load('recipeLines.material')->recipeText();
+
+                // The recipe is rewritten as new rows, which model events cannot see, so its change is logged here.
+                if ($after !== $before) {
+                    activity(ActivityCategory::Produk)
+                        ->event(ActivityEvent::RecipeUpdated->value)
+                        ->performedOn($item)
+                        ->withChanges(['old' => ['recipe' => $before], 'attributes' => ['recipe' => $after]])
+                        ->log(ActivityEvent::RecipeUpdated->verb()." {$item->name}");
+                }
             }
         });
 

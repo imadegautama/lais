@@ -149,6 +149,22 @@ export const periodLabels: Record<Period, string> = {
     bulan_ini: 'Bulan ini',
 };
 
+export const ActivityCategory = {
+    Transaksi: 'transaksi',
+    Produk: 'produk',
+    Kontak: 'kontak',
+    Akun: 'akun',
+} as const;
+
+export type ActivityCategory = (typeof ActivityCategory)[keyof typeof ActivityCategory];
+
+export const activityCategoryLabels: Record<ActivityCategory, string> = {
+    transaksi: 'Transaksi',
+    produk: 'Produk',
+    kontak: 'Kontak',
+    akun: 'Akun',
+};
+
 export const soldItemKinds: readonly ItemKind[] = ['produk', 'komposisi'];
 
 export const stockedItemKinds: readonly ItemKind[] = ['produk', 'bahan'];

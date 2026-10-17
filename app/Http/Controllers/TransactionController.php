@@ -8,6 +8,7 @@ use App\Enums\TransactionSource;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Http\Requests\TransactionRequest;
+use App\Http\Resources\ActivityResource;
 use App\Http\Resources\ContactResource;
 use App\Http\Resources\ItemOptionResource;
 use App\Http\Resources\JournalEntryResource;
@@ -16,6 +17,7 @@ use App\Http\Resources\TransactionDetailResource;
 use App\Http\Resources\TransactionFormResource;
 use App\Http\Resources\TransactionLineResource;
 use App\Http\Resources\TransactionResource;
+use App\Models\Activity;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
@@ -176,6 +178,7 @@ class TransactionController extends Controller
             'lines' => TransactionLineResource::collection($transaction->lines)->resolve(),
             'movements' => StockMovementResource::collection($transaction->stockMovements)->resolve(),
             'journal' => JournalEntryResource::collection($transaction->journalEntries)->resolve(),
+            'activities' => ActivityResource::collection(Activity::historyOf($transaction))->resolve(),
         ]);
     }
 
