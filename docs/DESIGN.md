@@ -124,10 +124,10 @@ Oranye tidak dipakai untuk ikon biasa, garis dekoratif, atau latar section lain 
 
 File asli pemilik: wordmark "Lais", rasio 1137 × 437 (2,6 : 1). Huruf memakai tinta (`foreground` `#1C1917`), titik miring di atas "i" memakai `brand-strong` `#EA580C`.
 
-| Bentuk                 | Komponen                                                         | Dipakai di                                           | Ukuran                                                                                           |
-| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Wordmark               | `LogoWordmark` (`components/logo-wordmark.tsx`), lewat `AppLogo` | Sidebar, header HP, halaman masuk/daftar             | `h-6` (24 px, lebar ±62 px) di app; `h-10` (40 px) di halaman masuk                              |
-| Tanda kecil: L + titik | `AppLogoIcon` (`components/app-logo-icon.tsx`)                   | Sidebar yang diciutkan, favicon, ikon layar utama HP | `h-6` di sidebar; `public/favicon.svg` + `favicon.ico` (16/32/48) + `apple-touch-icon.png` (180) |
+| Bentuk                 | Komponen                                                         | Dipakai di                                           | Ukuran                                                                                                                                  |
+| ---------------------- | ---------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Wordmark               | `LogoWordmark` (`components/logo-wordmark.tsx`), lewat `AppLogo` | Sidebar, header HP, halaman masuk/daftar             | `h-6` (24 px, lebar ±62 px) di app; `h-10` (40 px) di halaman masuk                                                                     |
+| Tanda kecil: L + titik | `AppLogoIcon` (`components/app-logo-icon.tsx`)                   | Sidebar yang diciutkan, favicon, ikon layar utama HP | `h-5` (20 px) di sidebar, ditengahkan sejajar ikon menu; `public/favicon.svg` + `favicon.ico` (16/32/48) + `apple-touch-icon.png` (180) |
 
 Aturan pakai:
 
@@ -136,6 +136,7 @@ Aturan pakai:
 - **Ruang kosong:** di setiap sisi minimal setinggi titiknya (±20% tinggi logo). Jangan menempel ke tepi atau ke teks lain.
 - **Latar:** hanya permukaan putih (`background`, `card`, `sidebar`). Titik oranye 3,56:1 di putih, tapi hanya 2,85:1 di atas wash `#FAE3BD`, jadi logo tidak diletakkan di atas wash.
 - **Warna:** huruf ikut `text-foreground`, titik selalu `fill-brand-strong`. Jangan mewarnai huruf dengan oranye, dan jangan membuat versi gradien atau bayangan.
+- **Tepi tidak terpotong:** huruf dan titik menempel di tepi `viewBox`, jadi kedua SVG memakai `overflow="visible"`. Tanpa itu, tepi kiri L dan atas titik terlihat rata di layar retina.
 - **Satu logo per layar:** header HP menyembunyikan logo di desktop, karena sidebar sudah menampilkannya.
 - **Aksesibilitas:** `role="img"` dengan `aria-label` berisi nama aplikasi (`APP_NAME`), sehingga link logo terbaca "Lais".
 - **File statis** (favicon, ikon HP) tidak bisa membaca token CSS, jadi nilai token ditulis langsung di file itu. Latarnya putih, agar tetap terlihat di tab browser yang gelap.

@@ -388,10 +388,10 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                         </Panel>
                         <Panel className="flex flex-col gap-5">
                             <div className="flex flex-wrap items-center gap-4">
-                                <AppLogoIcon className="h-6 w-auto text-foreground" />
+                                <AppLogoIcon className="h-5 w-auto text-foreground" />
                                 <span className="text-sm text-muted-foreground">
                                     Tanda kecil L + titik: sidebar yang
-                                    diciutkan, 24 px
+                                    diciutkan, 20 px
                                 </span>
                             </div>
                             <div className="flex flex-wrap items-end gap-4">

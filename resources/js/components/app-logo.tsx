@@ -12,7 +12,8 @@ export default function AppLogo({ className }: { className?: string }) {
     const name = String(usePage().props.name);
 
     return (
-        <span className="flex min-w-0 items-center">
+        // Collapsed, the mark sits centered in its button, in line with the menu icons below.
+        <span className="flex min-w-0 items-center group-data-[collapsible=icon]:mx-auto">
             <LogoWordmark
                 title={name}
                 className={cn(
@@ -20,10 +21,11 @@ export default function AppLogo({ className }: { className?: string }) {
                     className,
                 )}
             />
+            {/* 20 px: a solid mark next to 16 px line icons; 24 px reads too heavy. */}
             <AppLogoIcon
                 role="img"
                 aria-label={name}
-                className="hidden h-6 w-auto text-foreground group-data-[collapsible=icon]:block"
+                className="hidden h-5 w-auto text-foreground group-data-[collapsible=icon]:block"
             />
         </span>
     );

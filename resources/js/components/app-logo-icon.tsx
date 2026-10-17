@@ -9,6 +9,8 @@ export default function AppLogoIcon(props: SVGAttributes<SVGElement>) {
     return (
         <svg
             viewBox="0 65 301 365"
+            // The L and the dot touch the viewBox edges; visible overflow keeps their anti-aliased edge.
+            overflow="visible"
             aria-hidden={props['aria-label'] ? undefined : true}
             {...props}
         >

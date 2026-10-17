@@ -13,6 +13,8 @@ export function LogoWordmark({
     return (
         <svg
             viewBox="0 0 1137 437"
+            // The letters touch the viewBox edges; visible overflow keeps their anti-aliased edge.
+            overflow="visible"
             role="img"
             aria-label={title}
             className={cn('h-6 w-auto shrink-0 text-foreground', className)}

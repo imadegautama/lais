@@ -69,7 +69,7 @@ const groups: AppNavGroup[] = [
 export function AppSidebar() {
     return (
         <Sidebar collapsible="icon" variant="sidebar">
-            <SidebarHeader className="border-b border-sidebar-border px-3 py-3">
+            <SidebarHeader className="border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:px-2">
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
