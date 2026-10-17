@@ -11,6 +11,9 @@ export type AppVariant = 'header' | 'sidebar';
 export type FlashToast = {
     type: 'success' | 'info' | 'warning' | 'error';
     message: string;
+    description?: string;
+    /** A follow-up link, e.g. "Lihat" the record just saved. */
+    action?: { label: string; href: string };
 };
 
 export type AuthLayoutProps = {

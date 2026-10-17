@@ -22,9 +22,10 @@ final class TableQuery
      * @param  Builder<TModel>  $query  already scoped to the business
      * @param  Closure(TModel): array<string, mixed>  $map
      * @param  array<string, string|Closure(Builder<TModel>, 'asc'|'desc'): mixed>  $sorts  url key => column or orderer
-     * @param  array<string, array{0: string, 1: list<string>}>  $filters  url key => [column, allowed values]
+     * @param  array<string, array{0: string|Closure(Builder<TModel>, non-empty-list<string>): mixed, 1: list<string>}>  $filters  url key => [column or custom filter, allowed values]
      * @param  list<literal-string>  $search  SQL expressions written in code, never user input
-     * @return array{data: list<array<string, mixed>>, meta: array{page: int, perPage: int, total: int, lastPage: int}, query: array<string, string|list<string>>}
+     * @param  (Closure(Builder<TModel>): array<string, mixed>)|null  $summary  totals over the filtered rows (all pages), so they follow the filters on a table-only reload
+     * @return array{data: list<array<string, mixed>>, meta: array{page: int, perPage: int, total: int, lastPage: int}, query: array<string, string|list<string>>, summary?: array<string, mixed>}
      */
     public static function paginate(
         Request $request,
@@ -35,6 +36,7 @@ final class TableQuery
         array $filters = [],
         array $search = [],
         int $perPage = self::PER_PAGE,
+        ?Closure $summary = null,
     ): array {
         $state = [];
 
@@ -46,7 +48,7 @@ final class TableQuery
             ));
 
             if ($values !== []) {
-                $query->whereIn($column, $values);
+                is_string($column) ? $query->whereIn($column, $values) : $column($query, $values);
             }
 
             $state[$key] = $values;
@@ -64,6 +66,8 @@ final class TableQuery
             });
         }
 
+        $totals = $summary?->__invoke(clone $query);
+
         $sort = is_string($request->query('urut')) ? $request->query('urut') : $defaultSort;
 
         if (! array_key_exists(ltrim($sort, '-'), $sorts)) {
@@ -73,8 +77,9 @@ final class TableQuery
         $direction = str_starts_with($sort, '-') ? 'desc' : 'asc';
         $orderer = $sorts[ltrim($sort, '-')];
         is_string($orderer) ? $query->orderBy($orderer, $direction) : $orderer($query, $direction);
-        // Ties keep a stable order, so no row shows up on two pages.
-        $query->orderBy($query->getModel()->getQualifiedKeyName());
+        // Ties keep a stable order in the same direction, so no row shows up on two pages
+        // and, newest first, the last one recorded in the same second comes first.
+        $query->orderBy($query->getModel()->getQualifiedKeyName(), $direction);
 
         $page = $query->paginate($perPage, ['*'], 'halaman');
 
@@ -82,7 +87,7 @@ final class TableQuery
             $page = $query->paginate($perPage, ['*'], 'halaman', $page->lastPage());
         }
 
-        return [
+        $result = [
             'data' => array_values(array_map($map, $page->items())),
             'meta' => [
                 'page' => $page->currentPage(),
@@ -92,5 +97,7 @@ final class TableQuery
             ],
             'query' => ['cari' => $term, 'urut' => $sort] + $state,
         ];
+
+        return $totals === null ? $result : $result + ['summary' => $totals];
     }
 }

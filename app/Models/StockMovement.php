@@ -11,11 +11,13 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $item_id
  * @property string $qty
+ * @property string|null $stock_after
  * @property int $value
+ * @property int|null $transaction_id
  * @property string $reason
  * @property Carbon $occurred_at
  */
-#[Fillable(['business_id', 'item_id', 'qty', 'value', 'reason', 'journal_entry_id', 'occurred_at'])]
+#[Fillable(['business_id', 'item_id', 'qty', 'stock_after', 'value', 'reason', 'journal_entry_id', 'transaction_id', 'occurred_at'])]
 class StockMovement extends Model
 {
     /**
@@ -27,6 +29,7 @@ class StockMovement extends Model
     {
         return [
             'qty' => 'decimal:3',
+            'stock_after' => 'decimal:3',
             'value' => 'integer',
             'occurred_at' => 'datetime',
         ];
@@ -37,6 +40,6 @@ class StockMovement extends Model
      */
     public function item(): BelongsTo
     {
-        return $this->belongsTo(Item::class);
+        return $this->belongsTo(Item::class)->withTrashed();
     }
 }

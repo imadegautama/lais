@@ -1,12 +1,13 @@
 import type { FormDataValues } from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Archive, History, Plus, Wheat, X } from 'lucide-react';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
     itemKinds,
     MarginLabel,
     THIN_MARGIN_PERCENT,
 } from '@/components/app/badges';
+import { Field } from '@/components/app/field';
 import { FormActionBar } from '@/components/app/form-action-bar';
 import { MetricInline } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
@@ -73,6 +74,9 @@ function unitOptions(used: string[]): SearchSelectOption[] {
 const movementReasons: Record<StockMovementReason, string> = {
     stok_awal: 'Stok awal',
     koreksi: 'Koreksi stok',
+    penjualan: 'Terjual',
+    pembelian: 'Belanja',
+    pembatalan: 'Pembatalan',
 };
 
 type RecipeRow = { material_id: string; qty: string };
@@ -591,34 +595,6 @@ export default function ItemForm({
 ItemForm.layout = {
     breadcrumbs: [{ title: 'Produk & stok', href: index() }],
 };
-
-function Field({
-    label,
-    htmlFor,
-    error,
-    hint,
-    className,
-    children,
-}: {
-    label: string;
-    htmlFor: string;
-    error?: string;
-    hint?: string;
-    className?: string;
-    children: ReactNode;
-}) {
-    return (
-        <div className={cn('flex flex-col gap-1.5', className)}>
-            <Label htmlFor={htmlFor}>{label}</Label>
-            {children}
-            {error ? (
-                <InputError message={error} />
-            ) : (
-                hint && <p className="text-xs text-muted-foreground">{hint}</p>
-            )}
-        </div>
-    );
-}
 
 function SwitchRow({
     id,

@@ -1,6 +1,6 @@
-import { MessageCircle } from 'lucide-react';
-import type { ReactNode } from 'react';
-import { SoonTag } from '@/components/app/action-button';
+import { Link } from '@inertiajs/react';
+import { ChevronRight, MessageCircle } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { transactionTypes } from '@/components/app/badges';
 import {
     Dialog,
@@ -19,6 +19,7 @@ import {
     DrawerTrigger,
 } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { create } from '@/routes/transactions';
 import type { TransactionType } from '@/types/domain';
 
 const hints: Record<TransactionType, string> = {
@@ -29,8 +30,7 @@ const hints: Record<TransactionType, string> = {
     modal: 'Setor modal atau ambil uang untuk rumah',
 };
 
-// TODO(C3): link each option to /transaksi/baru?jenis=… once the form exists.
-function Options() {
+function Options({ onChoose }: { onChoose: () => void }) {
     return (
         <div className="flex flex-col gap-4">
             <ul className="flex flex-col divide-y rounded-lg border">
@@ -39,23 +39,31 @@ function Options() {
                         const { label, icon: Icon } = transactionTypes[type];
 
                         return (
-                            <li
-                                key={type}
-                                aria-disabled="true"
-                                className="flex min-h-14 items-center gap-3 px-3 py-2.5"
-                            >
-                                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
-                                    <Icon className="size-[18px]" aria-hidden />
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-sm font-semibold">
-                                        {label}
+                            <li key={type}>
+                                <Link
+                                    href={create({ query: { jenis: type } })}
+                                    onClick={onChoose}
+                                    className="flex min-h-14 items-center gap-3 px-3 py-2.5 first:rounded-t-lg last:rounded-b-lg hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                >
+                                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card text-brand-strong">
+                                        <Icon
+                                            className="size-[18px]"
+                                            aria-hidden
+                                        />
                                     </span>
-                                    <span className="block text-xs text-muted-foreground">
-                                        {hints[type]}
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-semibold">
+                                            {label}
+                                        </span>
+                                        <span className="block text-xs text-muted-foreground">
+                                            {hints[type]}
+                                        </span>
                                     </span>
-                                </span>
-                                <SoonTag />
+                                    <ChevronRight
+                                        className="size-4 shrink-0 text-muted-foreground"
+                                        aria-hidden
+                                    />
+                                </Link>
                             </li>
                         );
                     },
@@ -79,12 +87,14 @@ function Options() {
 /** The "+ Catat" entry point. Drawer on phones, dialog on larger screens. */
 export function QuickRecordSheet({ trigger }: { trigger: ReactNode }) {
     const isMobile = useIsMobile();
+    // The sheet lives in the layout, so it has to close itself on navigation.
+    const [open, setOpen] = useState(false);
     const title = 'Catat apa?';
-    const description = 'Pilih jenis catatan. Formulirnya sedang dibangun.';
+    const description = 'Pilih jenis catatan.';
 
     if (isMobile) {
         return (
-            <Drawer>
+            <Drawer open={open} onOpenChange={setOpen}>
                 <DrawerTrigger asChild>{trigger}</DrawerTrigger>
                 <DrawerContent>
                     <DrawerHeader className="text-left">
@@ -92,7 +102,7 @@ export function QuickRecordSheet({ trigger }: { trigger: ReactNode }) {
                         <DrawerDescription>{description}</DrawerDescription>
                     </DrawerHeader>
                     <div className="px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-                        <Options />
+                        <Options onChoose={() => setOpen(false)} />
                     </div>
                 </DrawerContent>
             </Drawer>
@@ -100,14 +110,14 @@ export function QuickRecordSheet({ trigger }: { trigger: ReactNode }) {
     }
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>{description}</DialogDescription>
                 </DialogHeader>
-                <Options />
+                <Options onChoose={() => setOpen(false)} />
             </DialogContent>
         </Dialog>
     );

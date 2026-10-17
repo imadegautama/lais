@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('produk/{item}', [ItemController::class, 'update'])->name('items.update');
     Route::delete('produk/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
     Route::post('produk/{item}/koreksi-stok', [ItemController::class, 'adjustStock'])->name('items.adjust-stock');
+
+    Route::get('transaksi', [TransactionController::class, 'index'])->name('transactions.index');
+    Route::get('transaksi/baru', [TransactionController::class, 'create'])->name('transactions.create');
+    Route::post('transaksi', [TransactionController::class, 'store'])->name('transactions.store');
+    Route::get('transaksi/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
 });
 
 if (app()->isLocal()) {

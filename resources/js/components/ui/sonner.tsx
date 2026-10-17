@@ -80,6 +80,8 @@ function Toaster(props: ToasterProps) {
                     content: 'flex min-w-0 flex-1 flex-col gap-0.5',
                     title: 'text-sm font-semibold',
                     description: 'text-sm text-muted-foreground',
+                    actionButton:
+                        'shrink-0 cursor-pointer rounded-md border bg-card px-3 py-1.5 text-sm font-medium shadow-button-soft hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none',
                 },
             }}
             {...props}

@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Business;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
+use App\Models\Transaction;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -60,6 +61,57 @@ class Ledger
 
             return $entry;
         });
+    }
+
+    /**
+     * Journal lines from signed amounts per account: positive is debit,
+     * negative is credit, zero is dropped.
+     *
+     * @param  array<int|string, int>  $amounts  account code => rupiah
+     * @return list<array{account: string, debit?: int, credit?: int}>
+     */
+    public static function lines(array $amounts): array
+    {
+        $lines = [];
+
+        foreach ($amounts as $account => $amount) {
+            // PHP turns '1301' keys into ints, so the code is cast back to a string.
+            if ($amount > 0) {
+                $lines[] = ['account' => (string) $account, 'debit' => $amount];
+            } elseif ($amount < 0) {
+                $lines[] = ['account' => (string) $account, 'credit' => -$amount];
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Open balance per contact: what a customer still owes (Piutang 1201) or
+     * what is still owed to a supplier (Utang 2101). Read from the journal, so
+     * the sum over contacts always equals the account balance.
+     *
+     * @return array<int, int> contact id => rupiah
+     */
+    public function contactBalances(Business $business, ?int $contactId = null): array
+    {
+        // Debit and credit are unsigned, so each side is summed before subtracting (MySQL rejects a negative unsigned).
+        return DB::table('journal_lines')
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+            ->join('accounts', 'accounts.id', '=', 'journal_lines.account_id')
+            ->join('transactions', function ($join) {
+                $join->on('transactions.id', '=', 'journal_entries.source_id')
+                    ->where('journal_entries.source_type', (new Transaction)->getMorphClass());
+            })
+            ->where('journal_entries.business_id', $business->id)
+            ->whereIn('accounts.code', ['1201', '2101'])
+            ->whereNotNull('transactions.contact_id')
+            ->when($contactId, fn ($query) => $query->where('transactions.contact_id', $contactId))
+            ->groupBy('transactions.contact_id')
+            ->selectRaw("transactions.contact_id, sum(case when accounts.code = '1201' then journal_lines.debit else journal_lines.credit end) as raised, sum(case when accounts.code = '1201' then journal_lines.credit else journal_lines.debit end) as settled")
+            ->get()
+            ->mapWithKeys(fn (object $row) => [(int) $row->contact_id => (int) $row->raised - (int) $row->settled])
+            ->all();
     }
 
     /**

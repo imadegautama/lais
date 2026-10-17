@@ -4,12 +4,18 @@ namespace App\Services;
 
 use App\Models\Item;
 use App\Models\StockMovement;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
  * Stock in and out at rupiah value. The Persediaan account always equals the
  * sum of items.stock_value because both change by the same rounded amount.
+ *
+ * Value rules, which keep "stock ≤ 0 ⇒ stock_value = 0":
+ * - A sale is never blocked. Units sold past zero leave at value 0 (PRD US-03).
+ * - Buying while stock ≤ 0 restarts the average at the purchase price (PRD US-02).
+ *   The cost of units already sold is returned to the caller to book as HPP.
  */
 class Inventory
 {
@@ -27,17 +33,19 @@ class Inventory
             throw new InvalidArgumentException('Received quantity must be positive and cost non-negative.');
         }
 
-        $value = (int) round($qty * $unitCost);
+        $cost = (int) round($qty * $unitCost);
 
-        return DB::transaction(function () use ($item, $qty, $value, $reason, $creditAccount) {
-            $entry = $value > 0
-                ? $this->ledger->post($item->business, "Stok masuk: {$item->name}", [
-                    ['account' => '1301', 'debit' => $value],
-                    ['account' => $creditAccount, 'credit' => $value],
-                ], $item)
-                : null;
+        return DB::transaction(function () use ($item, $qty, $cost, $reason, $creditAccount) {
+            $this->lock($item);
+            $movement = $this->stockIn($item, $qty, $cost, $reason);
+            $lines = Ledger::lines(['1301' => $movement->value, '5101' => $cost - $movement->value, $creditAccount => -$cost]);
 
-            return $this->move($item, $qty, $value, $reason, $entry?->id);
+            if ($lines !== []) {
+                $entry = $this->ledger->post($item->business, "Stok masuk: {$item->name}", $lines, $item);
+                $movement->update(['journal_entry_id' => $entry->id]);
+            }
+
+            return $movement;
         });
     }
 
@@ -54,33 +62,83 @@ class Inventory
             throw new InvalidArgumentException('Physical stock cannot be negative.');
         }
 
-        $diff = round($physicalQty - (float) $item->stock, 3);
+        return DB::transaction(function () use ($item, $physicalQty) {
+            $this->lock($item);
+            $diff = round($physicalQty - (float) $item->stock, 3);
 
-        if ($diff == 0.0) {
-            return null;
-        }
+            if ($diff == 0.0) {
+                return null;
+            }
 
-        // Counting down to zero clears the remaining value exactly, so no rounding residue is left behind.
-        $value = $physicalQty == 0.0 ? -$item->stock_value : (int) round($diff * $item->averageCost());
-
-        return DB::transaction(function () use ($item, $diff, $value) {
-            $lines = $value < 0
-                ? [['account' => '6201', 'debit' => -$value], ['account' => '1301', 'credit' => -$value]]
-                : [['account' => '1301', 'debit' => $value], ['account' => '6201', 'credit' => $value]];
-
-            $entry = $value !== 0 ? $this->ledger->post($item->business, "Koreksi stok: {$item->name}", $lines, $item) : null;
+            // Counting down to zero clears the remaining value exactly, so no rounding residue is left behind.
+            $value = $physicalQty == 0.0 ? -$item->stock_value : (int) round($diff * $item->averageCost());
+            $entry = $value !== 0
+                ? $this->ledger->post($item->business, "Koreksi stok: {$item->name}", Ledger::lines(['1301' => $value, '6201' => -$value]), $item)
+                : null;
 
             return $this->move($item, $diff, $value, 'koreksi', $entry?->id);
         });
     }
 
     /**
-     * shortcut: reads stock from the given model without a row lock, fine while one owner edits from the web; add lockForUpdate when the WA bot writes in parallel (slice 2).
+     * Stock in for $cost rupiah. The caller must hold the item's row lock (lock())
+     * inside the current DB transaction and book the journal. The movement value
+     * goes to Persediaan; $cost minus that value is the cost of units already sold (HPP).
      */
-    private function move(Item $item, float $qty, int $value, string $reason, ?int $journalEntryId): StockMovement
+    public function stockIn(Item $item, float $qty, int $cost, string $reason, ?int $transactionId = null, ?CarbonInterface $occurredAt = null): StockMovement
     {
+        $this->assertStocked($item);
+        $stock = (float) $item->stock;
+        $after = round($stock + $qty, 3);
+
+        $value = match (true) {
+            $stock > 0 => $cost,
+            // All of it covers units sold while out of stock.
+            $after <= 0 => -$item->stock_value,
+            default => (int) round($after * $cost / $qty) - $item->stock_value,
+        };
+
+        return $this->move($item, $qty, $value, $reason, null, $transactionId, $occurredAt);
+    }
+
+    /**
+     * Stock out at the current average cost; the movement value is negative.
+     * Same locking contract as stockIn().
+     */
+    public function stockOut(Item $item, float $qty, string $reason, int $transactionId, ?CarbonInterface $occurredAt = null): StockMovement
+    {
+        $this->assertStocked($item);
+        $stock = (float) $item->stock;
+        $after = round($stock - $qty, 3);
+
+        $value = match (true) {
+            $stock <= 0 => 0,
+            // The last units take whatever value is left, so nothing is stranded.
+            $after <= 0 => -$item->stock_value,
+            default => -(int) round($qty * $item->averageCost()),
+        };
+
+        return $this->move($item, -$qty, $value, $reason, null, $transactionId, $occurredAt);
+    }
+
+    /**
+     * Re-read stock under a row lock into the given instance, so concurrent
+     * writers (web form, WhatsApp bot) cannot overwrite each other.
+     */
+    public function lock(Item $item): void
+    {
+        $fresh = Item::query()->withTrashed()->whereKey($item->getKey())->lockForUpdate()->firstOrFail(['id', 'stock', 'stock_value']);
+
+        $item->forceFill(['stock' => $fresh->stock, 'stock_value' => $fresh->stock_value])
+            ->syncOriginalAttributes(['stock', 'stock_value']);
+    }
+
+    private function move(Item $item, float $qty, int $value, string $reason, ?int $journalEntryId, ?int $transactionId = null, ?CarbonInterface $occurredAt = null): StockMovement
+    {
+        $after = round((float) $item->stock + $qty, 3);
+
         $item->forceFill([
-            'stock' => round((float) $item->stock + $qty, 3),
+            'stock' => $after,
             'stock_value' => $item->stock_value + $value,
         ])->save();
 
@@ -88,10 +146,12 @@ class Inventory
             'business_id' => $item->business_id,
             'item_id' => $item->id,
             'qty' => $qty,
+            'stock_after' => $after,
             'value' => $value,
             'reason' => $reason,
             'journal_entry_id' => $journalEntryId,
-            'occurred_at' => now(),
+            'transaction_id' => $transactionId,
+            'occurred_at' => $occurredAt ?? now(),
         ]);
     }
 

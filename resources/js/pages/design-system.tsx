@@ -307,13 +307,20 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
 
     const filtered = useMemo(
         () =>
-            transactions.filter(
-                (row) =>
-                    (types.length === 0 || types.includes(row.type)) &&
-                    row.description
-                        .toLowerCase()
-                        .includes(query.trim().toLowerCase()),
-            ),
+            transactions
+                // One demo row shows how a cancelled transaction looks.
+                .map((row, index) =>
+                    index === 2
+                        ? { ...row, voided: true, contact: 'Bu Sari' }
+                        : row,
+                )
+                .filter(
+                    (row) =>
+                        (types.length === 0 || types.includes(row.type)) &&
+                        row.description
+                            .toLowerCase()
+                            .includes(query.trim().toLowerCase()),
+                ),
         [transactions, types, query],
     );
 
@@ -1088,6 +1095,23 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                             }
                         >
                             Toast info
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() =>
+                                toast.success('Penjualan tersimpan.', {
+                                    description: '3 Nasi Goreng, 2 Es Teh',
+                                    action: {
+                                        label: 'Lihat',
+                                        onClick: () =>
+                                            toast.info(
+                                                'Di halaman asli, tombol ini membuka detail transaksi.',
+                                            ),
+                                    },
+                                })
+                            }
+                        >
+                            Toast dengan tautan
                         </Button>
                         <QuickRecordSheet
                             trigger={

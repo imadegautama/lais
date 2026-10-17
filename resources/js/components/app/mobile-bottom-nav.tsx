@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, type InertiaLinkProps } from '@inertiajs/react';
 import {
     House,
     Menu,
@@ -12,12 +12,42 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import transactions from '@/routes/transactions';
 
 const itemClass =
     'flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none';
 
+function NavLink({
+    href,
+    icon: Icon,
+    label,
+    active,
+}: {
+    href: NonNullable<InertiaLinkProps['href']>;
+    icon: LucideIcon;
+    label: string;
+    active: boolean;
+}) {
+    return (
+        <Link
+            href={href}
+            aria-current={active ? 'page' : undefined}
+            className={cn(
+                itemClass,
+                active ? 'text-accent-foreground' : 'text-muted-foreground',
+            )}
+        >
+            <Icon
+                className={cn('size-5', active && 'text-brand-strong')}
+                aria-hidden
+            />
+            {label}
+        </Link>
+    );
+}
+
 function SoonItem({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-    // TODO(C2/C9): becomes a Link when the page exists.
+    // TODO(C9): becomes a NavLink when the orders page exists.
     return (
         <span
             aria-disabled="true"
@@ -35,9 +65,8 @@ function SoonItem({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
  * plus the record button in the thumb zone. The sidebar takes over at lg.
  */
 export function MobileBottomNav() {
-    const { isCurrentUrl } = useCurrentUrl();
+    const { isCurrentUrl, isCurrentOrParentUrl } = useCurrentUrl();
     const { setOpenMobile } = useSidebar();
-    const onDashboard = isCurrentUrl(dashboard());
 
     return (
         <nav
@@ -45,26 +74,18 @@ export function MobileBottomNav() {
             className="fixed inset-x-0 bottom-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
         >
             <div className="mx-auto flex max-w-lg items-stretch gap-1 px-2 py-1">
-                <Link
+                <NavLink
                     href={dashboard()}
-                    aria-current={onDashboard ? 'page' : undefined}
-                    className={cn(
-                        itemClass,
-                        onDashboard
-                            ? 'text-accent-foreground'
-                            : 'text-muted-foreground',
-                    )}
-                >
-                    <House
-                        className={cn(
-                            'size-5',
-                            onDashboard && 'text-brand-strong',
-                        )}
-                        aria-hidden
-                    />
-                    Beranda
-                </Link>
-                <SoonItem icon={NotebookText} label="Transaksi" />
+                    icon={House}
+                    label="Beranda"
+                    active={isCurrentUrl(dashboard())}
+                />
+                <NavLink
+                    href={transactions.index()}
+                    icon={NotebookText}
+                    label="Transaksi"
+                    active={isCurrentOrParentUrl(transactions.index())}
+                />
                 <QuickRecordSheet
                     trigger={
                         <button

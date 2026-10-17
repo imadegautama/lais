@@ -1,19 +1,23 @@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import type { Period, PeriodKey } from '@/types/domain';
+import { cn } from '@/lib/utils';
 
-type PeriodPickerProps = {
-    periods: Array<Pick<Period, 'key' | 'label'>>;
-    value: PeriodKey;
-    onChange: (key: PeriodKey) => void;
+type PeriodPickerProps<K extends string> = {
+    periods: Array<{ key: K; label: string }>;
+    value: K;
+    onChange: (key: K) => void;
     disabled?: boolean;
+    /** Stretch over the full width with tighter items, for four or more periods on a phone. */
+    fill?: boolean;
 };
 
-export function PeriodPicker({
+/** Single choice of period. Generic so a list can add its own "Semua". */
+export function PeriodPicker<K extends string>({
     periods,
     value,
     onChange,
     disabled = false,
-}: PeriodPickerProps) {
+    fill = false,
+}: PeriodPickerProps<K>) {
     return (
         <ToggleGroup
             type="single"
@@ -24,16 +28,20 @@ export function PeriodPicker({
             onValueChange={(next) => {
                 // Radix clears the value when the active item is clicked again.
                 if (next) {
-                    onChange(next as PeriodKey);
+                    onChange(next as K);
                 }
             }}
-            className="bg-card"
+            className={cn('bg-card', fill && 'w-full sm:w-fit')}
         >
             {periods.map((period) => (
                 <ToggleGroupItem
                     key={period.key}
                     value={period.key}
-                    className="px-3 data-[state=on]:bg-accent data-[state=on]:font-semibold data-[state=on]:text-accent-foreground"
+                    className={cn(
+                        'px-3 data-[state=on]:bg-accent data-[state=on]:font-semibold data-[state=on]:text-accent-foreground',
+                        fill &&
+                            'flex-1 px-1.5 text-xs sm:flex-none sm:px-3 sm:text-sm',
+                    )}
                 >
                     {period.label}
                 </ToggleGroupItem>

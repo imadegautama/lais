@@ -45,7 +45,7 @@ export type Metric = {
 };
 
 export type TransactionRow = {
-    id: string;
+    id: number;
     occurredAt: string;
     type: TransactionType;
     description: string;
@@ -53,6 +53,9 @@ export type TransactionRow = {
     source: TransactionSource;
     amount: Rupiah;
     direction: MoneyDirection;
+    /** Customer or supplier name, when there is one. */
+    contact: string | null;
+    voided: boolean;
 };
 
 /** A link target that exists, or an honest "not built yet" marker. */
@@ -142,7 +145,12 @@ export type RecipeMaterial = {
     averageCost: number;
 };
 
-export type StockMovementReason = 'stok_awal' | 'koreksi';
+export type StockMovementReason =
+    | 'stok_awal'
+    | 'koreksi'
+    | 'penjualan'
+    | 'pembelian'
+    | 'pembatalan';
 
 export type StockMovementRow = {
     id: number;
@@ -174,4 +182,96 @@ export type ItemFormProps = {
     /** Units this business already uses. */
     units: string[];
     movements: StockMovementRow[];
+};
+
+/** Sub-kind of a transaction; penjualan has none. Mirrors Transaction::KINDS. */
+export type TransactionKind =
+    | 'barang'
+    | 'peralatan'
+    | 'listrik_air'
+    | 'gas_bbm'
+    | 'sewa'
+    | 'upah'
+    | 'transport'
+    | 'pemasaran'
+    | 'lain'
+    | 'terima_piutang'
+    | 'bayar_utang'
+    | 'setor'
+    | 'prive';
+
+/** An item the record form can sell or buy, with what the impact preview needs. */
+export type RecordItem = {
+    id: number;
+    kind: ItemKind;
+    name: string;
+    aliases: string[];
+    unit: string;
+    price: Rupiah | null;
+    stock: number;
+    averageCost: number;
+    recipe: Array<{ materialId: number; qty: number }>;
+};
+
+export type ContactOption = {
+    id: number;
+    type: 'pelanggan' | 'supplier';
+    name: string;
+    /** Still owed by a customer, or still owed to a supplier. */
+    balance: Rupiah;
+};
+
+export type TransactionsIndexProps = {
+    transactions: TablePage<TransactionRow> & {
+        summary: { cashIn: Rupiah; cashOut: Rupiah; count: number };
+    };
+    hasTransactions: boolean;
+};
+
+export type TransactionCreateProps = {
+    initialType: TransactionType;
+    /** Server time (WIB) as a datetime-local value. */
+    now: string;
+    items: RecordItem[];
+    contacts: ContactOption[];
+};
+
+export type TransactionDetailProps = {
+    transaction: TransactionRow & {
+        kind: TransactionKind | null;
+        note: string | null;
+        paidAmount: Rupiah;
+        cashFlow: Rupiah;
+        voidedAt: string | null;
+        voidReason: string | null;
+    };
+    lines: Array<{
+        id: number;
+        name: string;
+        unit: string;
+        qty: number;
+        price: Rupiah;
+        subtotal: Rupiah;
+        hpp: Rupiah | null;
+    }>;
+    movements: Array<{
+        id: number;
+        name: string;
+        unit: string;
+        qty: number;
+        value: Rupiah;
+        stockAfter: number | null;
+        reason: StockMovementReason;
+    }>;
+    journal: Array<{
+        id: number;
+        description: string;
+        occurredAt: string;
+        lines: Array<{
+            code: string;
+            account: string;
+            debit: Rupiah;
+            credit: Rupiah;
+        }>;
+    }>;
 };

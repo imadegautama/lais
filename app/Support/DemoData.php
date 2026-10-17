@@ -123,6 +123,8 @@ final class DemoData
                 'source' => $t['source'],
                 'amount' => $t['amount'],
                 'direction' => $t['direction'],
+                'contact' => null,
+                'voided' => false,
             ])
             ->values()
             ->all();
@@ -201,7 +203,7 @@ final class DemoData
         }
 
         $this->transactions[] = [
-            'id' => 'TX'.str_pad((string) $sequence++, 5, '0', STR_PAD_LEFT),
+            'id' => $sequence++,
             'at' => $at,
             'type' => $type,
             'description' => $description,

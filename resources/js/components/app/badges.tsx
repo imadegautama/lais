@@ -1,6 +1,7 @@
 import {
     CircleCheck,
     CircleDashed,
+    Ban,
     CircleX,
     Clock,
     CookingPot,
@@ -24,7 +25,9 @@ import { cn } from '@/lib/utils';
 import type {
     ItemKind,
     OrderStatus,
+    PaymentMethod,
     PaymentStatus,
+    TransactionKind,
     TransactionSource,
     TransactionType,
 } from '@/types/domain';
@@ -205,4 +208,39 @@ export function MarginLabel({ percent }: { percent: number }) {
             tone={tone}
         />
     );
+}
+
+/** How the money moved, in the words of the transaction type. */
+export function methodLabel(
+    type: TransactionType,
+    method: PaymentMethod,
+): string {
+    if (method === 'kredit') {
+        return type === 'penjualan' ? 'Belum lunas' : 'Belum dibayar';
+    }
+
+    return { tunai: 'Tunai', non_tunai: 'Non-tunai', pribadi: 'Uang pribadi' }[
+        method
+    ];
+}
+
+export const transactionKinds: Record<TransactionKind, string> = {
+    barang: 'Bahan / barang dagang',
+    peralatan: 'Peralatan',
+    listrik_air: 'Listrik & air',
+    gas_bbm: 'Gas & BBM',
+    sewa: 'Sewa',
+    upah: 'Upah karyawan',
+    transport: 'Transport & ongkir',
+    pemasaran: 'Pemasaran',
+    lain: 'Lain-lain',
+    terima_piutang: 'Terima bayaran dari pelanggan',
+    bayar_utang: 'Bayar utang ke supplier',
+    setor: 'Setor modal',
+    prive: 'Ambil untuk pribadi',
+};
+
+/** A cancelled transaction stays in the list, struck through, with this badge. */
+export function VoidBadge() {
+    return <LabelBadge icon={Ban} label="Dibatalkan" tone="danger" />;
 }
