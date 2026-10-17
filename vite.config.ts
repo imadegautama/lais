@@ -49,6 +49,7 @@ export default defineConfig({
             'resources/js/actions/**',
             'resources/js/components/ui/*',
             'resources/js/routes/**',
+            'resources/js/types/enums.ts',
             'resources/js/wayfinder/**',
         ],
         options: {
@@ -67,6 +68,7 @@ export default defineConfig({
             '.github/**',
             'composer.json',
             'resources/js/components/ui/*',
+            'resources/js/types/enums.ts',
             'resources/views/mail/*',
         ],
         sortTailwindcss: {

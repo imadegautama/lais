@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Console\Commands\GenerateEnumTypes;
 use App\Enums\ContactType;
 use App\Enums\PaymentMethod;
 use App\Enums\Period;
@@ -12,6 +13,15 @@ use Tests\TestCase;
 
 class VocabularyTest extends TestCase
 {
+    public function test_the_typescript_vocabulary_matches_the_enums(): void
+    {
+        $this->assertSame(
+            GenerateEnumTypes::render(),
+            file_get_contents(resource_path(GenerateEnumTypes::PATH)),
+            'resources/js/types/enums.ts is out of date. Run php artisan laris:enums.',
+        );
+    }
+
     public function test_every_kind_belongs_to_exactly_one_type_and_sales_have_none(): void
     {
         $listed = array_merge(...array_map(fn (TransactionType $type) => $type->kinds(), TransactionType::cases()));
