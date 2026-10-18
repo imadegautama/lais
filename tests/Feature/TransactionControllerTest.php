@@ -307,6 +307,43 @@ class TransactionControllerTest extends TestCase
     }
 
     /**
+     * @return array<string, array{0: array<string, mixed>, 1: string, 2: string}>
+     */
+    public static function invalidOpeningBalances(): array
+    {
+        return [
+            'cash without its rekening' => [['kind' => 'saldo_kas', 'amount' => 1000], 'money_account_id', 'Pilih rekeningnya.'],
+            'equipment without a name' => [['kind' => 'saldo_peralatan', 'amount' => 1000], 'note', 'Tulis nama peralatannya, misalnya kompor dua tungku.'],
+            'a debt without its supplier' => [['kind' => 'saldo_utang', 'amount' => 1000], 'contact_id', 'Pilih atau tambahkan nama suppliernya.'],
+            'a method to choose' => [['kind' => 'saldo_peralatan', 'amount' => 1000, 'note' => 'Etalase', 'method' => 'tunai'], 'method', 'Cara bayarnya mengikuti rekening atau jenis catatan ini, jadi tidak perlu dipilih.'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    #[DataProvider('invalidOpeningBalances')]
+    public function test_an_opening_balance_asks_for_what_its_kind_needs(array $payload, string $field, string $message): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->post(route('transactions.store'), ['type' => 'saldo_awal'] + $payload)
+            ->assertSessionHasErrors([$field => $message]);
+    }
+
+    public function test_opening_balances_are_not_counted_as_money_coming_in(): void
+    {
+        $business = Business::factory()->create();
+        $this->actingAs($business->user);
+        $this->record($business, ['type' => 'saldo_awal', 'kind' => 'saldo_kas', 'amount' => 900_000, 'money_account_id' => $business->cashBox()->id]);
+        $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 100_000]);
+
+        $this->get(route('transactions.index'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transactions.summary', ['cashIn' => 100_000, 'cashOut' => 0, 'count' => 2]));
+        $this->get(route('transactions.create', ['jenis' => 'saldo_awal']))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('initialType', 'saldo_awal'));
+    }
+
+    /**
      * Three of ten bottles sold on credit to Bu Sari, Rp2.000 paid on the spot.
      *
      * @return array{0: Business, 1: Item, 2: Transaction}

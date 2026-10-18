@@ -173,6 +173,8 @@ describe('cashEffect', () => {
         ['utang_piutang', 'terima_piutang', 'tunai', 30_000],
         ['modal', 'prive', 'tunai', -30_000],
         ['pindah_dana', '', 'tunai', 0],
+        ['saldo_awal', 'saldo_kas', 'tunai', 30_000],
+        ['saldo_awal', 'saldo_utang', 'kredit', 0],
     ] as const)('%s %s %s moves %i', (type, kind, method, expected) => {
         expect(cashEffect(type, kind, method, 30_000, 10_000)).toBe(expected);
     });
@@ -404,5 +406,74 @@ describe('toPayload with rekening', () => {
             note: 'setoran',
             again: false,
         });
+    });
+});
+
+describe('opening balances', () => {
+    it('asks for a supplier or a customer that may be new', () => {
+        expect(
+            contactFieldFor('saldo_awal', 'saldo_utang', 'tunai'),
+        ).toMatchObject({
+            contactType: 'supplier',
+            required: true,
+            creatable: true,
+        });
+        expect(
+            contactFieldFor('saldo_awal', 'saldo_piutang', 'tunai'),
+        ).toMatchObject({
+            contactType: 'pelanggan',
+            required: true,
+            creatable: true,
+        });
+        expect(contactFieldFor('saldo_awal', 'saldo_kas', 'tunai')).toBeNull();
+    });
+
+    it('sends the rekening for cash and a new contact by name, never a method', () => {
+        const cash = form({
+            type: 'saldo_awal',
+            kind: 'saldo_kas',
+            money_account_id: '2',
+            amount: 500_000,
+        });
+        const debt = form({
+            type: 'saldo_awal',
+            kind: 'saldo_utang',
+            contact: ' Toko Sumber ',
+            amount: 300_000,
+        });
+
+        expect(toPayload(cash, false, new Set())).toEqual({
+            type: 'saldo_awal',
+            kind: 'saldo_kas',
+            amount: 500_000,
+            money_account_id: 2,
+            occurred_at: null,
+            note: null,
+            again: false,
+        });
+        expect(toPayload(debt, false, new Set())).toMatchObject({
+            kind: 'saldo_utang',
+            contact_name: 'Toko Sumber',
+        });
+        expect(toPayload(debt, false, new Set())).not.toHaveProperty('method');
+    });
+
+    it('moves only the rekening of an opening cash balance', () => {
+        const cash = form({
+            type: 'saldo_awal',
+            kind: 'saldo_kas',
+            money_account_id: '1',
+        });
+
+        expect(moneyImpact(cash, 500_000, [cashBox, bca])).toEqual([
+            { account: cashBox, before: 200_000, after: 700_000 },
+        ]);
+        expect(
+            moneyImpact(
+                form({ type: 'saldo_awal', kind: 'saldo_peralatan' }),
+                500_000,
+                [cashBox, bca],
+            ),
+        ).toEqual([]);
     });
 });

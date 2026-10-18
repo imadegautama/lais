@@ -5,7 +5,8 @@ namespace App\Enums;
 use App\Concerns\EnumValues;
 
 /**
- * What an owner records: the five kinds of PRD M2, plus Pindah dana between rekening.
+ * What an owner records: the five kinds of PRD M2, Pindah dana between rekening,
+ * and the Saldo awal that opens the books (PRD M0).
  */
 enum TransactionType: string
 {
@@ -17,6 +18,7 @@ enum TransactionType: string
     case UtangPiutang = 'utang_piutang';
     case Modal = 'modal';
     case PindahDana = 'pindah_dana';
+    case SaldoAwal = 'saldo_awal';
 
     public function label(): string
     {
@@ -27,6 +29,7 @@ enum TransactionType: string
             self::UtangPiutang => 'Utang-piutang',
             self::Modal => 'Modal',
             self::PindahDana => 'Pindah dana',
+            self::SaldoAwal => 'Saldo awal',
         };
     }
 
@@ -42,11 +45,13 @@ enum TransactionType: string
             self::UtangPiutang => 'Pembayaran tersimpan.',
             self::Modal => 'Catatan modal tersimpan.',
             self::PindahDana => 'Pindah dana tersimpan.',
+            self::SaldoAwal => 'Saldo awal tersimpan.',
         };
     }
 
     /**
-     * Payment methods this type accepts (PRD US-05: uang pribadi only for purchases and expenses).
+     * Payment methods the owner picks from for this type (PRD US-05: uang pribadi
+     * only for purchases and expenses); none when the record decides it.
      *
      * @return list<PaymentMethod>
      */
@@ -55,8 +60,9 @@ enum TransactionType: string
         return match ($this) {
             self::Penjualan => [PaymentMethod::Tunai, PaymentMethod::NonTunai, PaymentMethod::Kredit],
             self::Pembelian, self::Biaya => PaymentMethod::cases(),
-            // A transfer's method is its source rekening's kind, never chosen.
-            self::UtangPiutang, self::Modal, self::PindahDana => [PaymentMethod::Tunai, PaymentMethod::NonTunai],
+            self::UtangPiutang, self::Modal => [PaymentMethod::Tunai, PaymentMethod::NonTunai],
+            // Never chosen: a transfer is paid the way its source rekening holds money, an opening balance by its kind.
+            self::PindahDana, self::SaldoAwal => [],
         };
     }
 

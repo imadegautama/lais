@@ -16,6 +16,7 @@ import { ContactField } from './contact-field';
 import {
     contactFieldFor,
     isIncoming,
+    namesEquipment,
     type RecordFieldSetter,
     type RecordFormData,
 } from './record';
@@ -41,9 +42,7 @@ export function PaymentFields({
 }) {
     const { type, kind, method } = data;
     const contactField = contactFieldFor(type, kind, method);
-    const isEquipment =
-        type === TransactionType.Pembelian &&
-        kind === TransactionKind.Peralatan;
+    const isEquipment = namesEquipment(type, kind);
     const nonCash = moneyAccounts.filter(
         (account) => account.kind === MoneyAccountKind.NonTunai,
     );
@@ -57,6 +56,28 @@ export function PaymentFields({
                     setField={setField}
                     moneyAccounts={moneyAccounts}
                 />
+            ) : type === TransactionType.SaldoAwal ? (
+                kind === TransactionKind.SaldoKas && (
+                    <div className="flex flex-col gap-1.5">
+                        <span
+                            id="tx-account-label"
+                            className="text-sm font-medium"
+                        >
+                            Rekening
+                        </span>
+                        <ChoiceGroup
+                            labelledBy="tx-account-label"
+                            value={data.money_account_id}
+                            options={moneyAccounts.map((account) => ({
+                                value: String(account.id),
+                                label: account.name,
+                            }))}
+                            onChange={(id) => setField('money_account_id', id)}
+                            wrap
+                        />
+                        <InputError message={errors.money_account_id} />
+                    </div>
+                )
             ) : (
                 <MethodFields
                     data={data}

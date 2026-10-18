@@ -55,7 +55,21 @@ export default function MoneyAccountsIndex({
 
                 <SectionCard
                     title="Saldo per rekening"
-                    description="Pindahkan uang antar rekening lewat Pindah dana, misalnya setor tunai ke bank."
+                    description={
+                        <>
+                            Pindahkan uang antar rekening lewat Pindah dana,
+                            misalnya setor tunai ke bank. Uang yang sudah ada
+                            sebelum mulai mencatat?{' '}
+                            <Link
+                                href={create({
+                                    query: { jenis: TransactionType.SaldoAwal },
+                                })}
+                                className="rounded-sm font-medium text-foreground underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            >
+                                Catat saldo awal
+                            </Link>
+                        </>
+                    }
                 >
                     <ul className="flex flex-col divide-y">
                         {accounts.map((account) => {

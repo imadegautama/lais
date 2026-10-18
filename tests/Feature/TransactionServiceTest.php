@@ -431,6 +431,51 @@ class TransactionServiceTest extends TestCase
         $this->assertSame([$bca->id => 0, $gopay->id => 80_000], app(Ledger::class)->moneyBalances($business));
     }
 
+    public function test_opening_balances_book_against_owner_capital(): void
+    {
+        $business = Business::factory()->create();
+        $cashBox = $business->cashBox();
+        $bca = tap($business->moneyAccounts()->where('kind', 'non_tunai')->sole())->update(['name' => 'BCA']);
+        $opening = fn (string $kind, int $amount, array $extra = []) => $this->record($business, ['type' => 'saldo_awal', 'kind' => $kind, 'amount' => $amount] + $extra);
+
+        $cash = $opening('saldo_kas', 500_000, ['money_account_id' => $cashBox->id]);
+        $bank = $opening('saldo_kas', 2_000_000, ['money_account_id' => $bca->id]);
+        $stove = $opening('saldo_peralatan', 1_500_000, ['note' => 'Kompor dua tungku']);
+        $debt = $opening('saldo_utang', 300_000, ['contact_name' => 'Toko Sumber']);
+        $owed = $opening('saldo_piutang', 50_000, ['contact_name' => 'Bu Sari']);
+
+        $this->assertSame([1101 => 500_000, 3101 => -500_000], $this->journal($cash));
+        $this->assertSame([1102 => 2_000_000, 3101 => -2_000_000], $this->journal($bank));
+        $this->assertSame([1401 => 1_500_000, 3101 => -1_500_000], $this->journal($stove));
+        $this->assertSame([2101 => -300_000, 3101 => 300_000], $this->journal($debt));
+        $this->assertSame([1201 => 50_000, 3101 => -50_000], $this->journal($owed));
+        $this->assertSame(
+            ['Saldo awal Kas tunai', 'Saldo awal BCA', 'Saldo awal peralatan: Kompor dua tungku', 'Utang awal ke Toko Sumber', 'Piutang awal Bu Sari'],
+            [$cash->description, $bank->description, $stove->description, $debt->description, $owed->description],
+        );
+        $this->assertSame(['tunai', 'non_tunai', 'pribadi', 'kredit', 'kredit'], array_map(fn (Transaction $t) => $t->method->value, [$cash, $bank, $stove, $debt, $owed]));
+        $this->assertSame([500_000, 2_000_000, 0, 0, 0], array_map(fn (Transaction $t) => $t->cash_flow, [$cash, $bank, $stove, $debt, $owed]));
+
+        // Modal awal = aset awal − utang awal.
+        $this->assertSame(500_000 + 2_000_000 + 1_500_000 + 50_000 - 300_000, app(Ledger::class)->balance($business, '3101'));
+        $this->assertSame([ContactType::Supplier, ContactType::Pelanggan], [$debt->contact->type, $owed->contact->type]);
+        $this->assertSame([$debt->contact_id => 300_000, $owed->contact_id => 50_000], app(Ledger::class)->contactBalances($business));
+    }
+
+    public function test_an_opening_debt_is_paid_off_and_an_opening_balance_cancelled_like_any_record(): void
+    {
+        $business = Business::factory()->create();
+        $debt = $this->record($business, ['type' => 'saldo_awal', 'kind' => 'saldo_utang', 'amount' => 300_000, 'contact_name' => 'Toko Sumber']);
+        $cash = $this->record($business, ['type' => 'saldo_awal', 'kind' => 'saldo_kas', 'amount' => 400_000, 'money_account_id' => $business->cashBox()->id]);
+
+        $this->record($business, ['type' => 'utang_piutang', 'kind' => 'bayar_utang', 'method' => 'tunai', 'contact_id' => $debt->contact_id, 'amount' => 300_000]);
+        $this->assertSame([$debt->contact_id => 0], app(Ledger::class)->contactBalances($business));
+
+        $this->assertValidationError('transaction', 'Pembayaran ke Toko Sumber sudah tercatat, jadi sisa utangnya akan minus Rp300.000. Batalkan pembayarannya dulu.', fn () => $this->service()->cancel($debt));
+        $this->service()->cancel($cash);
+        $this->assertSame(-300_000, app(Ledger::class)->balance($business, '1101'));
+    }
+
     private function service(): TransactionService
     {
         return app(TransactionService::class);

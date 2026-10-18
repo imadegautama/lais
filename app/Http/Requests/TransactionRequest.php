@@ -13,7 +13,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Shape checks for the six transaction types. Money rules that need the
+ * Shape checks for the transaction types. Money rules that need the
  * ledger (balances, paid in full) live in TransactionService.
  */
 class TransactionRequest extends FormRequest
@@ -32,6 +32,8 @@ class TransactionRequest extends FormRequest
         $hasLines = $type === TransactionType::Penjualan || ($type === TransactionType::Pembelian && $kind === TransactionKind::Barang);
         $needsContact = $method === PaymentMethod::Kredit || $type === TransactionType::UtangPiutang;
         $isTransfer = $type === TransactionType::PindahDana;
+        $isOpening = $type === TransactionType::SaldoAwal;
+        $needsContact = $needsContact || in_array($kind, [TransactionKind::SaldoUtang, TransactionKind::SaldoPiutang], true);
         $activeMoneyAccount = fn (?MoneyAccountKind $kind = null) => Rule::exists('money_accounts', 'id')
             ->where('business_id', $businessId)
             ->whereNull('deleted_at')
@@ -44,16 +46,17 @@ class TransactionRequest extends FormRequest
                 ? ['prohibited']
                 : ['required', Rule::in(array_column($type?->kinds() ?? [], 'value'))],
             // A transfer's method follows its source rekening (TransactionService).
-            'method' => $isTransfer ? ['prohibited'] : ['required', Rule::in(array_column($type?->methods() ?? [], 'value'))],
+            // A transfer's method follows its source rekening, an opening balance's its kind (TransactionService).
+            'method' => $isTransfer || $isOpening ? ['prohibited'] : ['required', Rule::in(array_column($type?->methods() ?? [], 'value'))],
             // Non-tunai with one rekening needs none; the service asks when there are more.
             'money_account_id' => match (true) {
-                $isTransfer => ['required', 'integer', $activeMoneyAccount()],
+                $isTransfer, $kind === TransactionKind::SaldoKas => ['required', 'integer', $activeMoneyAccount()],
                 $method === PaymentMethod::NonTunai => ['nullable', 'integer', $activeMoneyAccount(MoneyAccountKind::NonTunai)],
                 default => ['prohibited'],
             },
             'to_money_account_id' => $isTransfer ? ['required', 'integer', 'different:money_account_id', $activeMoneyAccount()] : ['prohibited'],
             'occurred_at' => ['nullable', 'date', 'before_or_equal:now'],
-            'note' => [$type === TransactionType::Pembelian && $kind === TransactionKind::Peralatan ? 'required' : 'nullable', 'string', 'max:200'],
+            'note' => [in_array($kind, [TransactionKind::Peralatan, TransactionKind::SaldoPeralatan], true) ? 'required' : 'nullable', 'string', 'max:200'],
             'lines' => $hasLines ? ['required', 'array', 'min:1', 'max:50'] : ['prohibited'],
             'lines.*.item_id' => [
                 'required', 'integer', 'distinct',
@@ -96,11 +99,13 @@ class TransactionRequest extends FormRequest
                 TransactionType::Pembelian => 'Pilih yang dibeli: bahan/barang atau peralatan.',
                 TransactionType::Biaya => 'Pilih jenis biayanya.',
                 TransactionType::UtangPiutang => 'Pilih terima bayaran atau bayar utang.',
+                TransactionType::SaldoAwal => 'Pilih saldo awal yang dicatat.',
                 default => 'Pilih setor modal atau ambil untuk pribadi.',
             },
             'kind.in' => 'Jenis ini tidak cocok dengan jenis catatannya.',
             'method.required' => 'Pilih cara bayarnya.',
             'method.in' => 'Cara bayar ini tidak bisa dipakai untuk jenis catatan ini.',
+            'method.prohibited' => 'Cara bayarnya mengikuti rekening atau jenis catatan ini, jadi tidak perlu dipilih.',
             'occurred_at.date' => 'Tanggal tidak valid.',
             'occurred_at.before_or_equal' => 'Waktunya tidak boleh di masa depan.',
             'note.required' => 'Tulis nama peralatannya, misalnya kompor dua tungku.',
@@ -123,7 +128,7 @@ class TransactionRequest extends FormRequest
                 : 'Pilih atau tambahkan nama suppliernya.',
             'contact_id.exists' => 'Kontak tidak ditemukan.',
             'contact_name.max' => 'Nama paling panjang 120 huruf.',
-            'money_account_id.required' => 'Pilih rekening asalnya.',
+            'money_account_id.required' => $type === TransactionType::PindahDana ? 'Pilih rekening asalnya.' : 'Pilih rekeningnya.',
             'money_account_id.exists' => 'Rekening tidak ditemukan atau sudah diarsipkan.',
             'to_money_account_id.required' => 'Pilih rekening tujuannya.',
             'to_money_account_id.different' => 'Rekening asal dan tujuan harus berbeda.',

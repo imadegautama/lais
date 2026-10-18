@@ -195,7 +195,7 @@ class LedgerTest extends TestCase
         };
 
         for ($step = 0; $step < 150; $step++) {
-            match ($random->getInt(0, 9)) {
+            match ($random->getInt(0, 10)) {
                 0, 1 => (function () use ($service, $business, $random, $pick, $sellable, $pay) {
                     $lines = collect($random->shuffleArray($sellable))->take($random->getInt(1, 2))
                         ->map(fn (Item $item) => ['item_id' => $item->id, 'qty' => $random->getInt(1, 4), 'price' => $random->getInt(10, 200) * 100])->values()->all();
@@ -243,6 +243,12 @@ class LedgerTest extends TestCase
                     [$from, $to] = $random->shuffleArray($moneyAccounts->all());
                     $service->record($business, ['type' => 'pindah_dana', 'money_account_id' => $from->id, 'to_money_account_id' => $to->id, 'amount' => $random->getInt(1, 200) * 1000]);
                 })(),
+                10 => $service->record($business, ['type' => 'saldo_awal', 'kind' => $kind = $pick(['saldo_kas', 'saldo_peralatan', 'saldo_utang', 'saldo_piutang']), 'amount' => $random->getInt(1, 500) * 1000] + match ($kind) {
+                    'saldo_kas' => ['money_account_id' => $pick($moneyAccounts->all())->id],
+                    'saldo_peralatan' => ['note' => 'Etalase'],
+                    'saldo_utang' => ['contact_name' => $pick(['Toko A', 'Toko B'])],
+                    default => ['contact_name' => $pick(['Bu Sari', 'Pak Budi'])],
+                }),
             };
 
             // Checked after every step: stock at or below zero carries no value, stock above zero never negative value.
@@ -273,6 +279,7 @@ class LedgerTest extends TestCase
         $this->assertSame($balance('1102'), $byKind(MoneyAccountKind::NonTunai));
         $this->assertSame(0, JournalLine::query()->whereNull('money_account_id')->whereHas('account', fn ($query) => $query->whereIn('code', ['1101', '1102']))->count());
         $this->assertGreaterThan(5, Transaction::query()->where('type', 'pindah_dana')->count());
+        $this->assertGreaterThan(5, Transaction::query()->where('type', 'saldo_awal')->count());
 
         $this->assertGreaterThan(100, Transaction::query()->count());
         $this->assertGreaterThan(5, Transaction::query()->where('status', 'void')->whereNull('replaced_by_id')->count());

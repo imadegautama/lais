@@ -45,6 +45,7 @@ export default function TransactionShow({
     const hpp = lines.reduce((sum, line) => sum + (line.hpp ?? 0), 0);
     const isSale = transaction.type === TransactionType.Penjualan;
     const isTransfer = transaction.type === TransactionType.PindahDana;
+    const isOpening = transaction.type === TransactionType.SaldoAwal;
     const contactType = contactTypeFor(transaction.type, transaction.kind);
 
     return (
@@ -277,6 +278,18 @@ export default function TransactionShow({
                                             }
                                         />
                                     </>
+                                ) : isOpening ? (
+                                    // Only an opening cash balance sits in a rekening; the kind says the rest.
+                                    transaction.moneyAccount && (
+                                        <MetricInline
+                                            label="Rekening"
+                                            value={
+                                                <span className="text-sm font-medium">
+                                                    {transaction.moneyAccount}
+                                                </span>
+                                            }
+                                        />
+                                    )
                                 ) : (
                                     <MetricInline
                                         label="Cara bayar"

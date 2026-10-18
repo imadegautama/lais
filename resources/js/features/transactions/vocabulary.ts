@@ -48,4 +48,10 @@ export const recordCopy: Record<
         paymentTitle: 'Dari dan ke',
         notePlaceholder: 'Setoran harian',
     },
+    saldo_awal: {
+        save: 'Simpan saldo awal',
+        kindTitle: 'Saldo awal untuk',
+        paymentTitle: 'Keterangan',
+        notePlaceholder: 'Uang di laci saat mulai',
+    },
 };

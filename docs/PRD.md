@@ -143,7 +143,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 **US-05.** Sebagai pemilik, saya ingin mencatat lima jenis transaksi lewat form web, supaya semua kegiatan usaha tercatat.
 
-- Kategori mengikuti Bab 4 buku acuan: **Penjualan**, **Pembelian** (bahan, barang dagang, peralatan), **Biaya Operasional**, **Utang-Piutang** (bayar utang, terima piutang), dan **Modal** (setor, ambil pribadi). Ditambah **Pindah dana** antar rekening (setor tunai ke bank, tarik tunai, antar rekening), yang tidak mengubah jumlah uang usaha.
+- Kategori mengikuti Bab 4 buku acuan: **Penjualan**, **Pembelian** (bahan, barang dagang, peralatan), **Biaya Operasional**, **Utang-Piutang** (bayar utang, terima piutang), dan **Modal** (setor, ambil pribadi). Ditambah **Pindah dana** antar rekening (setor tunai ke bank, tarik tunai, antar rekening), yang tidak mengubah jumlah uang usaha. Ada juga **Saldo awal** yang dicatat saat mulai: kas per rekening, peralatan, utang ke supplier, dan piutang pelanggan. Modal Pemilik menampung selisihnya, sehingga laporan perubahan modal bisa memisahkan modal awal dari setoran. Saldo awal tidak dihitung sebagai uang masuk.
 - Subkategori biaya operasional: listrik & air, gas & bahan bakar, sewa, upah karyawan, transportasi & ongkir, pemasaran, lain-lain.
 - Metode bayar:
     - tunai (masuk Kas tunai)
@@ -475,24 +475,28 @@ Aturan data:
 
 Bagan akun tetap: 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 Persediaan, 1401 Peralatan, 2101 Utang Usaha, 2201 Uang Muka Pesanan, 3101 Modal Pemilik, 3201 Prive, 4101 Penjualan, 5101 HPP, 6101 Beban Operasional, 6201 Selisih Persediaan.
 
-| Transaksi                   | Debit                                                | Kredit                                                    |
-| --------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
-| Penjualan (lunas)           | Kas Tunai / Non-Tunai                                | Penjualan                                                 |
-| Penjualan (belum lunas)     | Kas (yang dibayar) + Piutang (sisa)                  | Penjualan                                                 |
-| HPP setiap penjualan        | HPP                                                  | Persediaan (qty × biaya rata-rata)                        |
-| DP pesanan                  | Kas                                                  | Uang Muka Pesanan                                         |
-| Pesanan selesai             | Uang Muka Pesanan + Kas (pelunasan) + Piutang (sisa) | Penjualan, lalu jurnal HPP                                |
-| Terima piutang              | Kas                                                  | Piutang                                                   |
-| Pembelian bahan/barang      | Persediaan                                           | Kas / Utang Usaha (kredit) / Modal Pemilik (uang pribadi) |
-| Pembelian peralatan         | Peralatan                                            | Kas / Utang Usaha / Modal Pemilik                         |
-| Bayar utang                 | Utang Usaha                                          | Kas                                                       |
-| Biaya operasional           | Beban Operasional                                    | Kas / Utang Usaha / Modal Pemilik                         |
-| Setor modal                 | Kas                                                  | Modal Pemilik                                             |
-| Ambil pribadi               | Prive                                                | Kas                                                       |
-| Koreksi stok kurang / lebih | Selisih Persediaan / Persediaan                      | Persediaan / Selisih Persediaan                           |
-| Saldo awal                  | Kas, Persediaan, Peralatan                           | Utang Usaha, Modal Pemilik (selisih)                      |
-| Pindah dana                 | Kas (rekening tujuan)                                | Kas (rekening asal)                                       |
-| Pembatalan                  | Kebalikan dari jurnal asli                           |                                                           |
+| Transaksi                    | Debit                                                | Kredit                                                    |
+| ---------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
+| Penjualan (lunas)            | Kas Tunai / Non-Tunai                                | Penjualan                                                 |
+| Penjualan (belum lunas)      | Kas (yang dibayar) + Piutang (sisa)                  | Penjualan                                                 |
+| HPP setiap penjualan         | HPP                                                  | Persediaan (qty × biaya rata-rata)                        |
+| DP pesanan                   | Kas                                                  | Uang Muka Pesanan                                         |
+| Pesanan selesai              | Uang Muka Pesanan + Kas (pelunasan) + Piutang (sisa) | Penjualan, lalu jurnal HPP                                |
+| Terima piutang               | Kas                                                  | Piutang                                                   |
+| Pembelian bahan/barang       | Persediaan                                           | Kas / Utang Usaha (kredit) / Modal Pemilik (uang pribadi) |
+| Pembelian peralatan          | Peralatan                                            | Kas / Utang Usaha / Modal Pemilik                         |
+| Bayar utang                  | Utang Usaha                                          | Kas                                                       |
+| Biaya operasional            | Beban Operasional                                    | Kas / Utang Usaha / Modal Pemilik                         |
+| Setor modal                  | Kas                                                  | Modal Pemilik                                             |
+| Ambil pribadi                | Prive                                                | Kas                                                       |
+| Koreksi stok kurang / lebih  | Selisih Persediaan / Persediaan                      | Persediaan / Selisih Persediaan                           |
+| Saldo awal kas & rekening    | Kas (rekening itu)                                   | Modal Pemilik                                             |
+| Saldo awal peralatan         | Peralatan                                            | Modal Pemilik                                             |
+| Saldo awal piutang           | Piutang                                              | Modal Pemilik                                             |
+| Saldo awal utang             | Modal Pemilik                                        | Utang Usaha                                               |
+| Stok awal (dari form produk) | Persediaan                                           | Modal Pemilik                                             |
+| Pindah dana                  | Kas (rekening tujuan)                                | Kas (rekening asal)                                       |
+| Pembatalan                   | Kebalikan dari jurnal asli                           |                                                           |
 
 Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan − HPP − Beban Operasional − Selisih Persediaan.
 

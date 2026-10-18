@@ -17,6 +17,7 @@ import {
     DEFAULT_KIND,
     emptyLine,
     hasLines,
+    namesEquipment,
     recordTotal,
     toPayload,
     type RecordFormData,
@@ -64,9 +65,7 @@ export default function TransactionCreate({
     const setField = fieldSetter(form);
     const { type } = data;
     const withLines = hasLines(type, data.kind);
-    const isEquipment =
-        type === TransactionType.Pembelian &&
-        data.kind === TransactionKind.Peralatan;
+    const isEquipment = namesEquipment(type, data.kind);
     const kinds = transactionTypeKinds[type];
     const total = recordTotal(data);
     const contactIds = new Set(contacts.map((contact) => String(contact.id)));
@@ -99,6 +98,13 @@ export default function TransactionCreate({
                         title="Ubah catatan"
                         meta={<CategoryBadge type={type} />}
                         description="Saat disimpan, catatan lama dibatalkan dan diganti yang baru. Riwayatnya tetap bisa dilihat."
+                    />
+                ) : type === TransactionType.SaldoAwal ? (
+                    // Not an everyday record, so it has no tab of its own.
+                    <PageHeader
+                        title="Catat saldo awal"
+                        meta={<CategoryBadge type={type} />}
+                        description="Uang, peralatan, dan utang-piutang yang sudah ada saat kamu mulai mencatat. Modal awal dihitung dari selisihnya."
                     />
                 ) : (
                     <>
@@ -172,9 +178,12 @@ export default function TransactionCreate({
                                             <MoneyInput
                                                 key={`${type}-${data.kind}-${data.contact}`}
                                                 label={
-                                                    isEquipment
-                                                        ? 'Harga peralatan'
-                                                        : 'Nominal'
+                                                    data.kind ===
+                                                    TransactionKind.SaldoPeralatan
+                                                        ? 'Perkiraan nilai sekarang'
+                                                        : isEquipment
+                                                          ? 'Harga peralatan'
+                                                          : 'Nominal'
                                                 }
                                                 value={data.amount}
                                                 onChange={(value) =>

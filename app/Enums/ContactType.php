@@ -20,11 +20,11 @@ enum ContactType: string
     }
 
     /**
-     * Who is on the other side: customers buy and pay their debts, suppliers everything else.
+     * Who is on the other side: customers buy, pay their debts, and owe at the start; suppliers everything else.
      */
     public static function for(TransactionType $type, ?TransactionKind $kind): self
     {
-        return $type === TransactionType::Penjualan || $kind === TransactionKind::TerimaPiutang
+        return $type === TransactionType::Penjualan || in_array($kind, [TransactionKind::TerimaPiutang, TransactionKind::SaldoPiutang], true)
             ? self::Pelanggan
             : self::Supplier;
     }

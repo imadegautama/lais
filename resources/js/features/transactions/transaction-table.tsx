@@ -22,6 +22,11 @@ import { PaymentMethod, TransactionType } from '@/types/enums';
 
 /** "Tunai · Bu Sari", "Non-tunai · BCA", or "Kas tunai → BCA" under the description. */
 function MethodLine({ row }: { row: TransactionRow }) {
+    // The description already names the rekening or contact of an opening balance.
+    if (row.type === TransactionType.SaldoAwal) {
+        return null;
+    }
+
     if (row.type === TransactionType.PindahDana) {
         return (
             <span className="text-xs text-muted-foreground">

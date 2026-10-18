@@ -56,13 +56,16 @@ class TransactionService
     {
         $type = TransactionType::from((string) $data['type']);
         $kind = isset($data['kind']) ? TransactionKind::from((string) $data['kind']) : null;
-        [$from, $to] = $type === TransactionType::PindahDana
-            ? $this->transferAccounts($business, $data)
-            : [null, null];
-        // A transfer is paid the way its source rekening holds money.
-        $method = $from?->kind->method() ?? PaymentMethod::from((string) $data['method']);
+        [$from, $to] = match (true) {
+            $type === TransactionType::PindahDana => $this->transferAccounts($business, $data),
+            $kind === TransactionKind::SaldoKas => [$this->activeMoneyAccount($business, $data['money_account_id'] ?? null, 'money_account_id', missing: 'Pilih rekeningnya.'), null],
+            default => [null, null],
+        };
+        // A transfer and opening cash are paid the way their rekening holds money; other opening balances follow their kind.
+        $method = $from?->kind->method() ?? $kind?->openingMethod() ?? PaymentMethod::from((string) $data['method']);
 
-        if (! in_array($method, $type->methods(), true) || ($kind !== null && $kind->type() !== $type)) {
+        // Types with no methods to choose derive theirs above.
+        if (($type->methods() !== [] && ! in_array($method, $type->methods(), true)) || ($kind !== null && $kind->type() !== $type)) {
             throw new InvalidArgumentException("{$method->value} / {$kind?->value} is not allowed for {$type->value}.");
         }
 
@@ -322,6 +325,14 @@ class TransactionService
                 : self::add([Account::DRAWINGS => $total], [$cash => -$total]),
             // The money only changes place, so business cash stays the same.
             TransactionType::PindahDana => self::add([Ledger::cashKey($to ?? throw new LogicException('A transfer needs its target.')) => $total], [$cash => -$total]),
+            // What the business had and owed when its books opened; Modal Pemilik takes the difference (PRD §4.4).
+            TransactionType::SaldoAwal => match ($kind) {
+                TransactionKind::SaldoKas => self::add([$cash => $total], [Account::OWNER_CAPITAL => -$total]),
+                TransactionKind::SaldoPeralatan => self::add([Account::EQUIPMENT => $total], [Account::OWNER_CAPITAL => -$total]),
+                TransactionKind::SaldoUtang => self::add([Account::OWNER_CAPITAL => $total], [Account::PAYABLE => -$total]),
+                TransactionKind::SaldoPiutang => self::add([Account::RECEIVABLE => $total], [Account::OWNER_CAPITAL => -$total]),
+                default => throw new LogicException("{$kind?->value} is not an opening balance."),
+            },
         };
     }
 
@@ -369,7 +380,7 @@ class TransactionService
         return [$from, $to];
     }
 
-    private function activeMoneyAccount(Business $business, mixed $id, string $field, ?MoneyAccountKind $kind = null): MoneyAccount
+    private function activeMoneyAccount(Business $business, mixed $id, string $field, ?MoneyAccountKind $kind = null, ?string $missing = null): MoneyAccount
     {
         $moneyAccount = empty($id) ? null : $business->moneyAccounts()
             ->when($kind, fn ($query) => $query->where('money_accounts.kind', $kind))
@@ -378,6 +389,7 @@ class TransactionService
 
         return $moneyAccount ?? throw ValidationException::withMessages([$field => match (true) {
             ! empty($id) => 'Rekening tidak ditemukan atau sudah diarsipkan.',
+            $missing !== null => $missing,
             $field === 'to_money_account_id' => 'Pilih rekening tujuannya.',
             default => 'Pilih rekening asalnya.',
         }]);
@@ -500,6 +512,10 @@ class TransactionService
             $type === TransactionType::PindahDana && $from?->kind === MoneyAccountKind::Tunai => "Setor tunai ke {$to?->name}",
             $type === TransactionType::PindahDana && $to?->kind === MoneyAccountKind::Tunai => "Tarik tunai dari {$from?->name}",
             $type === TransactionType::PindahDana => "Pindah dari {$from?->name} ke {$to?->name}",
+            $kind === TransactionKind::SaldoKas => "Saldo awal {$from?->name}",
+            $kind === TransactionKind::SaldoPeralatan => 'Saldo awal peralatan: '.($note ?? 'tanpa nama'),
+            $kind === TransactionKind::SaldoUtang => 'Utang awal ke '.($contact->name ?? 'supplier'),
+            $kind === TransactionKind::SaldoPiutang => 'Piutang awal '.($contact->name ?? 'pelanggan'),
             $kind === TransactionKind::Peralatan => 'Peralatan: '.($note ?? 'tanpa nama'),
             $kind === TransactionKind::TerimaPiutang => 'Terima bayaran dari '.($contact->name ?? 'pelanggan'),
             $kind === TransactionKind::BayarUtang => 'Bayar utang ke '.($contact->name ?? 'supplier'),
@@ -507,7 +523,8 @@ class TransactionService
             default => $kind?->label() ?? $type->label(),
         };
 
-        if ($note !== null && $type !== TransactionType::Pembelian) {
+        // Equipment carries its name in the note, so it is not appended twice.
+        if ($note !== null && $type !== TransactionType::Pembelian && $kind !== TransactionKind::SaldoPeralatan) {
             $text .= " · {$note}";
         }
 

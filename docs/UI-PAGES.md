@@ -268,6 +268,11 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
     - **dari** dan **ke** (pilihan rekening, termasuk Kas tunai), nominal, dan catatan
     - keterangan dibuat otomatis: "Setor tunai ke BCA", "Tarik tunai dari BCA", "Pindah dari BCA ke GoPay"
     - _Pratinjau:_ saldo kedua rekening sebelum → sesudah; uang usaha tetap
+- **Saldo awal** (bukan tab, karena dicatat sekali saat mulai):
+    - dibuka dari wizard onboarding, dari link "Catat saldo awal" di Kas & rekening, atau lewat Ubah
+    - isinya: chip **Kas & rekening / Peralatan / Utang ke supplier / Piutang pelanggan**, nominal, lalu rekening, nama peralatan, atau kontak sesuai pilihannya
+    - cara bayar tidak dipilih
+    - _Pratinjau:_ saldo rekening sebelum → sesudah, dengan catatan bahwa saldo awal menambah modal awal, bukan pendapatan
 - **Rekening non-tunai:** kalau rekening non-tunainya lebih dari satu, pilihan rekening muncul saat Non-tunai dipilih. Kalau cuma satu, rekening itu langsung dipakai. Panel pratinjau menampilkan saldo rekening itu sebelum → sesudah.
 - **Input uang** mengerti format "15rb", "1,5jt", dan "15k", lalu otomatis ditampilkan sebagai `Rp15.000`.
 - **Tombol Simpan** (+ "Simpan & catat lagi"). Setelah tersimpan, muncul toast dengan tautan ke detail.

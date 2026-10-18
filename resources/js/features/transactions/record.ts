@@ -51,6 +51,7 @@ export const DEFAULT_KIND: Record<TransactionType, TransactionKind | ''> = {
     utang_piutang: TransactionKind.TerimaPiutang,
     modal: TransactionKind.Setor,
     pindah_dana: '',
+    saldo_awal: TransactionKind.SaldoKas,
 };
 
 /** Sales and goods purchases list items; everything else is one amount. */
@@ -71,22 +72,33 @@ export function recordTotal(data: RecordFormData): number {
         : (data.amount ?? 0);
 }
 
-/** Money comes in: a sale, a customer paying, or capital paid in. */
+/** Money comes in: a sale, a customer paying, capital paid in, or cash already there at the start. */
 export function isIncoming(type: TransactionType, kind: string): boolean {
     return (
         type === TransactionType.Penjualan ||
         kind === TransactionKind.TerimaPiutang ||
-        kind === TransactionKind.Setor
+        kind === TransactionKind.Setor ||
+        kind === TransactionKind.SaldoKas
     );
 }
 
-/** Customers buy and pay off their debts; suppliers are on the other side of everything else (ContactType::for). */
+/** The name of the equipment is the record's note (a purchase or an opening balance). */
+export function namesEquipment(type: TransactionType, kind: string): boolean {
+    return (
+        (type === TransactionType.Pembelian &&
+            kind === TransactionKind.Peralatan) ||
+        kind === TransactionKind.SaldoPeralatan
+    );
+}
+
+/** Customers buy, pay off their debts, and owe at the start; suppliers are on the other side of everything else (ContactType::for). */
 export function contactTypeFor(
     type: TransactionType,
     kind: string | null,
 ): ContactType {
     return type === TransactionType.Penjualan ||
-        kind === TransactionKind.TerimaPiutang
+        kind === TransactionKind.TerimaPiutang ||
+        kind === TransactionKind.SaldoPiutang
         ? ContactType.Pelanggan
         : ContactType.Supplier;
 }
@@ -105,6 +117,11 @@ export function cashEffect(
         type === TransactionType.PindahDana
     ) {
         return 0;
+    }
+
+    // Of the opening balances only Kas & rekening is money; its method is not chosen.
+    if (type === TransactionType.SaldoAwal) {
+        return kind === TransactionKind.SaldoKas ? total : 0;
     }
 
     if (method === PaymentMethod.Kredit) {
@@ -126,7 +143,11 @@ export function chosenMoneyAccount(
         (account) => String(account.id) === data.money_account_id,
     );
 
-    if (data.type === TransactionType.PindahDana) {
+    // Both name their rekening outright, whatever its kind.
+    if (
+        data.type === TransactionType.PindahDana ||
+        data.type === TransactionType.SaldoAwal
+    ) {
         return byId ?? null;
     }
 
@@ -227,6 +248,25 @@ export function contactFieldFor(
     method: PaymentMethod,
 ): ContactFieldConfig | null {
     const credit = method === PaymentMethod.Kredit;
+
+    if (
+        kind === TransactionKind.SaldoUtang ||
+        kind === TransactionKind.SaldoPiutang
+    ) {
+        const customer = kind === TransactionKind.SaldoPiutang;
+
+        return {
+            label: customer
+                ? 'Pelanggan yang masih berutang'
+                : 'Supplier yang masih diutangi',
+            contactType: customer
+                ? ContactType.Pelanggan
+                : ContactType.Supplier,
+            required: true,
+            creatable: true,
+            onlyOwing: false,
+        };
+    }
 
     if (type === TransactionType.UtangPiutang) {
         const contactType = contactTypeFor(type, kind);
@@ -382,6 +422,26 @@ export function toPayload(
         values.type !== TransactionType.Modal &&
         values.type !== TransactionType.UtangPiutang;
     const idOrNull = (value: string) => (value === '' ? null : Number(value));
+
+    // An opening balance: its kind, an amount, and the rekening, contact, or equipment name it needs.
+    if (values.type === TransactionType.SaldoAwal) {
+        return {
+            type: values.type,
+            kind: values.kind,
+            amount: values.amount,
+            ...(values.kind === TransactionKind.SaldoKas
+                ? { money_account_id: idOrNull(values.money_account_id) }
+                : {}),
+            ...(contactIds.has(values.contact)
+                ? { contact_id: Number(values.contact) }
+                : typed !== ''
+                  ? { contact_name: typed }
+                  : {}),
+            occurred_at: values.occurred_at || null,
+            note: values.note.trim() || null,
+            again,
+        };
+    }
 
     // A transfer is two rekening and an amount; its method follows the source.
     if (values.type === TransactionType.PindahDana) {

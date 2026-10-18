@@ -263,6 +263,11 @@ function cashNote(
     type: TransactionType,
     method: PaymentMethod,
 ): string | undefined {
+    // Equipment and opening debts are not money.
+    if (type === TransactionType.SaldoAwal) {
+        return 'Bukan uang, jadi kas usaha tidak berubah.';
+    }
+
     if (method === PaymentMethod.Pribadi) {
         return 'Dibayar pakai uang pribadi, kas usaha tidak berubah.';
     }
@@ -291,6 +296,14 @@ function ImpactNote({
     total: number;
 }) {
     const note: ReactNode = (() => {
+        if (kind === TransactionKind.SaldoUtang) {
+            return 'Utang awal mengurangi modal awal dan tercatat sebagai utang ke supplier itu.';
+        }
+
+        if (type === TransactionType.SaldoAwal) {
+            return 'Saldo awal menambah modal awal, bukan pendapatan. Laba tidak berubah.';
+        }
+
         if (kind === TransactionKind.Prive) {
             return 'Mengambil uang untuk pribadi tidak mengurangi laba, tetapi mengurangi modal usaha.';
         }

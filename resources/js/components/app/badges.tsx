@@ -1,6 +1,7 @@
 import {
     ArrowLeftRight,
     CircleCheck,
+    Flag,
     CircleDashed,
     Ban,
     CircleX,
@@ -102,8 +103,19 @@ export const transactionTypes = withIcons<TransactionType>(
         utang_piutang: NotebookPen,
         modal: Wallet,
         pindah_dana: ArrowLeftRight,
+        saldo_awal: Flag,
     },
 );
+
+/**
+ * The types the record tabs and the Catat sheet offer. Saldo awal is recorded
+ * once, from onboarding or Kas & rekening, not as an everyday record.
+ */
+export type EverydayType = Exclude<TransactionType, 'saldo_awal'>;
+
+export const everydayTypes = (
+    Object.keys(transactionTypes) as TransactionType[]
+).filter((type): type is EverydayType => type !== 'saldo_awal');
 
 export function CategoryBadge({ type }: { type: TransactionType }) {
     const { label, icon } = transactionTypes[type];

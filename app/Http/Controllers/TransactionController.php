@@ -61,9 +61,10 @@ class TransactionController extends Controller
                     'sumber' => ['source', TransactionSource::values()],
                 ],
                 search: ['description', 'note', '(select contacts.name from contacts where contacts.id = transactions.contact_id)'],
+                // An opening balance is money the business already had, not money that came in.
                 summary: fn (Builder $query) => [
-                    'cashIn' => (int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.cash_flow', '>', 0)->sum('transactions.cash_flow'),
-                    'cashOut' => -(int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.cash_flow', '<', 0)->sum('transactions.cash_flow'),
+                    'cashIn' => (int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.type', '<>', TransactionType::SaldoAwal)->where('transactions.cash_flow', '>', 0)->sum('transactions.cash_flow'),
+                    'cashOut' => -(int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.type', '<>', TransactionType::SaldoAwal)->where('transactions.cash_flow', '<', 0)->sum('transactions.cash_flow'),
                     'count' => (clone $query)->count(),
                 ],
             ),
