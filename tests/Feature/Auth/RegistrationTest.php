@@ -34,6 +34,7 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        // A new owner opens the books first (onboarding wizard).
+        $response->assertRedirect(route('onboarding.show', absolute: false));
     }
 }

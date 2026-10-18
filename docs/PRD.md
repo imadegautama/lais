@@ -110,7 +110,17 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 - Daftar memakai nama, nomor WA, dan password. Login memakai nomor WA dan password, tanpa email.
 - Nomor WA diverifikasi lewat OTP 6 digit yang dikirim bot. OTP berlaku 5 menit, maksimal 3 permintaan per 15 menit.
-- Wizard onboarding berisi: profil usaha (nama, slug toko, gambar QRIS), saldo awal kas tunai dan non-tunai, peralatan (nama dan nilai), stok awal, dan utang awal (opsional).
+- Wizard onboarding berisi:
+    - profil usaha: nama, jenis usaha, dan tanggal mulai pembukuan
+    - saldo awal tiap rekening (bisa menambah rekening)
+    - peralatan (nama dan nilai)
+    - produk dan bahan dengan stok awal, dengan tombol "Pakai contoh" per jenis usaha
+    - utang awal ke supplier dan piutang awal pelanggan (opsional)
+    - ringkasan neraca awal
+
+    Slug toko, logo, dan gambar QRIS ditambahkan ke wizard bersama halaman toko (M4), dan kartu "Hubungkan WhatsApp" bersama GOWA.
+
+- Wizard bisa dilewati. Drafnya tersimpan setiap langkah, dan dashboard serta Kas & rekening menampilkan pengingat sampai wizard selesai. Tanggal mulai paling lambat hari catatan pertama yang sudah ada.
 - Sistem membuat jurnal saldo awal. Modal awal = total aset awal − utang awal, dan neraca hari pertama langsung seimbang.
 - Pemilik baru bisa menyelesaikan onboarding dengan 5 produk dalam ≤ 10 menit (uji ke 3 orang).
 - Reset password memakai OTP WA, jadi tidak perlu SMTP.
@@ -537,6 +547,8 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 | 9–10 Nov                  | Seed data demo, hardening, deploy final, README, rekam video, submit                                                                                                                                                                   | K1 tercapai di URL publik                                                  |
 
 **Garis potong (jika terlambat di akhir minggu 2):** v1.1 dibatalkan seluruhnya. Ringkasan mingguan dihapus, ringkasan harian tetap. PDF hanya untuk Laba Rugi dan Neraca. `bandingkan_periode` dihapus.
+
+**Fase akhir (9–10 Nov, setelah UI stabil):** tur pengenalan singkat yang menyorot tombol-tombol utama. Pilihan utamanya driver.js; navigasi keyboard dan kontrasnya dicek sebelum dipasang.
 
 **v1.1 (minggu 3 jika sempat, atau setelah lomba):** US-16 foto nota, US-17 pengingat piutang & pelanggan lama, US-18 peringatan margin, konversi satuan beli, dan upload bukti bayar oleh pelanggan.
 

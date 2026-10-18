@@ -191,6 +191,24 @@ export const moneyAccountKindLabels: Record<MoneyAccountKind, string> = {
     non_tunai: 'Non-tunai',
 };
 
+export const BusinessCategory = {
+    Kuliner: 'kuliner',
+    Kelontong: 'kelontong',
+    Fashion: 'fashion',
+    Kerajinan: 'kerajinan',
+    Lainnya: 'lainnya',
+} as const;
+
+export type BusinessCategory = (typeof BusinessCategory)[keyof typeof BusinessCategory];
+
+export const businessCategoryLabels: Record<BusinessCategory, string> = {
+    kuliner: 'Kuliner',
+    kelontong: 'Kelontong',
+    fashion: 'Fashion',
+    kerajinan: 'Kerajinan',
+    lainnya: 'Lainnya',
+};
+
 export const soldItemKinds: readonly ItemKind[] = ['produk', 'komposisi'];
 
 export const stockedItemKinds: readonly ItemKind[] = ['produk', 'bahan'];

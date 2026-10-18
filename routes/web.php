@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MoneyAccountController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
 use Illuminate\Http\Request;
@@ -17,7 +18,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard', (new DemoData)->dashboard(
             (string) $request->query('periode', 'hari_ini'),
             $request->query('keadaan') === 'kosong',
-        ));
+        ) + [
+            // Until the books are opened, the dashboard asks for the saldo awal.
+            'needsOnboarding' => $request->user()->currentBusiness()->onboarded_at === null,
+        ]);
     })->name('dashboard');
 
     Route::get('produk', [ItemController::class, 'index'])->name('items.index');
@@ -37,6 +41,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
 
     Route::get('log-aktivitas', [ActivityController::class, 'index'])->name('activity.index');
+
+    Route::get('onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
+    Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');
+    Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
 
     Route::get('rekening', [MoneyAccountController::class, 'index'])->name('money-accounts.index');
     Route::post('rekening', [MoneyAccountController::class, 'store'])->name('money-accounts.store');

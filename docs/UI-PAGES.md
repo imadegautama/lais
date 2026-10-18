@@ -179,25 +179,28 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 
 ### B5. Onboarding wizard `/onboarding`
 
-- Stepper di atas dengan tombol **Kembali / Lanjut**. Setiap langkah tersimpan otomatis, jadi wizard bisa dilanjutkan nanti.
+- **Tampilan:** halaman sendiri tanpa sidebar. Di header ada logo dan link **Lewati, nanti saja**. Stepper di atas; di HP hanya "Langkah 2 dari 6".
+- **Navigasi:** tombol **Kembali / Lanjut**. Setiap kali Lanjut ditekan, langkah itu diperiksa lalu disimpan sebagai draf, jadi wizard bisa dilanjutkan nanti dari langkah berikutnya.
+- **Masuk ke wizard:** setelah daftar, pengguna langsung diarahkan ke sini. Selama belum selesai, dashboard dan Kas & rekening menampilkan kartu **Saldo awal belum diisi → Lanjutkan pengisian**. Setelah selesai, `/onboarding` mengalihkan ke dashboard.
 - **Langkah:**
-    1. **Profil usaha:**
+    1. **Usaha:**
         - nama usaha
         - jenis usaha (kuliner / kelontong / fashion / kerajinan / lainnya), untuk memilih contoh produk
-        - link toko (`/t/` + slug, dicek ketersediaannya secara langsung)
-        - logo (opsional)
-        - upload gambar QRIS
-    2. **Uang usaha saat ini:** saldo kas tunai dan saldo non-tunai (QRIS/rekening). Di sini ada edukasi singkat: "Hanya uang usaha, jangan dicampur uang rumah tangga".
-    3. **Peralatan usaha:** baris dinamis (nama + perkiraan nilai), misalnya kompor Rp1,5 jt. Bisa dilewati.
+        - mulai dicatat sejak (paling lambat hari ini, atau hari catatan pertama kalau sudah ada)
+    2. **Uang:** saldo tiap rekening pada tanggal mulai. Rekening bisa diganti nama atau ditambah. Ada edukasi "Hanya uang usaha, jangan dicampur uang rumah tangga".
+    3. **Peralatan:** baris nama + perkiraan nilai. Bisa dilewati.
     4. **Produk & bahan:**
-        - Tambah cepat dalam tabel: nama, jenis, harga jual, stok awal, biaya per unit.
-        - Tombol **Pakai contoh** (template sesuai jenis usaha).
-        - Tombol **Lewati, nanti saja**.
-    5. **Utang awal** (opsional): ke siapa dan berapa.
-- **Ringkasan akhir:**
-    - Kartu neraca awal: total aset − utang = **Modal awal Anda Rp X**, dengan badge "Seimbang ✓".
-    - Kartu **Hubungkan WhatsApp**: nomor bot, tombol "Simpan kontak bot" (vCard), dan tombol `wa.me` "Kirim _halo_ ke bot".
-    - Tombol **Masuk ke dashboard**.
+        - baris tambah cepat: nama, jenis (dijual / bahan), satuan, harga jual, stok awal, dan biaya per unit
+        - **Pakai contoh** sesuai jenis usaha; barisnya berlabel "Contoh, ubah sesuai usahamu"
+        - produk resep dari contoh tampil dengan ringkasan resepnya
+        - bisa dilewati
+    5. **Utang & piutang:** utang ke supplier dan kasbon pelanggan, masing-masing nama + sisa. Bisa dilewati.
+    6. **Ringkasan neraca awal:**
+        - kas & rekening, peralatan, persediaan, piutang, total aset, utang
+        - **Modal awal kamu** = aset − utang, dengan badge "Seimbang"
+        - tombol **Simpan dan mulai**
+- **Saat disimpan:** semuanya dicatat sebagai jenis **Saldo awal** pada tanggal mulai, dalam satu langkah. Kalau ada yang salah, wizard kembali ke langkah yang bermasalah.
+- **Menyusul di slicenya masing-masing:** slug toko, logo, gambar QRIS (M4), dan kartu Hubungkan WhatsApp (GOWA).
 
 ---
 

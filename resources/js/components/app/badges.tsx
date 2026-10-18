@@ -67,7 +67,7 @@ const toneClass: Record<Tone, string> = {
     accent: 'bg-accent text-accent-foreground',
 };
 
-function LabelBadge({
+export function LabelBadge({
     icon: Icon,
     label,
     tone = 'neutral',

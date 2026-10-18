@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeftRight, Banknote, Landmark, Pencil, Plus } from 'lucide-react';
 import { Money } from '@/components/app/money';
+import { OnboardingReminder } from '@/components/app/onboarding-reminder';
 import { PageHeader } from '@/components/app/page-header';
 import { IconChip, SectionCard } from '@/components/app/section-card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import {
 
 export default function MoneyAccountsIndex({
     accounts,
+    needsOnboarding,
 }: MoneyAccountsIndexProps) {
     const total = accounts.reduce((sum, account) => sum + account.balance, 0);
 
@@ -52,6 +54,8 @@ export default function MoneyAccountsIndex({
                         </>
                     }
                 />
+
+                {needsOnboarding && <OnboardingReminder />}
 
                 <SectionCard
                     title="Saldo per rekening"

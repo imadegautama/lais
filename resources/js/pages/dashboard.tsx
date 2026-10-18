@@ -18,6 +18,7 @@ import { ActionButton, SoonTag } from '@/components/app/action-button';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { DeltaBadge, MetricFocus, MetricInline } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
+import { OnboardingReminder } from '@/components/app/onboarding-reminder';
 import { PageHeader } from '@/components/app/page-header';
 import { PeriodPicker } from '@/components/app/period-picker';
 import { SalesBarChart } from '@/components/app/sales-bar-chart';
@@ -107,6 +108,8 @@ export default function Dashboard(props: DashboardProps) {
                         )
                     }
                 />
+
+                {props.needsOnboarding && <OnboardingReminder />}
 
                 {failed && (
                     <ErrorState

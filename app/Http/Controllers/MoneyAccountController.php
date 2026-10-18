@@ -24,6 +24,8 @@ class MoneyAccountController extends Controller
         $balances = $ledger->moneyBalances($business);
 
         return Inertia::render('money-accounts/index', [
+            // Balances are only right once the saldo awal is in.
+            'needsOnboarding' => $business->onboarded_at === null,
             // Kas tunai first, then the rekening in the order they were added.
             'accounts' => $business->moneyAccounts()->orderByRaw('money_accounts.kind = ? desc', [MoneyAccountKind::Tunai->value])->orderBy('money_accounts.id')->get()
                 ->map(fn (MoneyAccount $moneyAccount) => (new MoneyAccountResource($moneyAccount, $balances[$moneyAccount->id] ?? 0))->resolve())

@@ -77,6 +77,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Redirects
+    |--------------------------------------------------------------------------
+    |
+    | A new owner opens the books first (onboarding wizard), then the app.
+    | Email verification sends them back here through the intended URL.
+    |
+    */
+
+    'redirects' => [
+        'register' => '/onboarding',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Fortify Routes Prefix / Subdomain
     |--------------------------------------------------------------------------
     |

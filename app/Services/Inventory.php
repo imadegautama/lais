@@ -27,9 +27,10 @@ class Inventory
 
     /**
      * Add stock at a unit cost and journal it against $creditAccount
-     * (Account::OWNER_CAPITAL for opening stock).
+     * (Account::OWNER_CAPITAL for opening stock). $occurredAt dates opening stock
+     * on the day the books open (onboarding).
      */
-    public function receive(Item $item, float $qty, int $unitCost, StockReason $reason, string $creditAccount): StockMovement
+    public function receive(Item $item, float $qty, int $unitCost, StockReason $reason, string $creditAccount, ?CarbonInterface $occurredAt = null): StockMovement
     {
         $this->assertStocked($item);
 
@@ -39,13 +40,13 @@ class Inventory
 
         $cost = (int) round($qty * $unitCost);
 
-        return DB::transaction(function () use ($item, $qty, $cost, $reason, $creditAccount) {
+        return DB::transaction(function () use ($item, $qty, $cost, $reason, $creditAccount, $occurredAt) {
             $this->lock($item);
-            $movement = $this->stockIn($item, $qty, $cost, $reason);
+            $movement = $this->stockIn($item, $qty, $cost, $reason, null, $occurredAt);
             $lines = Ledger::lines([Account::INVENTORY => $movement->value, Account::COGS => $cost - $movement->value, $creditAccount => -$cost]);
 
             if ($lines !== []) {
-                $entry = $this->ledger->post($item->business, "Stok masuk: {$item->name}", $lines, $item);
+                $entry = $this->ledger->post($item->business, "Stok masuk: {$item->name}", $lines, $item, $occurredAt);
                 $movement->update(['journal_entry_id' => $entry->id]);
             }
 

@@ -31,6 +31,8 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - `app/Http/Requests`: bentuk input dan pesan validasi berbahasa Indonesia.
 - `app/Http/Resources`: bentuk data untuk props halaman. Controller memanggil `XResource::make($model)->resolve()` atau `XResource::collection($models)->resolve()`, dan tidak menyusun array model sendiri. `resolve()` dipakai supaya tidak ada pembungkus `data`.
 - Controller hanya mengatur alur: otorisasi, panggil service, render, flash.
+- Produk dan bahan dibuat lewat `App\Services\Catalog::create()` (atau `createMany()`, yang memetakan resep lewat nama bahan). Form produk, wizard onboarding, dan seeder demo memakai jalur yang sama.
+- Pembukuan dibuka lewat `App\Services\Onboarding::complete()`: saldo awal dalam satu DB transaction, bertanggal `started_on`. Batasnya `Onboarding::latestStart()`.
 - Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
 
 ## Log aktivitas (audit)

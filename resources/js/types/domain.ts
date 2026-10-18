@@ -81,6 +81,7 @@ export type MoneyAccountOption = {
 };
 
 export type MoneyAccountsIndexProps = {
+    needsOnboarding: boolean;
     /** Kas tunai first, then the rekening in the order they were added. */
     accounts: MoneyAccountOption[];
 };
@@ -115,6 +116,8 @@ export type StockAlert = {
 };
 
 export type DashboardProps = {
+    /** The books are not opened yet (no saldo awal). */
+    needsOnboarding: boolean;
     isDemo: boolean;
     isEmpty: boolean;
     business: { name: string; ownerName: string };

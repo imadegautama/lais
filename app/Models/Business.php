@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BusinessCategory;
 use App\Enums\MoneyAccountKind;
 use Database\Factories\BusinessFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -9,18 +10,38 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $user_id
  * @property string $name
  * @property string $slug
+ * @property BusinessCategory|null $category
+ * @property Carbon|null $started_on
+ * @property array<string, mixed>|null $onboarding_draft
+ * @property Carbon|null $onboarded_at
  */
-#[Fillable(['name', 'slug'])]
+#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at'])]
 class Business extends Model
 {
     /** @use HasFactory<BusinessFactory> */
     use HasFactory;
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'category' => BusinessCategory::class,
+            'started_on' => 'date',
+            'onboarding_draft' => 'array',
+            'onboarded_at' => 'datetime',
+        ];
+    }
 
     /**
      * Every business starts with its cash box and one rekening the owner renames
