@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { ActionButton, SoonTag } from '@/components/app/action-button';
-import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { DeltaBadge, MetricFocus, MetricInline } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
 import { OnboardingReminder } from '@/components/app/onboarding-reminder';
@@ -30,10 +29,13 @@ import {
     formatDate,
     formatPercent,
     formatQty,
+    formatRupiah,
     formatRupiahCompact,
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import { create as createItem } from '@/routes/items';
+import { create as createTransaction } from '@/routes/transactions';
 import type { ActionItem, DashboardProps, PeriodKey } from '@/types/domain';
 
 function greeting(): string {
@@ -95,7 +97,6 @@ export default function Dashboard(props: DashboardProps) {
             <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
                 <PageHeader
                     title={`${greeting()}, ${props.business.ownerName}`}
-                    meta={props.isDemo && <DemoDataBadge />}
                     description={`${props.business.name} · ${formatDate(new Date(), 'long')}`}
                     actions={
                         !props.isEmpty && (
@@ -268,11 +269,11 @@ function Overview(props: DashboardProps & { loading: boolean }) {
                     <p className="text-sm text-muted-foreground">
                         Modal usaha{' '}
                         <span className="num font-semibold text-foreground">
-                            {formatRupiahCompact(wallets.equityOpening)}
+                            {formatRupiah(wallets.equityOpening)}
                         </span>{' '}
                         di awal bulan, sekarang{' '}
                         <span className="num font-semibold text-foreground">
-                            {formatRupiahCompact(wallets.equityNow)}
+                            {formatRupiah(wallets.equityNow)}
                         </span>
                         .
                     </p>
@@ -446,9 +447,9 @@ function StockCard({ alerts }: { alerts: DashboardProps['stockAlerts'] }) {
                                     {alert.name}
                                 </p>
                                 <p className="num text-xs text-muted-foreground">
-                                    Sisa {formatQty(alert.stock, alert.unit)} ·
-                                    minimum{' '}
-                                    {formatQty(alert.minimum, alert.unit)}
+                                    Sisa {formatQty(alert.stock, alert.unit)}
+                                    {alert.minimum !== null &&
+                                        ` · minimum ${formatQty(alert.minimum, alert.unit)}`}
                                 </p>
                             </div>
                             <span
@@ -472,16 +473,22 @@ function StockCard({ alerts }: { alerts: DashboardProps['stockAlerts'] }) {
     );
 }
 
-// TODO(C3/C6/A2/M0): each step links to its page once built.
+// TODO(GOWA/A2): the WhatsApp and store steps link once built.
 function FirstSteps() {
-    const steps = [
+    const steps: Array<{
+        title: string;
+        detail: string;
+        action?: { label: string; href: string };
+    }> = [
         {
             title: 'Tambahkan produk dan resep',
             detail: 'Supaya stok bahan berkurang otomatis saat terjual.',
+            action: { label: 'Tambah produk', href: createItem.url() },
         },
         {
             title: 'Catat penjualan pertama',
             detail: 'Dari tombol Catat, atau kirim pesan ke bot WhatsApp.',
+            action: { label: 'Catat penjualan', href: createTransaction.url() },
         },
         {
             title: 'Hubungkan WhatsApp',
@@ -505,20 +512,34 @@ function FirstSteps() {
                 {steps.map((step, index) => (
                     <li
                         key={step.title}
-                        className="flex items-center gap-3 py-3.5"
+                        className="flex items-start gap-3 py-3.5 sm:items-center"
                     >
                         <span className="num flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold text-muted-foreground">
                             {index + 1}
                         </span>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold">
-                                {step.title}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {step.detail}
-                            </p>
+                        {/* The button drops below the text on phones, as in the actions panel. */}
+                        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold">
+                                    {step.title}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    {step.detail}
+                                </p>
+                            </div>
+                            {step.action ? (
+                                <ActionButton
+                                    target={{ href: step.action.href }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="self-start sm:self-center"
+                                >
+                                    {step.action.label}
+                                </ActionButton>
+                            ) : (
+                                <SoonTag className="self-start sm:self-center" />
+                            )}
                         </div>
-                        <SoonTag />
                     </li>
                 ))}
             </ol>

@@ -223,6 +223,10 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 - **Utang & piutang:** dua angka total dengan tautan ke C11.
 - **Aktivitas terbaru:** 10 transaksi terakhir, lengkap dengan ikon sumber (WA / web / toko).
 - **Empty state pengguna baru:** checklist "Langkah pertama", yaitu tambah produk, catat penjualan pertama, hubungkan WA, dan bagikan link toko.
+- **Status pembuatan (slice 5):** semua angka sudah dihitung dari jurnal lewat `App\Services\Reports`.
+    - Panel "Perlu tindakan" berisi bahan yang habis ≤ 2 hari (tombol **Catat belanja** membuka tab Belanja, itemnya belum terisi) dan piutang yang lewat 7 hari (tombol **Catat bayaran**). Aksi pesanan menyusul di slice M4.
+    - Kartu "Pesanan aktif" dan "Utang & piutang" menyusul bersama halaman C9 dan C11.
+    - Empty state muncul selama belum ada catatan selain saldo awal. Langkah "Hubungkan WhatsApp" dan "Bagikan link toko" masih bertanda Segera.
 
 ### C2. Daftar transaksi `/transaksi`
 

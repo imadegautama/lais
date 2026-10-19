@@ -106,11 +106,13 @@ export type HealthRule = {
 };
 
 export type StockAlert = {
-    id: string;
+    /** The item's id. */
+    id: number;
     name: string;
     unit: string;
     stock: number;
-    minimum: number;
+    /** Null when the item has no minimum; it alerts on days left alone. */
+    minimum: number | null;
     /** Null when there are fewer than 3 days of usage data. */
     daysLeft: number | null;
 };
@@ -118,7 +120,7 @@ export type StockAlert = {
 export type DashboardProps = {
     /** The books are not opened yet (no saldo awal). */
     needsOnboarding: boolean;
-    isDemo: boolean;
+    /** No record yet besides the saldo awal. */
     isEmpty: boolean;
     business: { name: string; ownerName: string };
     period: Period;

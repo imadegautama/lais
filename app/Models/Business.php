@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\BusinessCategory;
 use App\Enums\MoneyAccountKind;
+use App\Enums\TransactionStatus;
+use Carbon\CarbonImmutable;
 use Database\Factories\BusinessFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -104,5 +106,15 @@ class Business extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * When the first posted record happened: where the books' history begins.
+     */
+    public function firstRecordAt(): ?CarbonImmutable
+    {
+        $first = $this->transactions()->where('transactions.status', TransactionStatus::Posted)->min('transactions.occurred_at');
+
+        return $first === null ? null : CarbonImmutable::parse($first);
     }
 }

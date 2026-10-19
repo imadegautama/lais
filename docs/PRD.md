@@ -264,9 +264,9 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - **Peringatan stok:** setiap hari 07.00 WIB untuk item di bawah stok minimum. Item juga diberi perkiraan hari habis = stok / rata-rata pemakaian harian 7 hari terakhir, dan disebut jika ≤ 3 hari. Jika datanya kurang dari 3 hari, ditulis "data belum cukup".
 - **Cek kesehatan usaha** (aturan dari Bab 6 buku acuan, dihitung sistem):
     1. Laba bersih bulan berjalan > 0.
-    2. Saldo kas ≥ rata-rata pengeluaran bulanan (biaya operasional + pembelian, dari maksimal 3 bulan terakhir).
+    2. Saldo kas ≥ rata-rata pengeluaran bulanan (biaya operasional + pembelian, dari maksimal 3 bulan terakhir). Rata-ratanya dibagi jumlah bulan yang benar-benar ada catatannya, yaitu 1 sampai 3 bulan dihitung dari catatan pertama. Saldo awal tidak dihitung sebagai pengeluaran.
     3. Total kewajiban ≤ ekuitas.
-    4. Prive bulan berjalan ≤ laba bersih bulan berjalan, artinya modal tidak tergerus (kasus Pak Darto).
+    4. Prive bulan berjalan ≤ laba bersih bulan berjalan, artinya modal tidak tergerus (kasus Pak Darto). Kalau tidak ada yang diambil, aturan ini lulus walaupun bulan itu rugi; kerugiannya sudah tertangkap di aturan 1.
 - Setiap aturan ditampilkan lulus/tidak di dashboard dan disebut di ringkasan jika tidak lulus.
 - Jika LLM gagal atau timeout 10 detik, ringkasan tetap terkirim dalam versi template tanpa insight.
 - Pemilik bisa mematikan setiap jenis pesan terjadwal.

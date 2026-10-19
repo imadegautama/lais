@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\MoneyAccountKind;
 use App\Enums\TransactionKind;
-use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\Business;
 use Carbon\CarbonImmutable;
@@ -25,10 +24,9 @@ class Onboarding
      */
     public static function latestStart(Business $business): CarbonImmutable
     {
-        $first = $business->transactions()->where('transactions.status', TransactionStatus::Posted)->min('transactions.occurred_at');
         $today = CarbonImmutable::today();
 
-        return $first === null ? $today : CarbonImmutable::parse($first)->startOfDay()->min($today);
+        return $business->firstRecordAt()?->startOfDay()->min($today) ?? $today;
     }
 
     /**

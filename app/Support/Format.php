@@ -12,11 +12,11 @@ use Illuminate\Support\Carbon;
 class Format
 {
     /**
-     * "Rp15.000".
+     * "Rp15.000", "−Rp5.000" (a minus sign, as lib/format.ts writes it).
      */
     public static function rupiah(int $amount): string
     {
-        return 'Rp'.number_format($amount, 0, ',', '.');
+        return ($amount < 0 ? '−' : '').'Rp'.number_format(abs($amount), 0, ',', '.');
     }
 
     /**

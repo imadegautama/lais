@@ -1,28 +1,19 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MoneyAccountController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // TODO(M1): replace DemoData with the real ledger queries.
-    Route::get('dashboard', function (Request $request) {
-        return Inertia::render('dashboard', (new DemoData)->dashboard(
-            (string) $request->query('periode', 'hari_ini'),
-            $request->query('keadaan') === 'kosong',
-        ) + [
-            // Until the books are opened, the dashboard asks for the saldo awal.
-            'needsOnboarding' => $request->user()->currentBusiness()->onboarded_at === null,
-        ]);
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('produk', [ItemController::class, 'index'])->name('items.index');
     Route::get('produk/baru', [ItemController::class, 'create'])->name('items.create');
@@ -59,7 +50,7 @@ if (app()->isLocal()) {
 
         return Inertia::render('design-system', [
             'transactions' => $demo->recentTransactions(40),
-            'salesChart' => $demo->dashboard('bulan_ini')['salesChart'],
+            'salesChart' => $demo->salesChart(),
         ]);
     })->name('design-system');
 }

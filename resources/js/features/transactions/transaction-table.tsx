@@ -179,6 +179,8 @@ export function TransactionTable({
             server={server}
             layout={{
                 waktu: { className: 'w-32 whitespace-nowrap' },
+                // Long descriptions wrap, so the amount never scrolls out of a narrow card.
+                keterangan: { className: 'min-w-48 whitespace-normal' },
                 nominal: { align: 'right', className: 'w-32' },
             }}
             mobileGroupBy={(row) => formatDate(row.occurredAt, 'long')}
