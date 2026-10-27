@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MoneyAccountController;
@@ -32,6 +33,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
 
     Route::get('log-aktivitas', [ActivityController::class, 'index'])->name('activity.index');
+
+    // Every turn is a paid model call, so a runaway client is cut off quickly.
+    Route::post('asisten', [AssistantController::class, 'store'])->middleware('throttle:20,1')->name('assistant.store');
 
     Route::get('onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
     Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');

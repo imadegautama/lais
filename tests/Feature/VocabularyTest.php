@@ -4,10 +4,12 @@ namespace Tests\Feature;
 
 use App\Console\Commands\GenerateEnumTypes;
 use App\Enums\ContactType;
+use App\Enums\GuideTopic;
 use App\Enums\PaymentMethod;
 use App\Enums\Period;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionType;
+use App\Services\Ai\TransactionDraft;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -44,6 +46,25 @@ class VocabularyTest extends TestCase
         $this->assertSame(ContactType::Pelanggan, ContactType::for(TransactionType::UtangPiutang, TransactionKind::TerimaPiutang));
         $this->assertSame(ContactType::Supplier, ContactType::for(TransactionType::UtangPiutang, TransactionKind::BayarUtang));
         $this->assertSame(ContactType::Supplier, ContactType::for(TransactionType::Biaya, TransactionKind::Sewa));
+    }
+
+    public function test_every_guide_topic_explains_itself_and_drafts_only_what_the_assistant_fills(): void
+    {
+        foreach (GuideTopic::cases() as $topic) {
+            $this->assertNotSame('', $topic->explanation());
+            $this->assertSame($topic === GuideTopic::BelumDidukung, $topic->needs() === []);
+
+            $draft = $topic->draft();
+
+            if ($draft !== null) {
+                $this->assertContains(TransactionType::from($draft['jenis']), TransactionDraft::TYPES);
+                $this->assertNotSame('', $topic->actionLabel());
+
+                if (isset($draft['jenis_biaya'])) {
+                    $this->assertSame($draft['jenis'], TransactionKind::from($draft['jenis_biaya'])->type()->value);
+                }
+            }
+        }
     }
 
     public function test_periods_start_in_wib_and_weeks_start_on_monday(): void

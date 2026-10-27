@@ -1,5 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import AlertError from '@/components/alert-error';
+import { AssistantFilledNote } from '@/components/app/assistant/assistant-panel';
+import { useAssistantForm } from '@/components/app/assistant/assistant-provider';
 import { CategoryBadge } from '@/components/app/badges';
 import { ChoiceGroup } from '@/components/app/choice-group';
 import { Field } from '@/components/app/field';
@@ -69,6 +71,16 @@ export default function TransactionCreate({
     const kinds = transactionTypeKinds[type];
     const total = recordTotal(data);
     const contactIds = new Set(contacts.map((contact) => String(contact.id)));
+    // Edits and the saldo awal stay by hand; from there the assistant opens a new form.
+    const filledByAssistant = useAssistantForm(
+        'transaksi',
+        data,
+        (values) => {
+            form.setData(values);
+            form.clearErrors();
+        },
+        !editing && initialType !== TransactionType.SaldoAwal,
+    );
 
     const submit =
         (again: boolean) => (event?: { preventDefault: () => void }) => {
@@ -117,10 +129,12 @@ export default function TransactionCreate({
                 )}
 
                 <form
+                    key={filledByAssistant}
                     onSubmit={submit(false)}
                     noValidate
                     className="flex flex-1 flex-col gap-4 md:gap-6"
                 >
+                    {filledByAssistant > 0 && <AssistantFilledNote />}
                     <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-12">
                         <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:col-span-7">
                             {kinds.length > 0 && (

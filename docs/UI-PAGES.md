@@ -53,7 +53,7 @@ Starter kit tinggal disesuaikan. Login diganti ke nomor WA (Fortify `username` �
 | C16   | Buku kas                      | `/laporan/buku-kas`                   | Pemilik              | P1                    | US-12             |
 | C17   | Perubahan modal               | `/laporan/perubahan-modal`            | Pemilik              | P0                    | US-12             |
 | C18   | Produk terlaris & margin      | `/laporan/produk`                     | Pemilik              | P1                    | US-12             |
-| C19   | Asisten AI                    | `/asisten` (+ panel samping)          | Pemilik              | P0                    | US-14             |
+| C19   | Asisten AI                    | Panel di setiap halaman aplikasi      | Pemilik              | P0                    | US-14             |
 | C20   | Pengaturan                    | `/pengaturan/*`                       | Pemilik              | P0 (WA), P1 (lainnya) | US-01, US-15      |
 | C21   | Log aktivitas                 | `/log-aktivitas`                      | Pemilik              | P1                    | §4.5              |
 | C22   | Kas & rekening                | `/rekening`                           | Pemilik              | P1                    | US-07             |
@@ -252,6 +252,8 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 
 Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal · Pindah dana**. Di desktop, form ada di kiri dan **panel pratinjau dampak** di kanan. Di mobile, pratinjau tampil di bawah, di atas tombol simpan.
 
+Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". Setelah diisi, muncul catatan "Diisi Tanya AI. Periksa lagi sebelum menekan Simpan." Form Ubah dan Saldo awal tetap diisi manual.
+
 - **Penjualan:**
     - tanggal (default sekarang)
     - baris item: combobox produk dengan pencarian (nama + alias), stepper qty, harga (default harga jual, bisa diubah)
@@ -336,6 +338,7 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
     - Baris berisi combobox bahan (+ "buat bahan baru" inline), qty, satuan (mengikuti bahan), dan biaya (otomatis dihitung).
     - **Panel HPP langsung:** HPP per porsi, harga jual, **margin Rp dan %**, dengan peringatan jika margin < 15%.
 - **Riwayat perubahan** (hanya saat mengubah): siapa yang mengubah harga, resep, satuan, atau stok (koreksi), dan kapan, dengan nilai lama → baru.
+- Draf produk dari **Tanya AI** (C19), termasuk resepnya, bisa dipindahkan ke form ini lewat "Ubah di form". Bahan yang belum terdaftar disebut di daftar "Masih kurang". Form ubah tetap diisi manual.
 
 ### C7. Detail produk `/produk/{id}`
 
@@ -455,14 +458,47 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 - Bar chart horizontal untuk 10 produk teratas.
 - **Tabel margin semua produk:** HPP, harga, margin, terjual, kontribusi laba. Baris dengan margin rendah ditandai.
 
-### C19. Asisten AI `/asisten` + panel samping
+### C19. Asisten AI (panel "Tanya AI")
+
+**Status pembuatan (slice 6): mencatat dengan konfirmasi.** Asisten berbentuk panel, tidak punya halaman sendiri.
+
+- **Cara membuka:**
+    - tombol mengambang "Tanya AI" di kanan bawah, di atas bottom nav dan di atas action bar form
+    - menu "Tanya AI" di sidebar
+- **Bentuk panel:**
+    - Di desktop berupa sheet kanan yang tidak mengunci halaman.
+    - Di bawah 1024 px berupa drawer bawah.
+    - Percakapan tetap ada saat pindah halaman.
+- **Balon chat:** pesan pemilik di kanan (abu hangat), balasan di kiri (kartu putih bergaris).
+- **Alur mencatat:** pemilik menulis yang mau dicatat, lalu balasan berisi **kartu draf**:
+    - judul (Penjualan, Belanja, Biaya listrik & air, atau nama produk)
+    - baris "Beras · 5 kg × Rp14.000" dengan subtotal di kanan, lalu Total
+    - catatan kecil: cara bayar, rekening, kontak, dan waktu
+    - daftar **Masih kurang** (dari aturan validasi Simpan, bukan tebakan AI)
+- **Tombol di kartu:**
+    - **Simpan**, hanya kalau tidak ada yang kurang. Membalas "iya", "oke", "gas", atau "simpan" sama dengan menekannya.
+    - **Ubah di form** memindahkan draf ke form C3 atau C6, lalu panel tertutup.
+- **Setelah tersimpan:** "Belanja tersimpan." dengan tombol **Lihat transaksi** atau **Lihat produk**. Halaman di belakang panel dimuat ulang supaya angkanya ikut baru.
+- Pertanyaan balik dari AI datang dengan chip jawaban, misalnya "Beras dicatat dalam kg. 4 kodi itu berapa kg?".
+- **Panduan pencatatan:** pertanyaan seperti "uang pribadi 200rb dicatat di mana?" dijawab dalam satu balon, berisi:
+    - penjelasan tetap (dari `GuideTopic`)
+    - kotak **Yang perlu disiapkan**
+    - tombol draf ("Catat setor modal Rp200.000"), yang langsung menampilkan kartu draf tanpa menunggu AI, atau tombol halaman ("Buka Produk & stok", "Buka form Pindah dana", "Catat saldo awal")
+- Pertanyaan laporan ("untung bulan ini berapa?") diarahkan ke Dashboard sampai tanya-jawab laporan dibuat.
+- Permintaan di luar urusan usaha dijawab dengan kalimat tetap: "Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru…".
+- **State:**
+    - kosong: contoh kalimat sesuai form yang dibuka; mengetuknya hanya mengisi input
+    - memuat: "AI sedang membaca…"
+    - gagal: pesan sebab dan langkah berikutnya, dengan tombol **Kirim lagi**
+
+**Sprint berikutnya: tanya-jawab soal usaha (US-14).** Panel yang sama mendapat:
 
 - **Area chat:** bubble pemilik dan asisten. Jawaban bisa berisi **kartu data** (angka kunci atau tabel kecil yang dirender dari output tool) dan baris kecil **"Sumber: laba_rugi(bulan_ini)"**.
 - **Chip saran pertanyaan** saat kosong: "Untung bulan ini berapa?", "Produk paling laku minggu ini?", "Kenapa laba naik tapi kas turun?", "Siapa yang belum bayar?", "Telur cukup berapa hari?".
 - Indikator mengetik dan state error ("Asisten sedang gangguan, coba lagi").
 - **Input:** textarea + tombol kirim.
 - Disclaimer kecil: "Angka dihitung sistem dari data Anda. AI hanya menjelaskan."
-- **Panel samping** (Sheet kanan) dengan isi yang sama, bisa dibuka dari halaman mana pun. Konteks halaman ikut terkirim, misalnya sedang membuka Laba Rugi bulan ini.
+- Konteks halaman ikut terkirim, misalnya sedang membuka Laba Rugi bulan ini.
 
 ### C20. Pengaturan `/pengaturan/*` (tab kiri / tab atas di HP)
 
@@ -534,7 +570,7 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 | `StockAlertList`                         | C1, C7             | Dengan perkiraan hari habis                          |
 | `ReportStatement`                        | C14, C15           | Layout laporan bertingkat + tooltip istilah          |
 | `ReportActions`                          | C14–C18            | Periode, PDF, kirim WA, tanya AI                     |
-| `AssistantPanel`                         | C19, semua halaman | Sheet kanan                                          |
+| `AssistantPanel`                         | C19, semua halaman | Sheet kanan di desktop, drawer di HP                 |
 | `WaBubble`                               | A1, C4, C20        | Pratinjau pesan gaya WA                              |
 | `ImageUpload`                            | B5, C3, C6, C20    | Pratinjau, batas 5 MB                                |
 | `EmptyState`                             | Semua daftar       | Ikon, judul, ajakan aksi                             |

@@ -6,6 +6,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\TransactionType;
 use App\Models\Transaction;
 use App\Models\TransactionLine;
+use App\Support\Format;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -35,7 +36,7 @@ class TransactionFormResource extends JsonResource
                 ? $this->lines->map(fn (TransactionLine $line) => [
                     'item_id' => (string) $line->item_id,
                     // As the owner types it: "0,5", not "0.500".
-                    'qty' => rtrim(rtrim(number_format((float) $line->qty, 3, ',', ''), '0'), ','),
+                    'qty' => Format::decimalInput($line->qty),
                     'price' => $line->price,
                 ])->values()->all()
                 : [['item_id' => '', 'qty' => '1', 'price' => null]],

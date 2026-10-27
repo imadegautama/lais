@@ -38,6 +38,21 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - Modal awal sebuah periode dihitung dengan `Reports::openingEquity()`. Di periode saat pembukuan dibuka, nilainya adalah neraca pembukaan (`started_on` 00.00).
 - Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
 
+## AI
+
+- Model hanya dipanggil lewat `App\Services\Ai\LlmClient::toolCall()` (HTTP client ke 9Router, `config('services.llm')`). Kunci API hanya ada di `.env` dan tidak pernah ditulis ke log atau ke `properties` log aktivitas.
+- AI tidak pernah menyimpan tanpa konfirmasi pemilik, dan tidak ada tool untuk menyimpan.
+    - Konfirmasi dideteksi deterministik lewat `FormAssistant::confirms()` ("iya", "oke gas", "simpan"), hanya untuk draf yang sudah ditunjukkan ke pemilik.
+    - Draf yang dikirim balik dari browser diperlakukan seperti isian form: ditimpakan ke nilai awal form (`TransactionDraft::fill([], …)`), divalidasi ulang dengan `FormRequest`-nya, lalu disimpan lewat `TransactionService::record()` atau `Catalog::create()`.
+- Argumen tool diperlakukan seperti input pengguna:
+    - enum dibaca lewat `tryFrom()`, dan nilai yang tidak dikenal dibuang
+    - nama item, bahan, kontak, dan rekening dicocokkan lewat `Names::match()`, hanya dengan data usaha itu sendiri
+    - AI tidak menghitung angka; misalnya harga satuan dari total baris dihitung server
+- Data yang kurang dinilai oleh `FormRequest` milik form itu (`rules()` dan `messages()`), bukan oleh AI. Lihat `FormAssistant::problems()`.
+- Balasan ke pemilik disusun dari template. Teks bebas dari model hanya dipakai untuk pertanyaan `tanya_balik` (maksimal 200 huruf). Sapaan, pertanyaan laporan, dan permintaan di luar urusan usaha memakai `jawab_singkat` dengan kalimat tetap.
+- Saran pembukuan ("dicatat di mana?") hanya berasal dari `App\Enums\GuideTopic` (`explanation()`, `needs()`, `draft()`, `link()`). Model hanya memilih topik lewat tool `jelaskan`. Topik baru ditambahkan di enum itu, bukan di prompt.
+- Test memakai `Http::fake()` dengan `tool_calls` tiruan dan `Http::preventStrayRequests()`. Eval dengan model sungguhan memakai `#[Group('llm')]`, yang tidak ikut test biasa.
+
 ## Log aktivitas (audit)
 
 - `spatie/laravel-activitylog` v5, dengan model `App\Models\Activity`. Log hanya bisa ditambah: model itu menolak update dan delete, dan `activitylog:clean` tidak pernah dijadwalkan. `business_id` diisi otomatis dari subject atau causer.

@@ -31,6 +31,15 @@ class Format
     }
 
     /**
+     * "0,5", "1250": a quantity as the owner types it into a field, no
+     * thousands separator (lib/number.ts decimalInput).
+     */
+    public static function decimalInput(float|int|string $qty): string
+    {
+        return rtrim(rtrim(number_format((float) $qty, 3, ',', ''), '0'), ',');
+    }
+
+    /**
      * "0,15", "1.250", "3": up to three decimals, trailing zeros dropped.
      */
     public static function qty(float|int|string $qty): string
