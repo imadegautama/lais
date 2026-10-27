@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
+use App\Http\Resources\ActivityResource;
+use App\Models\Activity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Fortify\Events\PasswordUpdatedViaController;
 use Laravel\Fortify\Features;
 
 class SecurityController extends Controller
@@ -38,6 +41,8 @@ class SecurityController extends Controller
                     ->all()
                 : [],
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            // Recent sign-ins and security changes, so the owner spots one they did not make.
+            'activities' => ActivityResource::collection(Activity::historyOf($request->user(), 10))->resolve(),
         ];
 
         if (Features::canManageTwoFactorAuthentication()) {
@@ -58,6 +63,8 @@ class SecurityController extends Controller
         $request->user()->update([
             'password' => $request->password,
         ]);
+
+        PasswordUpdatedViaController::dispatch($request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
 

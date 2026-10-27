@@ -1,22 +1,20 @@
 <?php
 
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\MoneyAccountController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::inertia('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // TODO(M1): replace DemoData with the real ledger queries.
-    Route::get('dashboard', function (Request $request) {
-        return Inertia::render('dashboard', (new DemoData)->dashboard(
-            (string) $request->query('periode', 'hari_ini'),
-            $request->query('keadaan') === 'kosong',
-        ));
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('produk', [ItemController::class, 'index'])->name('items.index');
     Route::get('produk/baru', [ItemController::class, 'create'])->name('items.create');
@@ -30,6 +28,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('transaksi/baru', [TransactionController::class, 'create'])->name('transactions.create');
     Route::post('transaksi', [TransactionController::class, 'store'])->name('transactions.store');
     Route::get('transaksi/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
+    Route::get('transaksi/{transaction}/ubah', [TransactionController::class, 'edit'])->name('transactions.edit');
+    Route::put('transaksi/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
+    Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
+
+    Route::get('log-aktivitas', [ActivityController::class, 'index'])->name('activity.index');
+
+    // Every turn is a paid model call, so a runaway client is cut off quickly.
+    Route::post('asisten', [AssistantController::class, 'store'])->middleware('throttle:20,1')->name('assistant.store');
+
+    Route::get('onboarding', [OnboardingController::class, 'show'])->name('onboarding.show');
+    Route::patch('onboarding', [OnboardingController::class, 'update'])->name('onboarding.update');
+    Route::post('onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+
+    Route::get('rekening', [MoneyAccountController::class, 'index'])->name('money-accounts.index');
+    Route::post('rekening', [MoneyAccountController::class, 'store'])->name('money-accounts.store');
+    Route::put('rekening/{moneyAccount}', [MoneyAccountController::class, 'update'])->name('money-accounts.update');
+    Route::delete('rekening/{moneyAccount}', [MoneyAccountController::class, 'destroy'])->name('money-accounts.destroy');
 });
 
 if (app()->isLocal()) {
@@ -39,7 +54,7 @@ if (app()->isLocal()) {
 
         return Inertia::render('design-system', [
             'transactions' => $demo->recentTransactions(40),
-            'salesChart' => $demo->dashboard('bulan_ini')['salesChart'],
+            'salesChart' => $demo->salesChart(),
         ]);
     })->name('design-system');
 }

@@ -7,6 +7,7 @@ use App\Enums\StockReason;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
+use App\Models\MoneyAccount;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Inventory;
@@ -189,6 +190,175 @@ class TransactionControllerTest extends TestCase
         $foreign = $this->record(Business::factory()->create(), ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 1000]);
 
         $this->actingAs(User::factory()->create())->get(route('transactions.show', $foreign))->assertNotFound();
+    }
+
+    public function test_the_edit_form_starts_from_the_record_with_stock_and_balance_as_if_it_were_cancelled(): void
+    {
+        [$business, $water, $sale] = $this->creditSale();
+
+        $this->actingAs($business->user)->get(route('transactions.edit', $sale))->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('transactions/create')
+            ->where('initialType', 'penjualan')
+            ->where('editing', ['id' => $sale->id, 'description' => '3 Air Mineral'])
+            ->where('initial.method', 'kredit')
+            ->where('initial.paid_amount', 2000)
+            ->where('initial.contact', (string) $sale->contact_id)
+            ->where('initial.lines', [['item_id' => (string) $water->id, 'qty' => '3', 'price' => 4000]])
+            ->where('items.0.stock', 10)
+            ->where('items.0.stockValue', 25000)
+            ->where('contacts.0.balance', 0));
+    }
+
+    public function test_saving_an_edit_replaces_the_record_and_opens_the_new_one(): void
+    {
+        [$business, $water, $sale] = $this->creditSale();
+
+        $response = $this->actingAs($business->user)->put(route('transactions.update', $sale), [
+            'type' => 'penjualan', 'method' => 'kredit', 'paid_amount' => 2000, 'contact_id' => $sale->contact_id,
+            'lines' => [['item_id' => $water->id, 'qty' => 2, 'price' => 4000]],
+        ]);
+
+        $replacement = Transaction::query()->where('status', 'posted')->sole();
+        $response->assertRedirect(route('transactions.show', $replacement))->assertInertiaFlash('toast.message', 'Perubahan disimpan.');
+        $this->assertSame('8.000', $water->refresh()->stock);
+        $this->get(route('transactions.show', $sale))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transaction.voided', true)
+            ->where('transaction.replacedById', $replacement->id));
+        $this->get(route('transactions.show', $replacement))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transaction.replacesId', $sale->id));
+    }
+
+    public function test_cancelling_keeps_the_record_with_its_reason_and_both_journals(): void
+    {
+        [$business, $water, $sale] = $this->creditSale();
+        $this->actingAs($business->user);
+
+        $this->post(route('transactions.cancel', $sale), ['reason' => 'Tercatat dua kali'])
+            ->assertRedirect(route('transactions.show', $sale))
+            ->assertInertiaFlash('toast.message', 'Catatan dibatalkan.');
+
+        $this->assertSame('10.000', $water->refresh()->stock);
+        $this->get(route('transactions.show', $sale))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transaction.voided', true)
+            ->where('transaction.voidReason', 'Tercatat dua kali')
+            ->has('journal', 2)
+            ->has('movements', 2));
+
+        $this->post(route('transactions.cancel', $sale))->assertSessionHasErrors(['transaction' => 'Catatan ini sudah dibatalkan.']);
+        $this->get(route('transactions.edit', $sale))
+            ->assertRedirect(route('transactions.show', $sale))
+            ->assertInertiaFlash('toast.message', 'Catatan ini sudah dibatalkan.');
+    }
+
+    public function test_another_businesses_transaction_cannot_be_edited_or_cancelled(): void
+    {
+        $foreign = $this->record(Business::factory()->create(), ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 1000]);
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('transactions.edit', $foreign))->assertNotFound();
+        $this->put(route('transactions.update', $foreign), ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 5000])->assertNotFound();
+        $this->post(route('transactions.cancel', $foreign))->assertNotFound();
+        $this->assertSame([1, 0], [Transaction::query()->count(), Transaction::query()->where('status', 'void')->count()]);
+    }
+
+    public function test_non_cash_asks_for_the_rekening_only_when_there_are_several(): void
+    {
+        $business = Business::factory()->create();
+        $this->actingAs($business->user);
+        $setor = ['type' => 'modal', 'kind' => 'setor', 'method' => 'non_tunai', 'amount' => 25_000];
+
+        $this->post(route('transactions.store'), $setor)->assertSessionHasNoErrors();
+        $gopay = MoneyAccount::factory()->for($business)->create(['name' => 'GoPay']);
+        $this->post(route('transactions.store'), $setor)->assertSessionHasErrors(['money_account_id' => 'Pilih rekeningnya.']);
+        $this->post(route('transactions.store'), $setor + ['money_account_id' => $business->cashBox()->id])
+            ->assertSessionHasErrors(['money_account_id' => 'Rekening tidak ditemukan atau sudah diarsipkan.']);
+        $this->post(route('transactions.store'), $setor + ['money_account_id' => $gopay->id])->assertSessionHasNoErrors();
+
+        $this->get(route('transactions.create'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('moneyAccounts', 3)
+            ->where('moneyAccounts.2', ['id' => $gopay->id, 'kind' => 'non_tunai', 'name' => 'GoPay', 'balance' => 25_000]));
+    }
+
+    public function test_a_transfer_is_recorded_from_the_form_and_shows_both_rekening(): void
+    {
+        $business = Business::factory()->create();
+        $this->actingAs($business->user);
+        $bca = $business->moneyAccounts()->where('kind', 'non_tunai')->sole();
+        $bca->update(['name' => 'BCA']);
+
+        $this->post(route('transactions.store'), ['type' => 'pindah_dana', 'money_account_id' => $business->cashBox()->id, 'to_money_account_id' => $business->cashBox()->id, 'amount' => 1000])
+            ->assertSessionHasErrors(['to_money_account_id' => 'Rekening asal dan tujuan harus berbeda.']);
+        $this->post(route('transactions.store'), ['type' => 'pindah_dana', 'method' => 'tunai', 'money_account_id' => $business->cashBox()->id, 'to_money_account_id' => $bca->id, 'amount' => 100_000])
+            ->assertSessionHasErrors('method');
+        $this->post(route('transactions.store'), ['type' => 'pindah_dana', 'money_account_id' => $business->cashBox()->id, 'to_money_account_id' => $bca->id, 'amount' => 100_000])
+            ->assertInertiaFlash('toast.message', 'Pindah dana tersimpan.');
+
+        $transfer = Transaction::query()->sole();
+        $this->get(route('transactions.index'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transactions.data.0.description', 'Setor tunai ke BCA')
+            ->where('transactions.data.0.moneyAccount', 'Kas tunai')
+            ->where('transactions.data.0.toMoneyAccount', 'BCA')
+            ->where('transactions.data.0.direction', 'none'));
+        $this->get(route('transactions.edit', $transfer))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('initial.money_account_id', (string) $business->cashBox()->id)
+            ->where('initial.to_money_account_id', (string) $bca->id)
+            // As if the transfer were cancelled, so the preview starts from before it.
+            ->where('moneyAccounts.0.balance', 0));
+    }
+
+    /**
+     * @return array<string, array{0: array<string, mixed>, 1: string, 2: string}>
+     */
+    public static function invalidOpeningBalances(): array
+    {
+        return [
+            'cash without its rekening' => [['kind' => 'saldo_kas', 'amount' => 1000], 'money_account_id', 'Pilih rekeningnya.'],
+            'equipment without a name' => [['kind' => 'saldo_peralatan', 'amount' => 1000], 'note', 'Tulis nama peralatannya, misalnya kompor dua tungku.'],
+            'a debt without its supplier' => [['kind' => 'saldo_utang', 'amount' => 1000], 'contact_id', 'Pilih atau tambahkan nama suppliernya.'],
+            'a method to choose' => [['kind' => 'saldo_peralatan', 'amount' => 1000, 'note' => 'Etalase', 'method' => 'tunai'], 'method', 'Cara bayarnya mengikuti rekening atau jenis catatan ini, jadi tidak perlu dipilih.'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    #[DataProvider('invalidOpeningBalances')]
+    public function test_an_opening_balance_asks_for_what_its_kind_needs(array $payload, string $field, string $message): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->post(route('transactions.store'), ['type' => 'saldo_awal'] + $payload)
+            ->assertSessionHasErrors([$field => $message]);
+    }
+
+    public function test_opening_balances_are_not_counted_as_money_coming_in(): void
+    {
+        $business = Business::factory()->create();
+        $this->actingAs($business->user);
+        $this->record($business, ['type' => 'saldo_awal', 'kind' => 'saldo_kas', 'amount' => 900_000, 'money_account_id' => $business->cashBox()->id]);
+        $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 100_000]);
+
+        $this->get(route('transactions.index'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('transactions.summary', ['cashIn' => 100_000, 'cashOut' => 0, 'count' => 2]));
+        $this->get(route('transactions.create', ['jenis' => 'saldo_awal']))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('initialType', 'saldo_awal'));
+    }
+
+    /**
+     * Three of ten bottles sold on credit to Bu Sari, Rp2.000 paid on the spot.
+     *
+     * @return array{0: Business, 1: Item, 2: Transaction}
+     */
+    private function creditSale(): array
+    {
+        $business = Business::factory()->create();
+        $water = Item::factory()->for($business)->create(['name' => 'Air Mineral', 'price' => 4000]);
+        app(Inventory::class)->receive($water, 10, 2500, StockReason::StokAwal, '3101');
+        $sale = $this->record($business, [
+            'type' => 'penjualan', 'method' => 'kredit', 'paid_amount' => 2000, 'contact_name' => 'Bu Sari',
+            'lines' => [['item_id' => $water->id, 'qty' => 3, 'price' => 4000]],
+        ]);
+
+        return [$business, $water, $sale];
     }
 
     /**

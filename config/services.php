@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    // The assistant's model, behind an OpenAI-compatible gateway (9Router, PRD §3.1).
+    'llm' => [
+        'url' => env('LLM_BASE_URL', 'http://localhost:20128/v1'),
+        'key' => env('LLM_API_KEY'),
+        'model' => env('LLM_MODEL_TEXT', 'ag/gemini-3.8-flash-low'),
+        'timeout' => (int) env('LLM_TIMEOUT', 20),
+    ],
+
 ];

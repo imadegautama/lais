@@ -1,12 +1,15 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
+import { ActivityList } from '@/components/app/activity-list';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { index as activityLog } from '@/routes/activity';
 import { edit } from '@/routes/security';
+import type { ActivityEntry } from '@/types/domain';
 import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys';
 import ManagePasskeys from '@/components/manage-passkeys';
 import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
@@ -15,6 +18,7 @@ import ManageTwoFactor from '@/components/manage-two-factor';
 // oxfmt-ignore
 type Props = {
     passwordRules: string;
+    activities: ActivityEntry[];
 } & ManagePasskeysProps &
     ManageTwoFactorProps;
 
@@ -134,6 +138,21 @@ export default function Security(props: Props) {
                 canManagePasskeys={props.canManagePasskeys}
                 passkeys={props.passkeys}
             />
+
+            <div className="space-y-6">
+                <Heading
+                    variant="small"
+                    title="Aktivitas akun"
+                    description="Masuk, keluar, dan perubahan keamanan terbaru. Kalau ada yang tidak kamu kenali, segera ganti password."
+                />
+                <ActivityList entries={props.activities} />
+                <Link
+                    href={activityLog({ query: { kategori: ['akun'] } })}
+                    className="inline-block rounded-sm text-sm font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                    Lihat semua di Log aktivitas
+                </Link>
+            </div>
         </>
     );
 }

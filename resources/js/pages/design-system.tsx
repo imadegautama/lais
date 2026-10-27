@@ -5,6 +5,7 @@ import {
     CircleCheck,
     CircleX,
     Coins,
+    HandCoins,
     Package,
     Plus,
     Search,
@@ -13,6 +14,8 @@ import {
 import { useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ActionButton, SoonTag } from '@/components/app/action-button';
+import { AssistantFilledNote } from '@/components/app/assistant/assistant-panel';
+import { useAssistant } from '@/components/app/assistant/assistant-provider';
 import {
     CategoryBadge,
     ItemKindBadge,
@@ -63,14 +66,15 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { formatRupiah } from '@/lib/format';
+import { index as transactionsIndex } from '@/routes/transactions';
 import type {
     OrderStatus,
     PaymentStatus,
     PeriodKey,
     TransactionRow,
     TransactionSource,
-    TransactionType,
 } from '@/types/domain';
+import { TransactionType } from '@/types/enums';
 
 type Props = {
     transactions: TransactionRow[];
@@ -296,6 +300,7 @@ function Panel({
 }
 
 export default function DesignSystem({ transactions, salesChart }: Props) {
+    const assistant = useAssistant();
     const [money, setMoney] = useState<number | null>(45_000);
     const [qty, setQty] = useState(3);
     const [kg, setKg] = useState(1.5);
@@ -890,9 +895,12 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 Kotak ringkasan
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                Untuk baris ringkasan di dalam kartu fokus.
-                                Kuning dan merah hanya jika ada masalah nyata.
-                                Angka sehat tetap abu dengan tanda centang.
+                                Untuk baris ringkasan, di dalam kartu fokus atau
+                                sebagai baris kartu dashboard. Kuning dan merah
+                                hanya jika ada masalah nyata. Angka sehat tetap
+                                abu dengan tanda centang. Dengan{' '}
+                                <code>href</code> seluruh kotak bisa diketuk dan
+                                membuka catatan di baliknya.
                             </p>
                             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                                 <MetricTile
@@ -927,6 +935,18 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                         <MetricCount value={0} unit="item" />
                                     }
                                     detail="Tidak ada stok minus."
+                                />
+                                <MetricTile
+                                    label="Penjualan"
+                                    icon={HandCoins}
+                                    href={transactionsIndex.url({
+                                        query: {
+                                            jenis: TransactionType.Penjualan,
+                                        },
+                                    })}
+                                    value={<Money value={312_000} size="xl" />}
+                                    detail="Bisa diketuk: membuka daftar penjualan"
+                                    className="col-span-2 md:col-span-1"
                                 />
                             </div>
                         </Panel>
@@ -1158,7 +1178,7 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                 <Section
                     id="umpan-balik"
                     title="Umpan balik"
-                    intro="Toast untuk hasil aksi yang singkat: kartu putih dengan chip ikon sesuai status (warna badge yang sama), muncul di atas bottom nav di HP. Dialog atau drawer untuk pilihan; drawer dipakai di HP supaya terjangkau jempol. Semua tertutup dengan Esc."
+                    intro="Toast untuk hasil aksi yang singkat: kartu putih dengan chip ikon sesuai status (warna badge yang sama), muncul di atas bottom nav di HP. Dialog atau drawer untuk pilihan; drawer dipakai di HP supaya terjangkau jempol. Tanya AI memakai sheet kanan yang tidak mengunci halaman di desktop, dan catatan di bawah muncul di form yang diisinya. Semua tertutup dengan Esc."
                 >
                     <Panel className="flex flex-wrap gap-2">
                         <Button
@@ -1225,7 +1245,16 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 </Button>
                             }
                         />
+                        <Button
+                            variant="outline"
+                            onClick={() => assistant.setOpen(true)}
+                        >
+                            Buka Tanya AI
+                        </Button>
                     </Panel>
+                    <div className="mt-4 max-w-xl">
+                        <AssistantFilledNote />
+                    </div>
                 </Section>
 
                 <Section

@@ -16,6 +16,8 @@ export function FormActionBar({
 }) {
     return (
         <div
+            // app.css lifts the floating "Tanya AI" button above this bar.
+            data-slot="form-action-bar"
             className={cn(
                 'sticky bottom-[calc(4rem+1px+env(safe-area-inset-bottom))] z-20 -mx-4 mt-auto -mb-4 flex flex-wrap items-center gap-2 border-t bg-card px-4 py-3 shadow-bar md:-mx-6 md:-mb-6 md:px-6 lg:bottom-0',
                 className,

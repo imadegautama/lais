@@ -20,6 +20,8 @@ export const TransactionType = {
     Biaya: 'biaya',
     UtangPiutang: 'utang_piutang',
     Modal: 'modal',
+    PindahDana: 'pindah_dana',
+    SaldoAwal: 'saldo_awal',
 } as const;
 
 export type TransactionType = (typeof TransactionType)[keyof typeof TransactionType];
@@ -30,6 +32,8 @@ export const transactionTypeLabels: Record<TransactionType, string> = {
     biaya: 'Biaya',
     utang_piutang: 'Utang-piutang',
     modal: 'Modal',
+    pindah_dana: 'Pindah dana',
+    saldo_awal: 'Saldo awal',
 };
 
 export const TransactionKind = {
@@ -46,6 +50,10 @@ export const TransactionKind = {
     BayarUtang: 'bayar_utang',
     Setor: 'setor',
     Prive: 'prive',
+    SaldoKas: 'saldo_kas',
+    SaldoPeralatan: 'saldo_peralatan',
+    SaldoUtang: 'saldo_utang',
+    SaldoPiutang: 'saldo_piutang',
 } as const;
 
 export type TransactionKind = (typeof TransactionKind)[keyof typeof TransactionKind];
@@ -64,6 +72,10 @@ export const transactionKindLabels: Record<TransactionKind, string> = {
     bayar_utang: 'Bayar utang ke supplier',
     setor: 'Setor modal',
     prive: 'Ambil untuk pribadi',
+    saldo_kas: 'Kas & rekening',
+    saldo_peralatan: 'Peralatan',
+    saldo_utang: 'Utang ke supplier',
+    saldo_piutang: 'Piutang pelanggan',
 };
 
 export const PaymentMethod = {
@@ -149,6 +161,54 @@ export const periodLabels: Record<Period, string> = {
     bulan_ini: 'Bulan ini',
 };
 
+export const ActivityCategory = {
+    Transaksi: 'transaksi',
+    Produk: 'produk',
+    Kontak: 'kontak',
+    Rekening: 'rekening',
+    Akun: 'akun',
+} as const;
+
+export type ActivityCategory = (typeof ActivityCategory)[keyof typeof ActivityCategory];
+
+export const activityCategoryLabels: Record<ActivityCategory, string> = {
+    transaksi: 'Transaksi',
+    produk: 'Produk',
+    kontak: 'Kontak',
+    rekening: 'Rekening',
+    akun: 'Akun',
+};
+
+export const MoneyAccountKind = {
+    Tunai: 'tunai',
+    NonTunai: 'non_tunai',
+} as const;
+
+export type MoneyAccountKind = (typeof MoneyAccountKind)[keyof typeof MoneyAccountKind];
+
+export const moneyAccountKindLabels: Record<MoneyAccountKind, string> = {
+    tunai: 'Tunai',
+    non_tunai: 'Non-tunai',
+};
+
+export const BusinessCategory = {
+    Kuliner: 'kuliner',
+    Kelontong: 'kelontong',
+    Fashion: 'fashion',
+    Kerajinan: 'kerajinan',
+    Lainnya: 'lainnya',
+} as const;
+
+export type BusinessCategory = (typeof BusinessCategory)[keyof typeof BusinessCategory];
+
+export const businessCategoryLabels: Record<BusinessCategory, string> = {
+    kuliner: 'Kuliner',
+    kelontong: 'Kelontong',
+    fashion: 'Fashion',
+    kerajinan: 'Kerajinan',
+    lainnya: 'Lainnya',
+};
+
 export const soldItemKinds: readonly ItemKind[] = ['produk', 'komposisi'];
 
 export const stockedItemKinds: readonly ItemKind[] = ['produk', 'bahan'];
@@ -159,6 +219,8 @@ export const transactionTypeMethods: Record<TransactionType, readonly PaymentMet
     biaya: ['tunai', 'non_tunai', 'kredit', 'pribadi'],
     utang_piutang: ['tunai', 'non_tunai'],
     modal: ['tunai', 'non_tunai'],
+    pindah_dana: [],
+    saldo_awal: [],
 };
 
 export const transactionTypeKinds: Record<TransactionType, readonly TransactionKind[]> = {
@@ -167,4 +229,6 @@ export const transactionTypeKinds: Record<TransactionType, readonly TransactionK
     biaya: ['listrik_air', 'gas_bbm', 'sewa', 'upah', 'transport', 'pemasaran', 'lain'],
     utang_piutang: ['terima_piutang', 'bayar_utang'],
     modal: ['setor', 'prive'],
+    pindah_dana: [],
+    saldo_awal: ['saldo_kas', 'saldo_peralatan', 'saldo_utang', 'saldo_piutang'],
 };

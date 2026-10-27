@@ -79,6 +79,12 @@ export function JournalCard({
                                                 {line.code}
                                             </span>{' '}
                                             {line.account}
+                                            {line.moneyAccount && (
+                                                <span className="text-muted-foreground">
+                                                    {' '}
+                                                    · {line.moneyAccount}
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="num py-2 text-right">
                                             {line.debit > 0 && (

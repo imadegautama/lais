@@ -110,7 +110,17 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 - Daftar memakai nama, nomor WA, dan password. Login memakai nomor WA dan password, tanpa email.
 - Nomor WA diverifikasi lewat OTP 6 digit yang dikirim bot. OTP berlaku 5 menit, maksimal 3 permintaan per 15 menit.
-- Wizard onboarding berisi: profil usaha (nama, slug toko, gambar QRIS), saldo awal kas tunai dan non-tunai, peralatan (nama dan nilai), stok awal, dan utang awal (opsional).
+- Wizard onboarding berisi:
+    - profil usaha: nama, jenis usaha, dan tanggal mulai pembukuan
+    - saldo awal tiap rekening (bisa menambah rekening)
+    - peralatan (nama dan nilai)
+    - produk dan bahan dengan stok awal, dengan tombol "Pakai contoh" per jenis usaha
+    - utang awal ke supplier dan piutang awal pelanggan (opsional)
+    - ringkasan neraca awal
+
+    Slug toko, logo, dan gambar QRIS ditambahkan ke wizard bersama halaman toko (M4), dan kartu "Hubungkan WhatsApp" bersama GOWA.
+
+- Wizard bisa dilewati. Drafnya tersimpan setiap langkah, dan dashboard serta Kas & rekening menampilkan pengingat sampai wizard selesai. Tanggal mulai paling lambat hari catatan pertama yang sudah ada.
 - Sistem membuat jurnal saldo awal. Modal awal = total aset awal − utang awal, dan neraca hari pertama langsung seimbang.
 - Pemilik baru bisa menyelesaikan onboarding dengan 5 produk dalam ≤ 10 menit (uji ke 3 orang).
 - Reset password memakai OTP WA, jadi tidak perlu SMTP.
@@ -143,9 +153,13 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 **US-05.** Sebagai pemilik, saya ingin mencatat lima jenis transaksi lewat form web, supaya semua kegiatan usaha tercatat.
 
-- Kategori mengikuti Bab 4 buku acuan: **Penjualan**, **Pembelian** (bahan, barang dagang, peralatan), **Biaya Operasional**, **Utang-Piutang** (bayar utang, terima piutang), dan **Modal** (setor, ambil pribadi).
+- Kategori mengikuti Bab 4 buku acuan: **Penjualan**, **Pembelian** (bahan, barang dagang, peralatan), **Biaya Operasional**, **Utang-Piutang** (bayar utang, terima piutang), dan **Modal** (setor, ambil pribadi). Ditambah **Pindah dana** antar rekening (setor tunai ke bank, tarik tunai, antar rekening), yang tidak mengubah jumlah uang usaha. Ada juga **Saldo awal** yang dicatat saat mulai: kas per rekening, peralatan, utang ke supplier, dan piutang pelanggan. Modal Pemilik menampung selisihnya, sehingga laporan perubahan modal bisa memisahkan modal awal dari setoran. Saldo awal tidak dihitung sebagai uang masuk.
 - Subkategori biaya operasional: listrik & air, gas & bahan bakar, sewa, upah karyawan, transportasi & ongkir, pemasaran, lain-lain.
-- Metode bayar: tunai, non-tunai (QRIS/transfer), kredit (belum dibayar), atau uang pribadi (khusus pembelian dan biaya).
+- Metode bayar:
+    - tunai (masuk Kas tunai)
+    - non-tunai (QRIS/transfer, ke rekening yang dipilih; pilihan baru muncul kalau rekening non-tunainya lebih dari satu)
+    - kredit (belum dibayar)
+    - uang pribadi (khusus pembelian dan biaya)
 - Setiap transaksi yang disimpan menghasilkan jurnal sesuai tabel §4.4, dalam satu transaksi database (atomic).
 - Transaksi tidak pernah dihapus. "Batalkan" membuat jurnal pembalik dan mutasi stok pembalik. "Ubah" berarti batalkan lalu buat ulang. Riwayatnya tetap terlihat.
 - Bukti transaksi (foto) bisa dilampirkan: jpg/png/webp, maksimal 5 MB.
@@ -170,6 +184,10 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - "setor 1jt" atau "tambah modal 1jt" dicatat sebagai setoran modal.
 - Pembelian atau biaya yang dibayar pakai uang pribadi ("beli gas 25rb pakai uang sendiri") otomatis tercatat sebagai setoran modal, jadi kas usaha tidak berubah tetapi biayanya tetap tercatat.
 - Dashboard menampilkan saldo kas usaha (tunai + non-tunai) dan total diambil pribadi bulan ini, berdampingan.
+- **Kas & rekening:** uang usaha dirinci per tempatnya, yaitu satu Kas tunai dan satu atau lebih rekening non-tunai (BCA, GoPay, dan seterusnya).
+    - Rekening dikelola pemilik: tambah, ganti nama, dan arsipkan saat saldonya Rp0.
+    - Saldo tiap rekening dihitung dari jurnal.
+    - Bagan akun tetap; rekening adalah rincian di bawah 1101/1102.
 
 #### M4. Pesanan & Halaman Toko
 
@@ -237,6 +255,34 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Pertanyaan di luar urusan usaha ditolak dengan sopan dan diarahkan ke contoh pertanyaan yang didukung.
 - Permintaan "kirim laporan bulan ini pdf" di WA dibalas dengan file PDF (memakai M6).
 
+**US-14a (sprint web, 27 Okt 2026).** Sebagai pemilik, saya ingin menceritakan transaksi atau produk baru dengan bahasa biasa di web, lalu cukup mengonfirmasi ringkasannya, supaya tidak bingung field mana yang harus diisi.
+
+- Panel "Tanya AI" bisa dibuka dari halaman aplikasi mana pun (UI-PAGES C19). AI menyusun draf catatan transaksi atau produk baru (termasuk resep), lalu panel menampilkannya sebagai kartu ringkasan: baris, subtotal, total, cara bayar, dan kontak.
+- Pemilik mengonfirmasi dengan tombol **Simpan** atau membalas "iya", "oke", "gas", atau "simpan". Setelah tersimpan, panel memberi link ke catatannya.
+    - Konfirmasi dideteksi server dengan aturan tetap (`FormAssistant::confirms()`), bukan oleh model, dan hanya berlaku untuk draf yang sudah ditunjukkan.
+    - Draf divalidasi ulang dengan `TransactionRequest` atau `ItemRequest`, lalu disimpan lewat `TransactionService` atau `Catalog`, sama seperti tombol Simpan di form.
+    - Ini menjaga target §3.2: 0 kasus tersimpan tanpa konfirmasi.
+- **Ubah di form:** draf dipindahkan ke form C3 atau C6 untuk dikoreksi, lalu disimpan dari form. Setelah itu draf di chat tidak bisa disimpan lagi.
+- Data yang masih kurang dinilai oleh aturan validasi Simpan, bukan oleh AI, lalu disebut di kartu sebagai "Masih kurang". Selama masih ada yang kurang, tombol Simpan tidak muncul.
+- Permintaan di luar mencatat (misalnya menulis kode atau pertanyaan umum) dijawab dengan kalimat tetap yang mengarahkan kembali ke pencatatan.
+- Service yang sama (`App\Services\Ai\FormAssistant`) nanti dipakai bot WA, dengan konfirmasi lewat balasan chat. Tanya-jawab soal usaha (US-14) menyusul di sprint berikutnya.
+
+**US-14b (27 Okt 2026).** Sebagai pemilik, saya ingin bertanya "ini dicatat di mana?" dengan bahasa biasa, supaya tahu jenis catatan yang benar dan data yang perlu disiapkan.
+
+- Pemilik tetap mengetik bebas, tanpa memilih topik. AI hanya menggolongkan pertanyaannya ke satu topik di `App\Enums\GuideTopic`, misalnya:
+    - uang pribadi masuk usaha
+    - bayar pakai uang pribadi
+    - beli peralatan
+    - stok tidak sesuai
+    - baru mulai
+    - belum didukung
+- Penjelasan dan daftar "Yang perlu disiapkan" ditulis di enum itu, bukan oleh AI, karena saran pembukuan yang salah merusak laporan.
+- Tombol lanjutan:
+    - Topik yang berujung ke catatan memberi tombol draf, misalnya "Catat setor modal Rp200.000". Draf memakai angka yang disebut di pertanyaan dan tetap butuh konfirmasi Simpan atau "iya".
+    - Topik lain memberi tombol ke halaman yang tepat (Pindah dana, Produk & stok, Saldo awal).
+- Pertanyaan pencatatan yang belum didukung (misalnya pinjaman bank) dijawab jujur.
+- Pertanyaan laporan ("untung bulan ini berapa?") untuk sementara diarahkan ke Dashboard sampai US-14 dibuat.
+
 #### M8. Ringkasan & Peringatan WA
 
 **US-15.** Sebagai pemilik, saya ingin menerima ringkasan dan peringatan otomatis, supaya tetap memantau usaha tanpa membuka aplikasi.
@@ -246,9 +292,9 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - **Peringatan stok:** setiap hari 07.00 WIB untuk item di bawah stok minimum. Item juga diberi perkiraan hari habis = stok / rata-rata pemakaian harian 7 hari terakhir, dan disebut jika ≤ 3 hari. Jika datanya kurang dari 3 hari, ditulis "data belum cukup".
 - **Cek kesehatan usaha** (aturan dari Bab 6 buku acuan, dihitung sistem):
     1. Laba bersih bulan berjalan > 0.
-    2. Saldo kas ≥ rata-rata pengeluaran bulanan (biaya operasional + pembelian, dari maksimal 3 bulan terakhir).
+    2. Saldo kas ≥ rata-rata pengeluaran bulanan (biaya operasional + pembelian, dari maksimal 3 bulan terakhir). Rata-ratanya dibagi jumlah bulan yang benar-benar ada catatannya, yaitu 1 sampai 3 bulan dihitung dari catatan pertama. Saldo awal tidak dihitung sebagai pengeluaran.
     3. Total kewajiban ≤ ekuitas.
-    4. Prive bulan berjalan ≤ laba bersih bulan berjalan, artinya modal tidak tergerus (kasus Pak Darto).
+    4. Prive bulan berjalan ≤ laba bersih bulan berjalan, artinya modal tidak tergerus (kasus Pak Darto). Kalau tidak ada yang diambil, aturan ini lulus walaupun bulan itu rugi; kerugiannya sudah tertangkap di aturan 1.
 - Setiap aturan ditampilkan lulus/tidak di dashboard dan disebut di ringkasan jika tidak lulus.
 - Jika LLM gagal atau timeout 10 detik, ringkasan tetap terkirim dalam versi template tanpa insight.
 - Pemilik bisa mematikan setiap jenis pesan terjadwal.
@@ -301,7 +347,12 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 **Penyedia model:** 9Router sebagai gateway, dengan Gemini di belakangnya. 9Router menyediakan `POST /v1/chat/completions` berformat OpenAI dengan header `Authorization: Bearer <api-key>`. ID model memakai prefix provider. Contoh untuk provider Gemini CLI: `gc/gemini-3-flash-preview`, `gc/gemini-2.5-flash`, `gc/gemini-2.5-pro`.
 
-**Klien di Laravel (urut pilihan):**
+**Klien di Laravel.** Hasil spike 27 Okt 2026: dipakai pilihan 2, HTTP client manual (`App\Services\Ai\LlmClient`), karena dua hal:
+
+- 9Router mengabaikan `response_format` (structured output), jadi yang bisa diandalkan hanya tool calling. `tool_choice: required` dan `stream: false` wajib dikirim.
+- Tool di AI SDK dijalankan dalam loop, sehingga ada panggilan kedua ke model. Itu menambah beberapa detik per pesan, padahal kita hanya butuh argumen tool-nya.
+
+Urutan pilihan semula:
 
 1. **Laravel AI SDK (`laravel/ai`)**, paket resmi Laravel 13. Agent didefinisikan sebagai class dengan `instructions()`, `tools()`, dan `schema()` untuk structured output. Tool berupa class `Tool` dengan `description()`, `handle()`, dan `schema()`. Gambar dikirim lewat `attachments` (`Files\Image::fromStorage()`). Base URL provider bisa diganti lewat `config/ai.php` (`'url' => env(...)`), jadi driver `openai` diarahkan ke 9Router.
 2. **Fallback: HTTP client Laravel manual** ke `/v1/chat/completions`. Dipakai jika driver `openai` di AI SDK ternyata memanggil endpoint yang tidak didukung 9Router, misalnya Responses API. Ini harus dicek saat spike.
@@ -309,12 +360,14 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 Base URL, API key, dan ID model disimpan di `.env`, jadi penyedia bisa diganti tanpa mengubah kode.
 
 ```
-OPENAI_BASE_URL=http://9router:20128/v1        # driver openai Laravel AI SDK → 9Router
-OPENAI_API_KEY=<key dari dashboard 9Router>
-LLM_MODEL_TEXT=gc/gemini-3-flash-preview       # contoh, final ditentukan saat spike
-LLM_MODEL_VISION=gc/gemini-3-flash-preview     # contoh, final ditentukan saat spike
-LLM_TIMEOUT=10
+LLM_BASE_URL=http://9router:20128/v1           # 9Router, OpenAI-compatible
+LLM_API_KEY=<key dari dashboard 9Router>
+LLM_MODEL_TEXT=ag/gemini-3.8-flash-low         # hasil spike: 2–7 detik per pesan
+LLM_MODEL_VISION=…                             # ditentukan saat pembaca nota (v1.1)
+LLM_TIMEOUT=20
 ```
+
+Varian `flash-high` dan `flash-medium` diuji dengan kalimat yang sama: ketepatannya sama, tetapi waktunya 25–60 detik dan kadang melewati batas waktu. Model tetap bisa diganti lewat `.env`.
 
 **Tugas AI:**
 
@@ -324,6 +377,16 @@ LLM_TIMEOUT=10
 | Asisten laporan (WA & web) | Pertanyaan + riwayat 6 pesan terakhir                                                                    | Panggilan tool baca, lalu jawaban teks | Tidak                                                 |
 | Narator ringkasan          | JSON fakta hasil hitungan sistem                                                                         | Maksimal 3 kalimat insight             | Tidak                                                 |
 | Pembaca nota (v1.1)        | Gambar nota + daftar item                                                                                | Draf pembelian                         | Tidak. Wajib konfirmasi                               |
+
+**Tool asisten web (US-14a, hanya menyusun draf):**
+
+- `isi_transaksi(jenis, jenis_biaya?, metode_bayar?, rekening?, tanggal?, kontak?, baris[{item, qty, harga?, total?}], nominal?, dibayar?, catatan?)`. `total` dipakai kalau pemilik menyebut harga seluruh baris ("beras 5 kg 70rb"); harga satuannya dihitung server, bukan AI.
+- `isi_produk(jenis, nama, alias[], satuan?, harga?, stok_awal?, biaya_per_unit?, stok_minimum?, resep[{bahan, qty}])`.
+- `tanya_balik(pertanyaan, pilihan[])`: hanya untuk isian yang ragu, termasuk satuan yang tidak sejenis dengan satuan produk (misalnya "4 kodi" untuk beras yang satuannya kg). Konversi hanya untuk yang pasti dan sejenis: gram/ons/kg, ml/liter, lusin dan kodi untuk barang hitungan.
+- `jelaskan(topik: GuideTopic, nominal?, kontak?, barang?)`: untuk pertanyaan "dicatat di mana?" (US-14b). Balasannya penjelasan tetap dari `GuideTopic`, ditambah draf atau link.
+- `jawab_singkat(jenis: sapaan | terima_kasih | di_luar_tugas | pertanyaan_laporan)`: balasannya kalimat tetap dari server. `di_luar_tugas` hanya untuk yang bukan soal usaha. Model tidak menulis teks bebas selain pertanyaan `tanya_balik`.
+- Server memperlakukan argumen tool sebagai input pengguna: nilai enum yang tidak dikenal dibuang, dan nama item, bahan, kontak, serta rekening hanya dicocokkan dengan data usaha itu sendiri. Balasan ke pemilik disusun dari template.
+- Tidak ada tool untuk menyimpan. Penyimpanan hanya lewat konfirmasi pemilik (lihat US-14a).
 
 **Tool tulis (hanya membuat draf):**
 
@@ -375,6 +438,8 @@ LLM_TIMEOUT=10
 | Keamanan                        | Feature test                                                                                                                                | Akses lintas usaha ditolak (403/404), webhook tanpa HMAC valid ditolak (401)                                                      | Setiap commit                                        |
 
 - Eval AI dijalankan sebagai grup test Pest terpisah (`--group=llm`) yang memanggil LLM sungguhan dan menulis laporan hasil ke `storage/eval/`.
+    - Grup ini dikecualikan dari `php artisan test` biasa (`phpunit.xml`).
+    - Eval pertama: `tests/Feature/AssistantEvalTest.php`, 22 kalimat untuk asisten web, termasuk satuan yang tidak sejenis, permintaan di luar tugas, dan pertanyaan "dicatat di mana?". Hasil 27 Okt 2026 dengan `ag/gemini-3.8-flash-low`: intent 100%, field 100%, rata-rata 3,3 detik. Set 60 pesan di tabel di atas tetap target sebelum submit.
 - Test deterministik tidak memanggil LLM. Respons LLM di-mock.
 
 ---
@@ -425,23 +490,24 @@ flowchart TB
 
 ### 4.2 Model Data (garis besar)
 
-| Tabel                                       | Kolom kunci                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `users`                                     | nama, `phone` (unik, terverifikasi), `wa_lid` (opsional), password, `phone_verified_at`                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `businesses`                                | `user_id`, nama, `slug` (unik), `qris_path`, timezone, jam ringkasan, preferensi notifikasi                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `items`                                     | `business_id`, jenis (`produk`, `bahan`, `komposisi`), nama, `aliases` (JSON), satuan, harga jual, `stok` DECIMAL(12,3), `biaya_rata` DECIMAL(14,4), stok minimum, `tampil_di_toko`, `tersedia`                                                                                                                                                                                                                                                                                                                             |
-| `recipe_lines`                              | `product_id`, `material_id`, qty                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `contacts`                                  | `business_id`, tipe (pelanggan/supplier), nama, `phone`                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `transactions`                              | `business_id`, jenis, `kind` (subjenis: barang/peralatan, kategori biaya, terima_piutang/bayar_utang, setor/prive), tanggal, metode bayar, total, `paid_amount` (bagian penjualan kredit yang dibayar di tempat), `cash_flow` (uang usaha masuk +/keluar −, dari baris kas jurnal), keterangan, catatan, status (`posted`/`void`), `voided_at`, `void_reason`, sumber (`web`/`wa`/`toko`/`ocr`), `contact_id`. Pembatalan menandai baris asli dan membuat jurnal + mutasi stok pembalik; tidak ada baris transaksi pembalik |
-| `transaction_lines`                         | `item_id`, qty, harga satuan, subtotal, `hpp` (total rupiah per baris, sama dengan bagiannya di baris HPP jurnal)                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `stock_movements`                           | `item_id`, qty (±), biaya satuan, `transaction_id`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `accounts`                                  | Bagan akun tetap (§4.4), di-seed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `journal_entries` / `journal_lines`         | `transaction_id`, tanggal, `account_id`, debit, kredit                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `orders` / `order_items` / `order_payments` | kode, `token`, status, status bayar, `contact_id`, `transaction_id`                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `wa_messages`                               | `message_id` (unik), arah, nomor, payload, `processed_at`                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `wa_drafts`                                 | `business_id`, payload draf (JSON), `expires_at`, status                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `otp_codes`                                 | `phone`, hash kode, tujuan, `expires_at`, jumlah percobaan                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `ai_logs`                                   | tugas, model, latensi, token, tool calls, status                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Tabel                                       | Kolom kunci                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`                                     | nama, `phone` (unik, terverifikasi), `wa_lid` (opsional), password, `phone_verified_at`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `businesses`                                | `user_id`, nama, `slug` (unik), `qris_path`, timezone, jam ringkasan, preferensi notifikasi                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `items`                                     | `business_id`, jenis (`produk`, `bahan`, `komposisi`), nama, `aliases` (JSON), satuan, harga jual, `stok` DECIMAL(12,3), `biaya_rata` DECIMAL(14,4), stok minimum, `tampil_di_toko`, `tersedia`                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `recipe_lines`                              | `product_id`, `material_id`, qty                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `contacts`                                  | `business_id`, tipe (pelanggan/supplier), nama, `phone`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `transactions`                              | `business_id`, jenis, `kind` (subjenis: barang/peralatan, kategori biaya, terima_piutang/bayar_utang, setor/prive), tanggal, metode bayar, total, `paid_amount` (bagian penjualan kredit yang dibayar di tempat), `cash_flow` (uang usaha masuk +/keluar −, dari baris kas jurnal), keterangan, catatan, status (`posted`/`void`), `voided_at`, `void_reason`, sumber (`web`/`wa`/`toko`/`ocr`), `contact_id`, `money_account_id` (rekening yang dipakai; asal untuk Pindah dana), `to_money_account_id` (tujuan Pindah dana). Pembatalan menandai baris asli dan membuat jurnal + mutasi stok pembalik; tidak ada baris transaksi pembalik |
+| `transaction_lines`                         | `item_id`, qty, harga satuan, subtotal, `hpp` (total rupiah per baris, sama dengan bagiannya di baris HPP jurnal)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `stock_movements`                           | `item_id`, qty (±), biaya satuan, `transaction_id`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `accounts`                                  | Bagan akun tetap (§4.4), di-seed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `money_accounts`                            | `business_id`, jenis (`tunai`/`non_tunai`), nama (unik per usaha), `deleted_at` (arsip). Satu Kas tunai per usaha, dibuat otomatis bersama satu rekening non-tunai                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `journal_entries` / `journal_lines`         | `transaction_id`, tanggal, `account_id`, `money_account_id` (wajib di baris 1101/1102), debit, kredit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `orders` / `order_items` / `order_payments` | kode, `token`, status, status bayar, `contact_id`, `transaction_id`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `wa_messages`                               | `message_id` (unik), arah, nomor, payload, `processed_at`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `wa_drafts`                                 | `business_id`, payload draf (JSON), `expires_at`, status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `otp_codes`                                 | `phone`, hash kode, tujuan, `expires_at`, jumlah percobaan                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `ai_logs`                                   | tugas, model, latensi, token, tool calls, status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 Aturan data:
 
@@ -466,23 +532,28 @@ Aturan data:
 
 Bagan akun tetap: 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 Persediaan, 1401 Peralatan, 2101 Utang Usaha, 2201 Uang Muka Pesanan, 3101 Modal Pemilik, 3201 Prive, 4101 Penjualan, 5101 HPP, 6101 Beban Operasional, 6201 Selisih Persediaan.
 
-| Transaksi                   | Debit                                                | Kredit                                                    |
-| --------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
-| Penjualan (lunas)           | Kas Tunai / Non-Tunai                                | Penjualan                                                 |
-| Penjualan (belum lunas)     | Kas (yang dibayar) + Piutang (sisa)                  | Penjualan                                                 |
-| HPP setiap penjualan        | HPP                                                  | Persediaan (qty × biaya rata-rata)                        |
-| DP pesanan                  | Kas                                                  | Uang Muka Pesanan                                         |
-| Pesanan selesai             | Uang Muka Pesanan + Kas (pelunasan) + Piutang (sisa) | Penjualan, lalu jurnal HPP                                |
-| Terima piutang              | Kas                                                  | Piutang                                                   |
-| Pembelian bahan/barang      | Persediaan                                           | Kas / Utang Usaha (kredit) / Modal Pemilik (uang pribadi) |
-| Pembelian peralatan         | Peralatan                                            | Kas / Utang Usaha / Modal Pemilik                         |
-| Bayar utang                 | Utang Usaha                                          | Kas                                                       |
-| Biaya operasional           | Beban Operasional                                    | Kas / Utang Usaha / Modal Pemilik                         |
-| Setor modal                 | Kas                                                  | Modal Pemilik                                             |
-| Ambil pribadi               | Prive                                                | Kas                                                       |
-| Koreksi stok kurang / lebih | Selisih Persediaan / Persediaan                      | Persediaan / Selisih Persediaan                           |
-| Saldo awal                  | Kas, Persediaan, Peralatan                           | Utang Usaha, Modal Pemilik (selisih)                      |
-| Pembatalan                  | Kebalikan dari jurnal asli                           |                                                           |
+| Transaksi                    | Debit                                                | Kredit                                                    |
+| ---------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
+| Penjualan (lunas)            | Kas Tunai / Non-Tunai                                | Penjualan                                                 |
+| Penjualan (belum lunas)      | Kas (yang dibayar) + Piutang (sisa)                  | Penjualan                                                 |
+| HPP setiap penjualan         | HPP                                                  | Persediaan (qty × biaya rata-rata)                        |
+| DP pesanan                   | Kas                                                  | Uang Muka Pesanan                                         |
+| Pesanan selesai              | Uang Muka Pesanan + Kas (pelunasan) + Piutang (sisa) | Penjualan, lalu jurnal HPP                                |
+| Terima piutang               | Kas                                                  | Piutang                                                   |
+| Pembelian bahan/barang       | Persediaan                                           | Kas / Utang Usaha (kredit) / Modal Pemilik (uang pribadi) |
+| Pembelian peralatan          | Peralatan                                            | Kas / Utang Usaha / Modal Pemilik                         |
+| Bayar utang                  | Utang Usaha                                          | Kas                                                       |
+| Biaya operasional            | Beban Operasional                                    | Kas / Utang Usaha / Modal Pemilik                         |
+| Setor modal                  | Kas                                                  | Modal Pemilik                                             |
+| Ambil pribadi                | Prive                                                | Kas                                                       |
+| Koreksi stok kurang / lebih  | Selisih Persediaan / Persediaan                      | Persediaan / Selisih Persediaan                           |
+| Saldo awal kas & rekening    | Kas (rekening itu)                                   | Modal Pemilik                                             |
+| Saldo awal peralatan         | Peralatan                                            | Modal Pemilik                                             |
+| Saldo awal piutang           | Piutang                                              | Modal Pemilik                                             |
+| Saldo awal utang             | Modal Pemilik                                        | Utang Usaha                                               |
+| Stok awal (dari form produk) | Persediaan                                           | Modal Pemilik                                             |
+| Pindah dana                  | Kas (rekening tujuan)                                | Kas (rekening asal)                                       |
+| Pembatalan                   | Kebalikan dari jurnal asli                           |                                                           |
 
 Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan − HPP − Beban Operasional − Selisih Persediaan.
 
@@ -496,6 +567,13 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 - **Rahasia:** semua kunci di `.env` dan tidak masuk repo. GOWA dan 9Router hanya bisa diakses dari jaringan internal Docker. HTTPS dipaksa.
 - **AI:** data yang dikirim ke LLM dibatasi ke yang dibutuhkan (nama item, harga, nama kontak), tanpa password atau token. Tool tulis hanya membuat draf.
 - **Data pribadi pelanggan:** hanya nama, nomor WA, dan alamat (jika diantar), mengikuti prinsip minimalisasi UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi. Pemilik bisa menghapus data kontak.
+- **Jejak audit (Log aktivitas):** mencatat siapa, kapan, lewat mana, dan apa yang berubah (nilai lama → baru) untuk:
+    - transaksi: dicatat, dibatalkan, diubah
+    - data master: produk, resep, koreksi stok, kontak
+    - akun: masuk, gagal masuk, ganti password, verifikasi dua langkah
+
+    Log hanya bisa ditambah. Aplikasi tidak bisa mengubah atau menghapusnya, dan setiap usaha hanya melihat lognya sendiri. Jurnal dan mutasi stok tidak ikut dicatat karena keduanya sudah menjadi jejak audit uang. Password dan kode rahasia tidak pernah dicatat.
+
 - **Backup:** `mysqldump` harian, disimpan 7 hari.
 - **Kepatuhan lomba:** kode 100% ditulis sendiri. Library open-source dicantumkan di README. Repo publik, situs live, responsif.
 
@@ -516,6 +594,8 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 | 9–10 Nov                  | Seed data demo, hardening, deploy final, README, rekam video, submit                                                                                                                                                                   | K1 tercapai di URL publik                                                  |
 
 **Garis potong (jika terlambat di akhir minggu 2):** v1.1 dibatalkan seluruhnya. Ringkasan mingguan dihapus, ringkasan harian tetap. PDF hanya untuk Laba Rugi dan Neraca. `bandingkan_periode` dihapus.
+
+**Fase akhir (9–10 Nov, setelah UI stabil):** tur pengenalan singkat yang menyorot tombol-tombol utama. Pilihan utamanya driver.js; navigasi keyboard dan kontrasnya dicek sebelum dipasang.
 
 **v1.1 (minggu 3 jika sempat, atau setelah lomba):** US-16 foto nota, US-17 pengingat piutang & pelanggan lama, US-18 peringatan margin, konversi satuan beli, dan upload bukti bayar oleh pelanggan.
 

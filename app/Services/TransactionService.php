@@ -2,17 +2,23 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityCategory;
+use App\Enums\ActivityEvent;
 use App\Enums\ContactType;
+use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
 use App\Enums\StockReason;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionSource;
+use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
+use App\Models\MoneyAccount;
 use App\Models\Transaction;
+use App\Support\Format;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +29,8 @@ use LogicException;
 /**
  * Records the five transaction types of PRD M2. Every transaction posts one
  * balanced journal entry (PRD §4.4) and its stock movements in one DB
- * transaction. The web form and, later, the WhatsApp bot both come through here.
+ * transaction. The web form and, later, the WhatsApp bot both come through here,
+ * and so do cancelling and editing (cancel(), replace()).
  */
 class TransactionService
 {
@@ -34,15 +41,37 @@ class TransactionService
      */
     public function record(Business $business, array $data, TransactionSource $source = TransactionSource::Web): Transaction
     {
+        return DB::transaction(function () use ($business, $data, $source) {
+            $transaction = $this->write($business, $data, $source);
+            $this->log($transaction, ActivityEvent::Created, ['total' => $transaction->total, 'source' => $source->value]);
+
+            return $transaction;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function write(Business $business, array $data, TransactionSource $source): Transaction
+    {
         $type = TransactionType::from((string) $data['type']);
         $kind = isset($data['kind']) ? TransactionKind::from((string) $data['kind']) : null;
-        $method = PaymentMethod::from((string) $data['method']);
+        [$from, $to] = match (true) {
+            $type === TransactionType::PindahDana => $this->transferAccounts($business, $data),
+            $kind === TransactionKind::SaldoKas => [$this->activeMoneyAccount($business, $data['money_account_id'] ?? null, 'money_account_id', missing: 'Pilih rekeningnya.'), null],
+            default => [null, null],
+        };
+        // A transfer and opening cash are paid the way their rekening holds money; other opening balances follow their kind.
+        $method = $from?->kind->method() ?? $kind?->openingMethod() ?? PaymentMethod::from((string) $data['method']);
 
-        if (! in_array($method, $type->methods(), true) || ($kind !== null && $kind->type() !== $type)) {
+        // Types with no methods to choose derive theirs above.
+        if (($type->methods() !== [] && ! in_array($method, $type->methods(), true)) || ($kind !== null && $kind->type() !== $type)) {
             throw new InvalidArgumentException("{$method->value} / {$kind?->value} is not allowed for {$type->value}.");
         }
 
-        return DB::transaction(function () use ($business, $data, $type, $kind, $method, $source) {
+        $from ??= $this->moneyAccountFor($business, $method, $data['money_account_id'] ?? null);
+
+        return DB::transaction(function () use ($business, $data, $type, $kind, $method, $source, $from, $to) {
             $occurredAt = isset($data['occurred_at']) ? Carbon::parse((string) $data['occurred_at']) : now();
             $contact = $this->contact($business, $data, $type, $kind);
             /** @var list<array{item_id: int, qty: float|int|string, price: int}> $lines */
@@ -56,17 +85,19 @@ class TransactionService
 
             $this->assertRules($business, $type, $kind, $method, $total, $paid, $contact);
 
-            $amounts = $this->moneyLines($type, $kind, $method, $total, $paid);
+            $amounts = $this->moneyLines($business, $type, $kind, $method, $total, $paid, $from, $to);
 
             $transaction = $business->transactions()->create([
                 'type' => $type,
                 'kind' => $kind,
                 'method' => $method,
+                'money_account_id' => $from?->id,
+                'to_money_account_id' => $to?->id,
                 'occurred_at' => $occurredAt,
                 'total' => $total,
                 'paid_amount' => $paid,
-                'cash_flow' => ($amounts[Account::CASH] ?? 0) + ($amounts[Account::NON_CASH] ?? 0),
-                'description' => $this->describe($type, $kind, $lines, $items, $contact, $data['note'] ?? null),
+                'cash_flow' => Ledger::cashTotal($amounts),
+                'description' => $this->describe($type, $kind, $lines, $items, $contact, $data['note'] ?? null, $from, $to),
                 'note' => $data['note'] ?? null,
                 'contact_id' => $contact?->id,
                 'source' => $source,
@@ -108,19 +139,178 @@ class TransactionService
     }
 
     /**
+     * "Batalkan" (PRD §4): the record stays, marked void, with a mirror journal
+     * and reversed stock movements. Nothing is ever deleted.
+     */
+    public function cancel(Transaction $transaction, ?string $reason = null): Transaction
+    {
+        return DB::transaction(function () use ($transaction, $reason) {
+            $this->void($transaction, $reason);
+            $this->assertNotOverpaid($transaction);
+            $this->log($transaction, ActivityEvent::Cancelled, ['reason' => $reason]);
+
+            return $transaction;
+        });
+    }
+
+    /**
+     * "Ubah": cancel and record again in one step, so leaving the form or a
+     * validation error never leaves the old record cancelled on its own.
+     *
+     * @param  array<string, mixed>  $data  validated TransactionRequest data
+     */
+    public function replace(Transaction $transaction, array $data): Transaction
+    {
+        return DB::transaction(function () use ($transaction, $data) {
+            $this->void($transaction, null);
+            $replacement = $this->write($transaction->business, $data, TransactionSource::Web);
+            $transaction->forceFill(['replaced_by_id' => $replacement->id])->save();
+            // Checked after recording again: a corrected total can still cover what was paid.
+            $this->assertNotOverpaid($transaction);
+
+            $this->log($transaction, ActivityEvent::Replaced, ['replacement_id' => $replacement->id], self::differences($transaction, $replacement));
+            $this->log($replacement, ActivityEvent::Created, ['total' => $replacement->total, 'replaces_id' => $transaction->id]);
+
+            return $replacement;
+        });
+    }
+
+    /**
+     * The journal is mirrored on the original date, so that period nets to
+     * zero like the transaction list, which leaves void records out.
+     */
+    private function void(Transaction $transaction, ?string $reason): void
+    {
+        if (Transaction::query()->whereKey($transaction->id)->lockForUpdate()->value('status') !== TransactionStatus::Posted) {
+            throw ValidationException::withMessages(['transaction' => 'Catatan ini sudah dibatalkan.']);
+        }
+
+        $movements = $transaction->stockMovements()->orderBy('stock_movements.id')->get();
+        $items = Item::query()->withTrashed()->whereKey($movements->pluck('item_id')->unique()->sort()->values())
+            ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        $archived = $items->filter(fn (Item $item) => $item->trashed());
+
+        if ($archived->isNotEmpty()) {
+            throw ValidationException::withMessages(['transaction' => "{$archived->pluck('name')->join(', ', ' dan ')} sudah diarsipkan, jadi stoknya tidak bisa dikembalikan."]);
+        }
+
+        $entries = $transaction->journalEntries()->with(['lines.account', 'lines.moneyAccount'])->get();
+        $archivedMoney = $entries->flatMap->lines->pluck('moneyAccount')->filter(fn (?MoneyAccount $moneyAccount): bool => $moneyAccount !== null && $moneyAccount->trashed())->pluck('name')->unique();
+
+        // The money would go back into a rekening nobody sees any more.
+        if ($archivedMoney->isNotEmpty()) {
+            throw ValidationException::withMessages(['transaction' => "Rekening {$archivedMoney->join(', ', ' dan ')} sudah diarsipkan, jadi uangnya tidak bisa dikembalikan."]);
+        }
+
+        $amounts = [];
+
+        foreach ($entries as $entry) {
+            foreach ($entry->lines as $line) {
+                // Cash lines keep their rekening, so each rekening gets its own money back.
+                $key = $line->money_account_id === null ? $line->account->code : "{$line->account->code}@{$line->money_account_id}";
+                $amounts = self::add($amounts, [$key => $line->credit - $line->debit]);
+            }
+        }
+
+        foreach ($movements as $movement) {
+            $reversed = $this->inventory->reverse($items[$movement->item_id], $movement, $transaction->id);
+            // Zero when the stock went back exactly; otherwise the gap is HPP, as in Inventory's rules.
+            $gap = $reversed->value + $movement->value;
+            $amounts = self::add($amounts, [Account::INVENTORY => $gap, Account::COGS => -$gap]);
+        }
+
+        $this->ledger->post($transaction->business, mb_strimwidth("Pembatalan: {$transaction->description}", 0, 255, '…'), Ledger::lines($amounts), $transaction, $transaction->occurred_at);
+
+        $transaction->forceFill(['status' => TransactionStatus::Void, 'voided_at' => now(), 'void_reason' => $reason])->save();
+    }
+
+    /**
+     * A credit record cannot go while payments against it remain: the contact
+     * would end up owed money back.
+     */
+    private function assertNotOverpaid(Transaction $transaction): void
+    {
+        if ($transaction->contact_id === null) {
+            return;
+        }
+
+        $balance = $this->ledger->contactBalances($transaction->business, $transaction->contact_id)[$transaction->contact_id] ?? 0;
+
+        if ($balance < 0) {
+            $contact = $transaction->contact;
+
+            throw ValidationException::withMessages(['transaction' => $contact->type === ContactType::Pelanggan
+                ? "{$contact->name} sudah membayar sebagian tagihan ini, jadi sisa tagihannya akan minus ".Format::rupiah(-$balance).'. Batalkan pembayarannya dulu.'
+                : "Pembayaran ke {$contact->name} sudah tercatat, jadi sisa utangnya akan minus ".Format::rupiah(-$balance).'. Batalkan pembayarannya dulu.']);
+        }
+    }
+
+    /**
+     * Audit log entry for a transaction (Log aktivitas). The journal already
+     * records the money; this records who did it and through which channel.
+     *
+     * @param  array<string, mixed>  $properties
+     * @param  array{old?: array<string, mixed>, attributes?: array<string, mixed>}  $changes
+     */
+    private function log(Transaction $transaction, ActivityEvent $event, array $properties = [], array $changes = []): void
+    {
+        $verb = match (true) {
+            $event !== ActivityEvent::Created => $event->verb(),
+            isset($properties['replaces_id']) => 'Mencatat ulang',
+            default => 'Mencatat',
+        };
+        $logger = activity(ActivityCategory::Transaksi)
+            ->event($event->value)
+            ->performedOn($transaction)
+            ->withProperties(array_filter($properties, fn ($value) => $value !== null));
+
+        if ($changes !== []) {
+            $logger->withChanges($changes);
+        }
+
+        $logger->log("{$verb} ".mb_strtolower($transaction->type->label()).": {$transaction->description}");
+    }
+
+    /**
+     * What "Ubah" changed, old and new side by side, for the audit log.
+     *
+     * @return array{old?: array<string, mixed>, attributes?: array<string, mixed>}
+     */
+    private static function differences(Transaction $old, Transaction $new): array
+    {
+        $fields = fn (Transaction $transaction) => [
+            'total' => $transaction->total,
+            'description' => $transaction->description,
+            'method' => $transaction->method->value,
+            'contact' => $transaction->contact?->name,
+            'money_account' => $transaction->moneyAccount?->name,
+            'to_money_account' => $transaction->toMoneyAccount?->name,
+            'occurred_at' => $transaction->occurred_at->toIso8601String(),
+        ];
+        [$before, $after] = [$fields($old), $fields($new)];
+        $changed = array_keys(array_filter($after, fn ($value, $key) => $value !== $before[$key], ARRAY_FILTER_USE_BOTH));
+
+        return $changed === [] ? [] : [
+            'old' => array_intersect_key($before, array_flip($changed)),
+            'attributes' => array_intersect_key($after, array_flip($changed)),
+        ];
+    }
+
+    /**
      * The money side of the journal (PRD §4.4); stock lines are added per line.
      *
      * @return array<int|string, int>
      */
-    private function moneyLines(TransactionType $type, ?TransactionKind $kind, PaymentMethod $method, int $total, int $paid): array
+    private function moneyLines(Business $business, TransactionType $type, ?TransactionKind $kind, PaymentMethod $method, int $total, int $paid, ?MoneyAccount $from, ?MoneyAccount $to): array
     {
-        $cash = (string) $method->cashAccount();
+        // Tunai and non-tunai land on their rekening; personal money is owner capital.
+        $cash = $from === null ? (string) $method->cashAccount() : Ledger::cashKey($from);
         $payable = $method === PaymentMethod::Kredit ? Account::PAYABLE : $cash;
 
         return match ($type) {
             TransactionType::Penjualan => $method === PaymentMethod::Kredit
-                // shortcut: the part paid on the spot of a credit sale is cash, add a method for it when orders/DP land.
-                ? self::add([Account::CASH => $paid, Account::RECEIVABLE => $total - $paid], [Account::SALES => -$total])
+                // shortcut: the part paid on the spot of a credit sale goes to Kas tunai, add a rekening for it when orders/DP land.
+                ? self::add([Ledger::cashKey($business->cashBox()) => $paid, Account::RECEIVABLE => $total - $paid], [Account::SALES => -$total])
                 : self::add([$cash => $total], [Account::SALES => -$total]),
             TransactionType::Pembelian => $kind === TransactionKind::Peralatan
                 ? self::add([Account::EQUIPMENT => $total], [$payable => -$total])
@@ -133,7 +323,76 @@ class TransactionService
             TransactionType::Modal => $kind === TransactionKind::Setor
                 ? self::add([$cash => $total], [Account::OWNER_CAPITAL => -$total])
                 : self::add([Account::DRAWINGS => $total], [$cash => -$total]),
+            // The money only changes place, so business cash stays the same.
+            TransactionType::PindahDana => self::add([Ledger::cashKey($to ?? throw new LogicException('A transfer needs its target.')) => $total], [$cash => -$total]),
+            // What the business had and owed when its books opened; Modal Pemilik takes the difference (PRD §4.4).
+            TransactionType::SaldoAwal => match ($kind) {
+                TransactionKind::SaldoKas => self::add([$cash => $total], [Account::OWNER_CAPITAL => -$total]),
+                TransactionKind::SaldoPeralatan => self::add([Account::EQUIPMENT => $total], [Account::OWNER_CAPITAL => -$total]),
+                TransactionKind::SaldoUtang => self::add([Account::OWNER_CAPITAL => $total], [Account::PAYABLE => -$total]),
+                TransactionKind::SaldoPiutang => self::add([Account::RECEIVABLE => $total], [Account::OWNER_CAPITAL => -$total]),
+                default => throw new LogicException("{$kind?->value} is not an opening balance."),
+            },
         };
+    }
+
+    /**
+     * Which rekening the money goes through: Kas tunai, or the chosen bank or
+     * e-wallet (the only one when there is just one). Credit and personal
+     * money touch none.
+     */
+    private function moneyAccountFor(Business $business, PaymentMethod $method, mixed $id): ?MoneyAccount
+    {
+        if ($method === PaymentMethod::Tunai) {
+            return $business->cashBox();
+        }
+
+        if ($method !== PaymentMethod::NonTunai) {
+            return null;
+        }
+
+        if (empty($id)) {
+            $only = $business->moneyAccounts()->where('money_accounts.kind', MoneyAccountKind::NonTunai)->limit(2)->get();
+
+            return $only->count() === 1
+                ? $only->sole()
+                : throw ValidationException::withMessages(['money_account_id' => 'Pilih rekeningnya.']);
+        }
+
+        return $this->activeMoneyAccount($business, $id, 'money_account_id', MoneyAccountKind::NonTunai);
+    }
+
+    /**
+     * Source and target of a Pindah dana: two different active rekening.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: MoneyAccount, 1: MoneyAccount}
+     */
+    private function transferAccounts(Business $business, array $data): array
+    {
+        $from = $this->activeMoneyAccount($business, $data['money_account_id'] ?? null, 'money_account_id');
+        $to = $this->activeMoneyAccount($business, $data['to_money_account_id'] ?? null, 'to_money_account_id');
+
+        if ($from->is($to)) {
+            throw ValidationException::withMessages(['to_money_account_id' => 'Rekening asal dan tujuan harus berbeda.']);
+        }
+
+        return [$from, $to];
+    }
+
+    private function activeMoneyAccount(Business $business, mixed $id, string $field, ?MoneyAccountKind $kind = null, ?string $missing = null): MoneyAccount
+    {
+        $moneyAccount = empty($id) ? null : $business->moneyAccounts()
+            ->when($kind, fn ($query) => $query->where('money_accounts.kind', $kind))
+            ->whereKey((int) $id)
+            ->first();
+
+        return $moneyAccount ?? throw ValidationException::withMessages([$field => match (true) {
+            ! empty($id) => 'Rekening tidak ditemukan atau sudah diarsipkan.',
+            $missing !== null => $missing,
+            $field === 'to_money_account_id' => 'Pilih rekening tujuannya.',
+            default => 'Pilih rekening asalnya.',
+        }]);
     }
 
     /**
@@ -164,7 +423,7 @@ class TransactionService
             }
 
             if ($total > $balance) {
-                throw ValidationException::withMessages(['amount' => "Sisa tagihan {$contact->name} ".self::rupiah($balance).'. Nominal tidak boleh lebih dari itu.']);
+                throw ValidationException::withMessages(['amount' => "Sisa tagihan {$contact->name} ".Format::rupiah($balance).'. Nominal tidak boleh lebih dari itu.']);
             }
         }
     }
@@ -238,17 +497,25 @@ class TransactionService
     }
 
     /**
-     * "3 Nasi Goreng, 2 Es Teh", "Listrik & air · token Oktober", "Terima bayaran dari Bu Sari".
+     * "3 Nasi Goreng, 2 Es Teh", "Listrik & air · token Oktober", "Terima bayaran dari Bu Sari", "Setor tunai ke BCA".
      *
      * @param  list<array{item_id: int, qty: float|int|string, price: int}>  $lines
      * @param  Collection<int, Item>  $items
      */
-    private function describe(TransactionType $type, ?TransactionKind $kind, array $lines, Collection $items, ?Contact $contact, mixed $note): string
+    private function describe(TransactionType $type, ?TransactionKind $kind, array $lines, Collection $items, ?Contact $contact, mixed $note, ?MoneyAccount $from, ?MoneyAccount $to): string
     {
         $note = is_string($note) && trim($note) !== '' ? trim($note) : null;
 
         $text = match (true) {
             $lines !== [] => self::listLines($type, $lines, $items),
+            // How owners say it: "setor tunai ke BCA", "tarik tunai dari BCA".
+            $type === TransactionType::PindahDana && $from?->kind === MoneyAccountKind::Tunai => "Setor tunai ke {$to?->name}",
+            $type === TransactionType::PindahDana && $to?->kind === MoneyAccountKind::Tunai => "Tarik tunai dari {$from?->name}",
+            $type === TransactionType::PindahDana => "Pindah dari {$from?->name} ke {$to?->name}",
+            $kind === TransactionKind::SaldoKas => "Saldo awal {$from?->name}",
+            $kind === TransactionKind::SaldoPeralatan => 'Saldo awal peralatan: '.($note ?? 'tanpa nama'),
+            $kind === TransactionKind::SaldoUtang => 'Utang awal ke '.($contact->name ?? 'supplier'),
+            $kind === TransactionKind::SaldoPiutang => 'Piutang awal '.($contact->name ?? 'pelanggan'),
             $kind === TransactionKind::Peralatan => 'Peralatan: '.($note ?? 'tanpa nama'),
             $kind === TransactionKind::TerimaPiutang => 'Terima bayaran dari '.($contact->name ?? 'pelanggan'),
             $kind === TransactionKind::BayarUtang => 'Bayar utang ke '.($contact->name ?? 'supplier'),
@@ -256,7 +523,8 @@ class TransactionService
             default => $kind?->label() ?? $type->label(),
         };
 
-        if ($note !== null && $type !== TransactionType::Pembelian) {
+        // Equipment carries its name in the note, so it is not appended twice.
+        if ($note !== null && $type !== TransactionType::Pembelian && $kind !== TransactionKind::SaldoPeralatan) {
             $text .= " · {$note}";
         }
 
@@ -271,7 +539,7 @@ class TransactionService
     {
         $parts = array_map(function (array $line) use ($type, $items) {
             $item = $items[(int) $line['item_id']];
-            $qty = rtrim(rtrim(number_format((float) $line['qty'], 3, ',', '.'), '0'), ',');
+            $qty = Format::qty($line['qty']);
 
             // Purchases read better with the unit ("30 butir Telur"); sales follow how owners talk ("3 Nasi Goreng").
             return $type === TransactionType::Penjualan ? "{$qty} {$item->name}" : "{$qty} {$item->unit} {$item->name}";
@@ -296,10 +564,5 @@ class TransactionService
         }
 
         return $amounts;
-    }
-
-    private static function rupiah(int $amount): string
-    {
-        return 'Rp'.number_format($amount, 0, ',', '.');
     }
 }

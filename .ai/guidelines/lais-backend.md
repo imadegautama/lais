@@ -15,6 +15,12 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - Label dan aturan yang menempel pada istilah ditulis sebagai method di enumnya, misalnya `label()`, `TransactionType::methods()`, `savedMessage()`, dan `ContactType::for()`.
     - Kolomnya di-cast ke enum di model.
 - Logika bisnis tidak boleh memakai literal seperti `'kredit'` atau `'komposisi'`. Bandingkan dengan enumnya: `$transaction->method === PaymentMethod::Kredit`.
+- Baris jurnal 1101/1102 selalu menyebut rekeningnya (`money_account_id`), dan `Ledger::post()` menolak baris kas tanpa rekening atau dengan jenis rekening yang salah.
+    - Di `Ledger::lines()` kuncinya `kode@rekening`, lewat `Ledger::cashKey($moneyAccount)`. Dengan begitu satu jurnal bisa memuat dua rekening 1102 (Pindah dana BCA → GoPay).
+    - Saldo rekening dibaca dari `Ledger::moneyBalances()`, tidak disimpan di tabel.
+- Saldo awal dicatat sebagai `TransactionType::SaldoAwal`, dengan kind `saldo_kas`, `saldo_peralatan`, `saldo_utang`, atau `saldo_piutang`. Modal Pemilik selalu jadi lawannya.
+    - Cara bayarnya diturunkan otomatis (`TransactionKind::openingMethod()`), sama seperti Pindah dana, sehingga `TransactionType::methods()` kosong.
+    - Ringkasan uang masuk/keluar tidak menghitung saldo awal.
 - Kode akun memakai konstanta `App\Models\Account` (`Account::INVENTORY`, `Account::COGS`, dan seterusnya). Bentuknya konstanta, bukan enum, karena dipakai sebagai key array di `Ledger::lines()`.
 - Validasi daftar nilai memakai `Rule::enum(...)`. Untuk subset (cara bayar per jenis), pakai `Rule::in(array_column($type->methods(), 'value'))`, karena `Rule::enum()->only([])` justru meloloskan semuanya.
 - Setelah enum ditambah atau diubah, jalankan `php artisan lais:enums` supaya `resources/js/types/enums.ts` ikut berubah. `VocabularyTest` gagal kalau lupa.
@@ -25,6 +31,43 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - `app/Http/Requests`: bentuk input dan pesan validasi berbahasa Indonesia.
 - `app/Http/Resources`: bentuk data untuk props halaman. Controller memanggil `XResource::make($model)->resolve()` atau `XResource::collection($models)->resolve()`, dan tidak menyusun array model sendiri. `resolve()` dipakai supaya tidak ada pembungkus `data`.
 - Controller hanya mengatur alur: otorisasi, panggil service, render, flash.
+- Produk dan bahan dibuat lewat `App\Services\Catalog::create()` (atau `createMany()`, yang memetakan resep lewat nama bahan). Form produk, wizard onboarding, dan seeder demo memakai jalur yang sama.
+- Pembukuan dibuka lewat `App\Services\Onboarding::complete()`: saldo awal dalam satu DB transaction, bertanggal `started_on`. Batasnya `Onboarding::latestStart()`.
+- Angka laporan (laba rugi per periode, prive, modal, cek kesehatan, stok menipis, piutang terbuka, penjualan per hari) dihitung di `App\Services\Reports`, selalu dari jurnal. Dashboard, halaman laporan, dan tool baca AI memakai method yang sama, jadi angkanya tidak pernah berbeda antarlayar.
+    - Pembatalan tidak perlu disaring, karena jurnal cerminnya bertanggal sama sehingga nilainya nol dalam periode apa pun. Daftar yang memakai baris transaksi (umur piutang, pemakaian stok) menyaring `TransactionStatus::Posted`.
+    - Modal awal sebuah periode dihitung dengan `Reports::openingEquity()`. Di periode saat pembukuan dibuka, nilainya adalah neraca pembukaan (`started_on` 00.00).
+- Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
+
+## AI
+
+- Model hanya dipanggil lewat `App\Services\Ai\LlmClient::toolCall()` (HTTP client ke 9Router, `config('services.llm')`). Kunci API hanya ada di `.env` dan tidak pernah ditulis ke log atau ke `properties` log aktivitas.
+- AI tidak pernah menyimpan tanpa konfirmasi pemilik, dan tidak ada tool untuk menyimpan.
+    - Konfirmasi dideteksi deterministik lewat `FormAssistant::confirms()` ("iya", "oke gas", "simpan"), hanya untuk draf yang sudah ditunjukkan ke pemilik.
+    - Draf yang dikirim balik dari browser diperlakukan seperti isian form: ditimpakan ke nilai awal form (`TransactionDraft::fill([], …)`), divalidasi ulang dengan `FormRequest`-nya, lalu disimpan lewat `TransactionService::record()` atau `Catalog::create()`.
+- Argumen tool diperlakukan seperti input pengguna:
+    - enum dibaca lewat `tryFrom()`, dan nilai yang tidak dikenal dibuang
+    - nama item, bahan, kontak, dan rekening dicocokkan lewat `Names::match()`, hanya dengan data usaha itu sendiri
+    - AI tidak menghitung angka; misalnya harga satuan dari total baris dihitung server
+- Data yang kurang dinilai oleh `FormRequest` milik form itu (`rules()` dan `messages()`), bukan oleh AI. Lihat `FormAssistant::problems()`.
+- Balasan ke pemilik disusun dari template. Teks bebas dari model hanya dipakai untuk pertanyaan `tanya_balik` (maksimal 200 huruf). Sapaan, pertanyaan laporan, dan permintaan di luar urusan usaha memakai `jawab_singkat` dengan kalimat tetap.
+- Saran pembukuan ("dicatat di mana?") hanya berasal dari `App\Enums\GuideTopic` (`explanation()`, `needs()`, `draft()`, `link()`). Model hanya memilih topik lewat tool `jelaskan`. Topik baru ditambahkan di enum itu, bukan di prompt.
+- Test memakai `Http::fake()` dengan `tool_calls` tiruan dan `Http::preventStrayRequests()`. Eval dengan model sungguhan memakai `#[Group('llm')]`, yang tidak ikut test biasa.
+
+## Log aktivitas (audit)
+
+- `spatie/laravel-activitylog` v5, dengan model `App\Models\Activity`. Log hanya bisa ditambah: model itu menolak update dan delete, dan `activitylog:clean` tidak pernah dijadwalkan. `business_id` diisi otomatis dari subject atau causer.
+- Data master (`Item`, `Contact`, `User`) memakai trait `LogsActivity` dengan `logOnly` untuk kolom yang diatur pemilik, ditambah `logOnlyDirty()->dontLogEmptyChanges()`. Kolom yang bergerak sendiri, seperti stok, jangan ikut dicatat.
+- Peristiwa yang tidak tertangkap event model dicatat eksplisit dengan `activity(ActivityCategory::…)->event(ActivityEvent::…->value)`:
+    - transaksi (`TransactionService`)
+    - resep (`ItemController::update`, karena resep disimpan dengan hapus lalu buat ulang)
+    - koreksi stok (`Inventory::adjust`)
+
+    Perbedaan nilai lama dan baru dikirim lewat `withChanges(['old' => …, 'attributes' => …])`.
+
+- Jurnal dan mutasi stok tidak dicatat ke log aktivitas, karena keduanya sudah menjadi jejak audit uang.
+- Label field dan format tampilannya ada di `ActivityResource::FIELDS`. Field baru yang perlu terlihat di riwayat ditambahkan di sana.
+- Jalur tanpa sesi login, misalnya bot WhatsApp, memanggil `Activity::defaultCauser($business->user)` (facade `Spatie\Activitylog\Facades\Activity`) dan `Context::add('activity_source', 'wa')` di titik masuknya.
+- Password, token, kode OTP/2FA, dan secret lain tidak pernah masuk `properties` atau `logOnly`.
 
 ## Test
 

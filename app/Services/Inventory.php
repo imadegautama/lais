@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\ActivityCategory;
+use App\Enums\ActivityEvent;
 use App\Enums\StockReason;
 use App\Models\Account;
 use App\Models\Item;
@@ -25,9 +27,10 @@ class Inventory
 
     /**
      * Add stock at a unit cost and journal it against $creditAccount
-     * (Account::OWNER_CAPITAL for opening stock).
+     * (Account::OWNER_CAPITAL for opening stock). $occurredAt dates opening stock
+     * on the day the books open (onboarding).
      */
-    public function receive(Item $item, float $qty, int $unitCost, StockReason $reason, string $creditAccount): StockMovement
+    public function receive(Item $item, float $qty, int $unitCost, StockReason $reason, string $creditAccount, ?CarbonInterface $occurredAt = null): StockMovement
     {
         $this->assertStocked($item);
 
@@ -37,13 +40,13 @@ class Inventory
 
         $cost = (int) round($qty * $unitCost);
 
-        return DB::transaction(function () use ($item, $qty, $cost, $reason, $creditAccount) {
+        return DB::transaction(function () use ($item, $qty, $cost, $reason, $creditAccount, $occurredAt) {
             $this->lock($item);
-            $movement = $this->stockIn($item, $qty, $cost, $reason);
+            $movement = $this->stockIn($item, $qty, $cost, $reason, null, $occurredAt);
             $lines = Ledger::lines([Account::INVENTORY => $movement->value, Account::COGS => $cost - $movement->value, $creditAccount => -$cost]);
 
             if ($lines !== []) {
-                $entry = $this->ledger->post($item->business, "Stok masuk: {$item->name}", $lines, $item);
+                $entry = $this->ledger->post($item->business, "Stok masuk: {$item->name}", $lines, $item, $occurredAt);
                 $movement->update(['journal_entry_id' => $entry->id]);
             }
 
@@ -78,7 +81,16 @@ class Inventory
                 ? $this->ledger->post($item->business, "Koreksi stok: {$item->name}", Ledger::lines([Account::INVENTORY => $value, Account::STOCK_DIFFERENCE => -$value]), $item)
                 : null;
 
-            return $this->move($item, $diff, $value, StockReason::Koreksi, $entry?->id);
+            $movement = $this->move($item, $diff, $value, StockReason::Koreksi, $entry?->id);
+
+            activity(ActivityCategory::Produk)
+                ->event(ActivityEvent::StockAdjusted->value)
+                ->performedOn($item)
+                ->withChanges(['old' => ['stock' => round($physicalQty - $diff, 3)], 'attributes' => ['stock' => $physicalQty]])
+                ->withProperties(['value' => $value])
+                ->log(ActivityEvent::StockAdjusted->verb()." {$item->name}");
+
+            return $movement;
         });
     }
 
@@ -121,6 +133,33 @@ class Inventory
         };
 
         return $this->move($item, -$qty, $value, $reason, null, $transactionId, $occurredAt);
+    }
+
+    /**
+     * Undo one movement of a cancelled transaction: the same quantity back at
+     * the same value, so a purchase cancelled right away restores the old
+     * average exactly. Where units moved since make that impossible, the value
+     * follows the rules above and the caller books the gap to HPP.
+     * Same locking contract as stockIn().
+     */
+    public function reverse(Item $item, StockMovement $movement, int $transactionId): StockMovement
+    {
+        $qty = -(float) $movement->qty;
+
+        // A sale coming back is stock in at the value it left with. Units it sold
+        // past zero left at 0; a later purchase booked their cost to HPP, so they
+        // return at today's average and that HPP is undone.
+        if ($qty > 0) {
+            $before = (float) $movement->stock_after + $qty;
+            $pastZero = $qty - min($qty, max(0.0, $before));
+
+            return $this->stockIn($item, $qty, -$movement->value + (int) round($pastZero * $item->averageCost()), StockReason::Pembatalan, $transactionId);
+        }
+
+        $after = round((float) $item->stock + $qty, 3);
+        $value = $after <= 0 ? -$item->stock_value : -min($movement->value, $item->stock_value);
+
+        return $this->move($item, $qty, $value, StockReason::Pembatalan, null, $transactionId);
     }
 
     /**

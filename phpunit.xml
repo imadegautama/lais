@@ -12,6 +12,12 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <!-- Calls the real model; run on purpose with the llm group (PRD §3.2). -->
+    <groups>
+        <exclude>
+            <group>llm</group>
+        </exclude>
+    </groups>
     <source>
         <include>
             <directory>app</directory>

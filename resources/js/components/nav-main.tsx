@@ -15,9 +15,15 @@ export type AppNavItem = {
     title: string;
     icon: LucideIcon;
 } & (
-    | { href: NonNullable<InertiaLinkProps['href']>; comingSoon?: never }
+    | {
+          href: NonNullable<InertiaLinkProps['href']>;
+          comingSoon?: never;
+          onSelect?: never;
+      }
+    // Opens something in place, like the "Tanya AI" panel.
+    | { href?: never; comingSoon?: never; onSelect: () => void }
     // TODO: switch to { href } as each page is built (R-24: no dead links).
-    | { href?: never; comingSoon: true }
+    | { href?: never; comingSoon: true; onSelect?: never }
 );
 
 export type AppNavGroup = { label: string; items: AppNavItem[] };
@@ -47,6 +53,15 @@ export function NavMain({ groups }: { groups: AppNavGroup[] }) {
                                             <item.icon />
                                             <span>{item.title}</span>
                                         </Link>
+                                    </SidebarMenuButton>
+                                ) : item.onSelect ? (
+                                    <SidebarMenuButton
+                                        onClick={item.onSelect}
+                                        tooltip={{ children: item.title }}
+                                        className="[&>svg]:text-muted-foreground"
+                                    >
+                                        <item.icon />
+                                        <span>{item.title}</span>
                                     </SidebarMenuButton>
                                 ) : (
                                     <SidebarMenuButton

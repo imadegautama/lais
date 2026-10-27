@@ -53,8 +53,10 @@ Starter kit tinggal disesuaikan. Login diganti ke nomor WA (Fortify `username` �
 | C16   | Buku kas                      | `/laporan/buku-kas`                   | Pemilik              | P1                    | US-12             |
 | C17   | Perubahan modal               | `/laporan/perubahan-modal`            | Pemilik              | P0                    | US-12             |
 | C18   | Produk terlaris & margin      | `/laporan/produk`                     | Pemilik              | P1                    | US-12             |
-| C19   | Asisten AI                    | `/asisten` (+ panel samping)          | Pemilik              | P0                    | US-14             |
+| C19   | Asisten AI                    | Panel di setiap halaman aplikasi      | Pemilik              | P0                    | US-14             |
 | C20   | Pengaturan                    | `/pengaturan/*`                       | Pemilik              | P0 (WA), P1 (lainnya) | US-01, US-15      |
+| C21   | Log aktivitas                 | `/log-aktivitas`                      | Pemilik              | P1                    | §4.5              |
+| C22   | Kas & rekening                | `/rekening`                           | Pemilik              | P1                    | US-07             |
 | **D** | **Sistem**                    |                                       |                      |                       |                   |
 | D1    | Halaman error & kosong        | 404, 403, 500, toko tutup             | Semua                | P2                    |                   |
 
@@ -68,7 +70,7 @@ Totalnya sekitar 30 layar. Sebanyak 19 di antaranya P0.
 
 - **Desktop (≥ 1024 px):** sidebar kiri yang bisa diciutkan jadi ikon, plus top bar.
 - **Mobile:** top bar + bottom navigation berisi 5 slot: Beranda · Transaksi · **[ + Catat ]** · Pesanan · Lainnya. Tombol tengah lebih menonjol.
-- **Menu sidebar:** Dashboard, Transaksi, Pesanan, Produk & Stok, Utang-Piutang, Laporan, Kontak, Asisten AI, Pengaturan.
+- **Menu sidebar:** Dashboard, Transaksi, Pesanan, Kas & Rekening, Produk & Stok, Utang-Piutang, Laporan, Kontak, Asisten AI, Log aktivitas, Pengaturan.
 - **Top bar:**
     - nama usaha
     - tombol **Catat** (desktop)
@@ -177,25 +179,28 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 
 ### B5. Onboarding wizard `/onboarding`
 
-- Stepper di atas dengan tombol **Kembali / Lanjut**. Setiap langkah tersimpan otomatis, jadi wizard bisa dilanjutkan nanti.
+- **Tampilan:** halaman sendiri tanpa sidebar. Di header ada logo dan link **Lewati, nanti saja**. Stepper di atas; di HP hanya "Langkah 2 dari 6".
+- **Navigasi:** tombol **Kembali / Lanjut**. Setiap kali Lanjut ditekan, langkah itu diperiksa lalu disimpan sebagai draf, jadi wizard bisa dilanjutkan nanti dari langkah berikutnya.
+- **Masuk ke wizard:** setelah daftar, pengguna langsung diarahkan ke sini. Selama belum selesai, dashboard dan Kas & rekening menampilkan kartu **Saldo awal belum diisi → Lanjutkan pengisian**. Setelah selesai, `/onboarding` mengalihkan ke dashboard.
 - **Langkah:**
-    1. **Profil usaha:**
+    1. **Usaha:**
         - nama usaha
         - jenis usaha (kuliner / kelontong / fashion / kerajinan / lainnya), untuk memilih contoh produk
-        - link toko (`/t/` + slug, dicek ketersediaannya secara langsung)
-        - logo (opsional)
-        - upload gambar QRIS
-    2. **Uang usaha saat ini:** saldo kas tunai dan saldo non-tunai (QRIS/rekening). Di sini ada edukasi singkat: "Hanya uang usaha, jangan dicampur uang rumah tangga".
-    3. **Peralatan usaha:** baris dinamis (nama + perkiraan nilai), misalnya kompor Rp1,5 jt. Bisa dilewati.
+        - mulai dicatat sejak (paling lambat hari ini, atau hari catatan pertama kalau sudah ada)
+    2. **Uang:** saldo tiap rekening pada tanggal mulai. Rekening bisa diganti nama atau ditambah. Ada edukasi "Hanya uang usaha, jangan dicampur uang rumah tangga".
+    3. **Peralatan:** baris nama + perkiraan nilai. Bisa dilewati.
     4. **Produk & bahan:**
-        - Tambah cepat dalam tabel: nama, jenis, harga jual, stok awal, biaya per unit.
-        - Tombol **Pakai contoh** (template sesuai jenis usaha).
-        - Tombol **Lewati, nanti saja**.
-    5. **Utang awal** (opsional): ke siapa dan berapa.
-- **Ringkasan akhir:**
-    - Kartu neraca awal: total aset − utang = **Modal awal Anda Rp X**, dengan badge "Seimbang ✓".
-    - Kartu **Hubungkan WhatsApp**: nomor bot, tombol "Simpan kontak bot" (vCard), dan tombol `wa.me` "Kirim _halo_ ke bot".
-    - Tombol **Masuk ke dashboard**.
+        - baris tambah cepat: nama, jenis (dijual / bahan), satuan, harga jual, stok awal, dan biaya per unit
+        - **Pakai contoh** sesuai jenis usaha; barisnya berlabel "Contoh, ubah sesuai usahamu"
+        - produk resep dari contoh tampil dengan ringkasan resepnya
+        - bisa dilewati
+    5. **Utang & piutang:** utang ke supplier dan kasbon pelanggan, masing-masing nama + sisa. Bisa dilewati.
+    6. **Ringkasan neraca awal:**
+        - kas & rekening, peralatan, persediaan, piutang, total aset, utang
+        - **Modal awal kamu** = aset − utang, dengan badge "Seimbang"
+        - tombol **Simpan dan mulai**
+- **Saat disimpan:** semuanya dicatat sebagai jenis **Saldo awal** pada tanggal mulai, dalam satu langkah. Kalau ada yang salah, wizard kembali ke langkah yang bermasalah.
+- **Menyusul di slicenya masing-masing:** slug toko, logo, gambar QRIS (M4), dan kartu Hubungkan WhatsApp (GOWA).
 
 ---
 
@@ -218,6 +223,16 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 - **Utang & piutang:** dua angka total dengan tautan ke C11.
 - **Aktivitas terbaru:** 10 transaksi terakhir, lengkap dengan ikon sumber (WA / web / toko).
 - **Empty state pengguna baru:** checklist "Langkah pertama", yaitu tambah produk, catat penjualan pertama, hubungkan WA, dan bagikan link toko.
+- **Status pembuatan (slice 5):** semua angka sudah dihitung dari jurnal lewat `App\Services\Reports`.
+    - Baris 4 kartu ringkasan (`MetricTile`, 2×2 di HP) mengikuti pemilih periode. Setiap kartu berisi angka, naik/turun, dan satu baris penjelasan:
+        - **Penjualan:** membuka `/transaksi` dengan saringan penjualan dan periode yang sama
+        - **Untung bersih:** belum bisa diketuk, menunggu halaman Laporan
+        - **Uang usaha:** saldo saat ini, membuka Kas & rekening
+        - **Diambil untuk pribadi:** membuka transaksi modal
+    - Kartu "Ringkasan" terpisah tidak dipakai lagi. Di sampingnya kini ada Kesehatan usaha.
+    - Panel "Perlu tindakan" berisi bahan yang sudah habis atau habis ≤ 2 hari (tombol **Catat belanja** membuka tab Belanja, itemnya belum terisi) dan piutang yang lewat 7 hari (tombol **Catat bayaran**). Aksi pesanan menyusul di slice M4.
+    - Kartu "Pesanan aktif" dan "Utang & piutang" menyusul bersama halaman C9 dan C11.
+    - Empty state muncul selama belum ada catatan selain saldo awal. Langkah "Hubungkan WhatsApp" dan "Bagikan link toko" masih bertanda Segera.
 
 ### C2. Daftar transaksi `/transaksi`
 
@@ -235,7 +250,9 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 
 ### C3. Catat transaksi `/transaksi/baru?jenis=…`
 
-Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal**. Di desktop, form ada di kiri dan **panel pratinjau dampak** di kanan. Di mobile, pratinjau tampil di bawah, di atas tombol simpan.
+Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal · Pindah dana**. Di desktop, form ada di kiri dan **panel pratinjau dampak** di kanan. Di mobile, pratinjau tampil di bawah, di atas tombol simpan.
+
+Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". Setelah diisi, muncul catatan "Diisi Tanya AI. Periksa lagi sebelum menekan Simpan." Form Ubah dan Saldo awal tetap diisi manual.
 
 - **Penjualan:**
     - tanggal (default sekarang)
@@ -262,6 +279,16 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
     - toggle **Setor modal** / **Ambil untuk pribadi**
     - nominal, dari/ke tunai atau non-tunai, catatan
     - info box: "Mengambil uang pribadi tidak mengurangi laba, tetapi mengurangi modal usaha"
+- **Pindah dana:**
+    - **dari** dan **ke** (pilihan rekening, termasuk Kas tunai), nominal, dan catatan
+    - keterangan dibuat otomatis: "Setor tunai ke BCA", "Tarik tunai dari BCA", "Pindah dari BCA ke GoPay"
+    - _Pratinjau:_ saldo kedua rekening sebelum → sesudah; uang usaha tetap
+- **Saldo awal** (bukan tab, karena dicatat sekali saat mulai):
+    - dibuka dari wizard onboarding, dari link "Catat saldo awal" di Kas & rekening, atau lewat Ubah
+    - isinya: chip **Kas & rekening / Peralatan / Utang ke supplier / Piutang pelanggan**, nominal, lalu rekening, nama peralatan, atau kontak sesuai pilihannya
+    - cara bayar tidak dipilih
+    - _Pratinjau:_ saldo rekening sebelum → sesudah, dengan catatan bahwa saldo awal menambah modal awal, bukan pendapatan
+- **Rekening non-tunai:** kalau rekening non-tunainya lebih dari satu, pilihan rekening muncul saat Non-tunai dipilih. Kalau cuma satu, rekening itu langsung dipakai. Panel pratinjau menampilkan saldo rekening itu sebelum → sesudah.
 - **Input uang** mengerti format "15rb", "1,5jt", dan "15k", lalu otomatis ditampilkan sebagai `Rp15.000`.
 - **Tombol Simpan** (+ "Simpan & catat lagi"). Setelah tersimpan, muncul toast dengan tautan ke detail.
 
@@ -274,9 +301,10 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 - **Bukti:** thumbnail foto yang bisa diperbesar.
 - **"Lihat jurnal"** (collapsible, tertutup secara default): tabel akun dengan debit/kredit dan total yang seimbang. Bagian ini untuk menunjukkan kualitas teknis ke juri tanpa membingungkan pengguna awam.
 - **Aksi:**
-    - **Batalkan**: dialog konfirmasi + alasan, lalu membuat transaksi pembalik.
-    - **Ubah**: membatalkan transaksi ini lalu membuka C3 dengan data yang sudah terisi.
-- Banner jika sudah dibatalkan, dengan tautan ke transaksi pembaliknya.
+    - **Batalkan**: dialog konfirmasi + alasan (opsional), lalu membuat jurnal dan mutasi stok pembalik. Tidak ada baris transaksi pembalik.
+    - **Ubah** (`/transaksi/{id}/ubah`): membuka C3 dengan data yang sudah terisi, tanpa tab jenis. Saat disimpan, transaksi lama dibatalkan dan yang baru dicatat dalam satu langkah. Kalau pemilik keluar dari form, tidak ada yang berubah.
+- Banner jika sudah dibatalkan. Kalau dibatalkan karena diubah, banner menautkan ke versi baru, dan versi baru menautkan ke versi lama. Jurnal pembaliknya tampil di "Lihat jurnal".
+- **Riwayat:** siapa yang mencatat, mengubah, atau membatalkan catatan ini, kapan, dan lewat mana. Kalau diubah, yang berubah ditampilkan lama → baru. Datanya dari Log aktivitas (C21).
 
 ### C5. Daftar produk & stok `/produk`
 
@@ -309,6 +337,8 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 - **Khusus produk dengan resep: pembuat resep**
     - Baris berisi combobox bahan (+ "buat bahan baru" inline), qty, satuan (mengikuti bahan), dan biaya (otomatis dihitung).
     - **Panel HPP langsung:** HPP per porsi, harga jual, **margin Rp dan %**, dengan peringatan jika margin < 15%.
+- **Riwayat perubahan** (hanya saat mengubah): siapa yang mengubah harga, resep, satuan, atau stok (koreksi), dan kapan, dengan nilai lama → baru.
+- Draf produk dari **Tanya AI** (C19), termasuk resepnya, bisa dipindahkan ke form ini lewat "Ubah di form". Bahan yang belum terdaftar disebut di daftar "Masih kurang". Form ubah tetap diisi manual.
 
 ### C7. Detail produk `/produk/{id}`
 
@@ -428,14 +458,47 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 - Bar chart horizontal untuk 10 produk teratas.
 - **Tabel margin semua produk:** HPP, harga, margin, terjual, kontribusi laba. Baris dengan margin rendah ditandai.
 
-### C19. Asisten AI `/asisten` + panel samping
+### C19. Asisten AI (panel "Tanya AI")
+
+**Status pembuatan (slice 6): mencatat dengan konfirmasi.** Asisten berbentuk panel, tidak punya halaman sendiri.
+
+- **Cara membuka:**
+    - tombol mengambang "Tanya AI" di kanan bawah, di atas bottom nav dan di atas action bar form
+    - menu "Tanya AI" di sidebar
+- **Bentuk panel:**
+    - Di desktop berupa sheet kanan yang tidak mengunci halaman.
+    - Di bawah 1024 px berupa drawer bawah.
+    - Percakapan tetap ada saat pindah halaman.
+- **Balon chat:** pesan pemilik di kanan (abu hangat), balasan di kiri (kartu putih bergaris).
+- **Alur mencatat:** pemilik menulis yang mau dicatat, lalu balasan berisi **kartu draf**:
+    - judul (Penjualan, Belanja, Biaya listrik & air, atau nama produk)
+    - baris "Beras · 5 kg × Rp14.000" dengan subtotal di kanan, lalu Total
+    - catatan kecil: cara bayar, rekening, kontak, dan waktu
+    - daftar **Masih kurang** (dari aturan validasi Simpan, bukan tebakan AI)
+- **Tombol di kartu:**
+    - **Simpan**, hanya kalau tidak ada yang kurang. Membalas "iya", "oke", "gas", atau "simpan" sama dengan menekannya.
+    - **Ubah di form** memindahkan draf ke form C3 atau C6, lalu panel tertutup.
+- **Setelah tersimpan:** "Belanja tersimpan." dengan tombol **Lihat transaksi** atau **Lihat produk**. Halaman di belakang panel dimuat ulang supaya angkanya ikut baru.
+- Pertanyaan balik dari AI datang dengan chip jawaban, misalnya "Beras dicatat dalam kg. 4 kodi itu berapa kg?".
+- **Panduan pencatatan:** pertanyaan seperti "uang pribadi 200rb dicatat di mana?" dijawab dalam satu balon, berisi:
+    - penjelasan tetap (dari `GuideTopic`)
+    - kotak **Yang perlu disiapkan**
+    - tombol draf ("Catat setor modal Rp200.000"), yang langsung menampilkan kartu draf tanpa menunggu AI, atau tombol halaman ("Buka Produk & stok", "Buka form Pindah dana", "Catat saldo awal")
+- Pertanyaan laporan ("untung bulan ini berapa?") diarahkan ke Dashboard sampai tanya-jawab laporan dibuat.
+- Permintaan di luar urusan usaha dijawab dengan kalimat tetap: "Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru…".
+- **State:**
+    - kosong: contoh kalimat sesuai form yang dibuka; mengetuknya hanya mengisi input
+    - memuat: "AI sedang membaca…"
+    - gagal: pesan sebab dan langkah berikutnya, dengan tombol **Kirim lagi**
+
+**Sprint berikutnya: tanya-jawab soal usaha (US-14).** Panel yang sama mendapat:
 
 - **Area chat:** bubble pemilik dan asisten. Jawaban bisa berisi **kartu data** (angka kunci atau tabel kecil yang dirender dari output tool) dan baris kecil **"Sumber: laba_rugi(bulan_ini)"**.
 - **Chip saran pertanyaan** saat kosong: "Untung bulan ini berapa?", "Produk paling laku minggu ini?", "Kenapa laba naik tapi kas turun?", "Siapa yang belum bayar?", "Telur cukup berapa hari?".
 - Indikator mengetik dan state error ("Asisten sedang gangguan, coba lagi").
 - **Input:** textarea + tombol kirim.
 - Disclaimer kecil: "Angka dihitung sistem dari data Anda. AI hanya menjelaskan."
-- **Panel samping** (Sheet kanan) dengan isi yang sama, bisa dibuka dari halaman mana pun. Konteks halaman ikut terkirim, misalnya sedang membuka Laba Rugi bulan ini.
+- Konteks halaman ikut terkirim, misalnya sedang membuka Laba Rugi bulan ini.
 
 ### C20. Pengaturan `/pengaturan/*` (tab kiri / tab atas di HP)
 
@@ -454,6 +517,28 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
     - ambang peringatan stok (hari)
     - **riwayat 20 pesan terakhir** dengan bot (P2, berguna saat demo dan debugging)
 - **Tampilan:** light / dark / sistem (sudah ada di starter kit).
+- **Keamanan:** di bawah pengaturan password dan 2FA ada **Aktivitas akun**, berisi 10 aktivitas terbaru (masuk, gagal masuk dengan email yang dicoba dan IP, ganti password), dengan tautan ke C21.
+
+### C21. Log aktivitas `/log-aktivitas`
+
+- Semua aktivitas usaha, terbaru di atas. Kolomnya waktu, aktivitas (kalimat + perubahan lama → baru + keterangan seperti alasan batal), siapa, dan lewat (Web/WA).
+- **Saringan:** periode, kategori (Transaksi, Produk, Kontak, Akun), dan pencarian aktivitas atau nama.
+- Kalimat aktivitas menautkan ke datanya selama data itu masih bisa dibuka.
+- **Hanya baca:** tidak ada tombol ubah atau hapus.
+- **Di HP:** daftar per tanggal.
+
+### C22. Kas & rekening `/rekening`
+
+- **Isi:** daftar Kas tunai dan rekening non-tunai beserta saldonya (dari jurnal), lalu total uang usaha di bawahnya.
+- **Aksi:**
+    - **Pindah dana** (aksi utama, membuka C3 tab Pindah dana)
+    - **Tambah rekening** (dialog nama)
+    - **Ganti nama** per rekening
+    - **Arsipkan** per rekening non-tunai, dengan aturan:
+        - ditolak kalau saldonya belum Rp0 (pindahkan dulu lewat Pindah dana)
+        - Kas tunai dan rekening non-tunai terakhir tidak bisa diarsipkan
+- **Saldo minus** diberi keterangan bahwa saldo awalnya mungkin belum dicatat.
+- **Tidak ada hapus:** rekening punya riwayat, jadi hanya bisa diarsipkan.
 
 ---
 
@@ -485,7 +570,7 @@ Tab/segmented di atas: **Penjualan · Belanja · Biaya · Utang-Piutang · Modal
 | `StockAlertList`                         | C1, C7             | Dengan perkiraan hari habis                          |
 | `ReportStatement`                        | C14, C15           | Layout laporan bertingkat + tooltip istilah          |
 | `ReportActions`                          | C14–C18            | Periode, PDF, kirim WA, tanya AI                     |
-| `AssistantPanel`                         | C19, semua halaman | Sheet kanan                                          |
+| `AssistantPanel`                         | C19, semua halaman | Sheet kanan di desktop, drawer di HP                 |
 | `WaBubble`                               | A1, C4, C20        | Pratinjau pesan gaya WA                              |
 | `ImageUpload`                            | B5, C3, C6, C20    | Pratinjau, batas 5 MB                                |
 | `EmptyState`                             | Semua daftar       | Ikon, judul, ajakan aksi                             |

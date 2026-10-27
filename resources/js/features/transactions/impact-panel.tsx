@@ -5,11 +5,16 @@ import { Money } from '@/components/app/money';
 import { SectionCard } from '@/components/app/section-card';
 import { formatQty, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { ContactOption, RecordItem } from '@/types/domain';
+import type {
+    ContactOption,
+    MoneyAccountOption,
+    RecordItem,
+} from '@/types/domain';
 import { PaymentMethod, TransactionKind, TransactionType } from '@/types/enums';
 import {
     balanceAfter,
     cashEffect,
+    moneyImpact,
     purchaseImpact,
     saleImpact,
     type RecordFormData,
@@ -24,14 +29,18 @@ export function ImpactPanel({
     total,
     items,
     contact,
+    moneyAccounts,
 }: {
     data: RecordFormData;
     total: number;
     items: Map<string, RecordItem>;
     contact: ContactOption | null;
+    moneyAccounts: MoneyAccountOption[];
 }) {
     const { type, kind, method } = data;
     const cash = cashEffect(type, kind, method, total, data.paid_amount ?? 0);
+    const moves = moneyImpact(data, total, moneyAccounts);
+    const isTransfer = type === TransactionType.PindahDana;
 
     return (
         <SectionCard
@@ -74,6 +83,20 @@ export function ImpactPanel({
                             }
                         />
                     )}
+                    {/* A transfer changes two rekening; anything else, at most one. */}
+                    {isTransfer &&
+                        moves.map(({ account, before, after }) => (
+                            <MetricInline
+                                key={account.id}
+                                label={account.name}
+                                value={
+                                    <BalanceChange
+                                        before={before}
+                                        after={after}
+                                    />
+                                }
+                            />
+                        ))}
                     <MetricInline
                         label="Kas usaha"
                         value={
@@ -84,7 +107,22 @@ export function ImpactPanel({
                                 }
                             />
                         }
-                        detail={cashNote(type, method)}
+                        detail={
+                            isTransfer ? (
+                                'Uang hanya pindah tempat, jumlah uang usaha tetap.'
+                            ) : moves[0] ? (
+                                <>
+                                    Saldo {moves[0].account.name}{' '}
+                                    <BalanceChange
+                                        before={moves[0].before}
+                                        after={moves[0].after}
+                                        size="xs"
+                                    />
+                                </>
+                            ) : (
+                                cashNote(type, method)
+                            )
+                        }
                     />
                 </div>
                 <ImpactNote
@@ -197,10 +235,39 @@ function PurchaseImpact({
     );
 }
 
+/** "Rp200.000 → Rp100.000"; a balance going below zero is flagged, not blocked. */
+function BalanceChange({
+    before,
+    after,
+    size = 'sm',
+}: {
+    before: number;
+    after: number;
+    size?: 'sm' | 'xs';
+}) {
+    return (
+        <span
+            className={cn(
+                'num',
+                size === 'sm' ? 'text-sm font-semibold' : 'text-xs',
+                after < 0 && 'font-semibold text-destructive',
+            )}
+        >
+            {formatRupiah(before)} → {formatRupiah(after)}
+            {after < 0 && ' (minus)'}
+        </span>
+    );
+}
+
 function cashNote(
     type: TransactionType,
     method: PaymentMethod,
 ): string | undefined {
+    // Equipment and opening debts are not money.
+    if (type === TransactionType.SaldoAwal) {
+        return 'Bukan uang, jadi kas usaha tidak berubah.';
+    }
+
     if (method === PaymentMethod.Pribadi) {
         return 'Dibayar pakai uang pribadi, kas usaha tidak berubah.';
     }
@@ -211,8 +278,9 @@ function cashNote(
             : 'Kas baru berkurang saat utangnya dibayar.';
     }
 
+    // Several rekening and none picked yet: the balance shows once one is.
     return method === PaymentMethod.NonTunai
-        ? 'Lewat QRIS atau transfer.'
+        ? 'Pilih rekeningnya untuk melihat saldonya.'
         : undefined;
 }
 
@@ -228,6 +296,14 @@ function ImpactNote({
     total: number;
 }) {
     const note: ReactNode = (() => {
+        if (kind === TransactionKind.SaldoUtang) {
+            return 'Utang awal mengurangi modal awal dan tercatat sebagai utang ke supplier itu.';
+        }
+
+        if (type === TransactionType.SaldoAwal) {
+            return 'Saldo awal menambah modal awal, bukan pendapatan. Laba tidak berubah.';
+        }
+
         if (kind === TransactionKind.Prive) {
             return 'Mengambil uang untuk pribadi tidak mengurangi laba, tetapi mengurangi modal usaha.';
         }

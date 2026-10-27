@@ -18,12 +18,29 @@ import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { show } from '@/routes/transactions';
 import type { TransactionRow } from '@/types/domain';
+import { PaymentMethod, TransactionType } from '@/types/enums';
 
-/** "Tunai · Bu Sari" under the description. */
+/** "Tunai · Bu Sari", "Non-tunai · BCA", or "Kas tunai → BCA" under the description. */
 function MethodLine({ row }: { row: TransactionRow }) {
+    // The description already names the rekening or contact of an opening balance.
+    if (row.type === TransactionType.SaldoAwal) {
+        return null;
+    }
+
+    if (row.type === TransactionType.PindahDana) {
+        return (
+            <span className="text-xs text-muted-foreground">
+                {row.moneyAccount} → {row.toMoneyAccount}
+            </span>
+        );
+    }
+
     return (
         <span className="text-xs text-muted-foreground">
             {methodLabel(row.type, row.method)}
+            {row.method === PaymentMethod.NonTunai &&
+                row.moneyAccount &&
+                ` · ${row.moneyAccount}`}
             {row.contact && ` · ${row.contact}`}
         </span>
     );
@@ -162,6 +179,8 @@ export function TransactionTable({
             server={server}
             layout={{
                 waktu: { className: 'w-32 whitespace-nowrap' },
+                // Long descriptions wrap, so the amount never scrolls out of a narrow card.
+                keterangan: { className: 'min-w-48 whitespace-normal' },
                 nominal: { align: 'right', className: 'w-32' },
             }}
             mobileGroupBy={(row) => formatDate(row.occurredAt, 'long')}

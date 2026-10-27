@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\ActivityCategory;
+use App\Enums\ActivityEvent;
 use App\Enums\ItemKind;
+use App\Support\Format;
 use Database\Factories\ItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -12,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
@@ -31,7 +36,44 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Item extends Model
 {
     /** @use HasFactory<ItemFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes;
+
+    /**
+     * What a new item holds before it is read back: the toggles' database
+     * defaults, and no aliases as the form saves them ([]). Otherwise its
+     * first save logs them as changed from empty.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'aliases' => '[]',
+        'show_in_store' => true,
+        'available' => true,
+    ];
+
+    /**
+     * Audit log: what the owner sets. Stock moves on every sale and already
+     * has its own history (stock_movements), so it is left out.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName(ActivityCategory::Produk)
+            ->logOnly(['kind', 'name', 'aliases', 'unit', 'price', 'min_stock', 'show_in_store', 'available'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->setDescriptionForEvent(fn (string $event) => ActivityEvent::from($event)->verb()." produk {$this->name}");
+    }
+
+    /**
+     * "0,15 kg Beras, 1 butir Telur". Load recipeLines.material.
+     */
+    public function recipeText(): string
+    {
+        return $this->recipeLines
+            ->map(fn (RecipeLine $line) => Format::qty($line->qty)." {$line->material->unit} {$line->material->name}")
+            ->join(', ');
+    }
 
     /**
      * Get the attributes that should be cast.

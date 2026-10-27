@@ -2,8 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\ActivityCategory;
+use App\Enums\BusinessCategory;
 use App\Enums\ContactType;
 use App\Enums\ItemKind;
+use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
 use App\Enums\Period;
 use App\Enums\StockReason;
@@ -39,6 +42,9 @@ class GenerateEnumTypes extends Command
         ContactType::class,
         StockReason::class,
         Period::class,
+        ActivityCategory::class,
+        MoneyAccountKind::class,
+        BusinessCategory::class,
     ];
 
     public function handle(): int

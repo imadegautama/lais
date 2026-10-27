@@ -1,0 +1,461 @@
+import { Link } from '@inertiajs/react';
+import {
+    CircleAlert,
+    CircleCheck,
+    MessageCircleQuestion,
+    SendHorizontal,
+} from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+    useAssistant,
+    type AssistantFormName,
+    type AssistantTurn,
+    type DraftCard,
+} from '@/components/app/assistant/assistant-provider';
+import { Money } from '@/components/app/money';
+import { Button } from '@/components/ui/button';
+import {
+    Drawer,
+    DrawerContent,
+    DrawerDescription,
+    DrawerHeader,
+    DrawerTitle,
+} from '@/components/ui/drawer';
+import { Label } from '@/components/ui/label';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
+import { Spinner } from '@/components/ui/spinner';
+import { Textarea } from '@/components/ui/textarea';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { formatQty, formatRupiah } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+const title = 'Tanya AI';
+const description =
+    'Ceritakan yang mau dicatat. AI menyiapkan catatannya, kamu yang memeriksa lalu menyimpan.';
+
+// Owners adapt these to their own menu; picking one only fills the input.
+const examples: Record<AssistantFormName | 'none', string[]> = {
+    transaksi: [
+        'jual 3 nasi goreng, bayar QRIS',
+        'beli beras 5 kg 70rb tunai',
+        'uang pribadi 200rb dicatat di mana?',
+    ],
+    produk: [
+        'tambah menu mie goreng 14rb, pakai telur 1 dan beras 1 ons',
+        'tambah bahan gula pasir, stok 2 kg, modal 15rb per kg',
+    ],
+    none: [
+        'jual 3 nasi goreng, bayar QRIS',
+        'tambah menu mie goreng 14rb, pakai telur 1 dan beras 1 ons',
+        'uang pribadi 200rb dicatat di mana?',
+    ],
+};
+
+function Card({ card }: { card: DraftCard }) {
+    return (
+        <div className="flex flex-col gap-2">
+            <p className="font-semibold">{card.title}</p>
+            {card.lines.length > 0 && (
+                <ul className="flex flex-col gap-1.5">
+                    {card.lines.map((line, index) => (
+                        <li
+                            key={`${line.name}-${index}`}
+                            className="flex items-start justify-between gap-3"
+                        >
+                            <span className="min-w-0">
+                                <span className="block">{line.name}</span>
+                                <span className="block text-xs text-muted-foreground">
+                                    {line.qty !== null &&
+                                        formatQty(line.qty, line.unit ?? '')}
+                                    {line.price !== null && (
+                                        <> × {formatRupiah(line.price)}</>
+                                    )}
+                                </span>
+                            </span>
+                            {line.amount !== null && (
+                                <Money value={line.amount} size="sm" />
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {card.total && (
+                <p
+                    className={cn(
+                        'flex items-baseline justify-between gap-3 font-semibold',
+                        // The rule separates the lines from their total; without lines there is nothing to separate.
+                        card.lines.length > 0 && 'border-t pt-2',
+                    )}
+                >
+                    {card.total.label}
+                    <Money value={card.total.amount} />
+                </p>
+            )}
+            {card.notes.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                    {card.notes.join(' · ')}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
+    const {
+        turns,
+        send,
+        retry,
+        sending,
+        draftTurn,
+        openInForm,
+        takeOffer,
+        setOpen,
+    } = useAssistant();
+    const isLast = index === turns.length - 1;
+
+    if (turn.role === 'user') {
+        return (
+            <p className="ml-8 self-end rounded-lg bg-secondary px-3 py-2 text-sm whitespace-pre-wrap">
+                {turn.text}
+            </p>
+        );
+    }
+
+    const offer = turn.guide?.offer ?? null;
+    // A saved record and a guide's page both open as a button that closes the panel.
+    const link = turn.saved ?? turn.link;
+
+    return (
+        <div
+            className={cn(
+                'mr-6 flex flex-col gap-3 self-start rounded-lg border bg-card px-3 py-2.5 text-sm shadow-card',
+                // A draft card reads like a receipt: give its amounts the whole row.
+                turn.card && 'self-stretch',
+            )}
+        >
+            {turn.card && <Card card={turn.card} />}
+            {turn.missing.length > 0 && (
+                <div className="rounded-md bg-secondary px-3 py-2">
+                    <p className="font-semibold">Masih kurang</p>
+                    <ul className="mt-1 list-disc pl-5">
+                        {turn.missing.map((item) => (
+                            <li key={item}>{item}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {turn.failed ? (
+                <p className="flex gap-2 text-destructive">
+                    <CircleAlert
+                        className="mt-0.5 size-4 shrink-0"
+                        aria-hidden
+                    />
+                    {turn.text}
+                </p>
+            ) : turn.saved ? (
+                <p className="flex gap-2 font-medium">
+                    <CircleCheck
+                        className="mt-0.5 size-4 shrink-0 text-success"
+                        aria-hidden
+                    />
+                    {turn.text}
+                </p>
+            ) : (
+                <p>{turn.text}</p>
+            )}
+            {turn.guide && turn.guide.needs.length > 0 && (
+                <div className="rounded-md bg-secondary px-3 py-2">
+                    <p className="font-semibold">Yang perlu disiapkan</p>
+                    <ul className="mt-1 list-disc pl-5">
+                        {turn.guide.needs.map((need) => (
+                            <li key={need}>{need}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {((isLast && offer) || link) && (
+                <div className="flex flex-wrap gap-2">
+                    {isLast && offer && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={sending}
+                            onClick={() => takeOffer(index)}
+                        >
+                            {offer.label}
+                        </Button>
+                    )}
+                    {link && (
+                        <Button asChild variant="outline" size="sm">
+                            <Link
+                                href={link.href}
+                                onClick={() => setOpen(false)}
+                            >
+                                {link.label}
+                            </Link>
+                        </Button>
+                    )}
+                </div>
+            )}
+            {/* Only the draft still waiting can be saved or moved to the form. */}
+            {index === draftTurn && (
+                <div className="flex flex-wrap gap-2">
+                    {turn.confirm && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={sending}
+                            onClick={() => send('Simpan')}
+                        >
+                            Simpan
+                        </Button>
+                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={sending}
+                        onClick={openInForm}
+                    >
+                        Ubah di form
+                    </Button>
+                </div>
+            )}
+            {/* Only the latest question can still be answered. */}
+            {isLast && turn.options.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                    {turn.options.map((option) => (
+                        <Button
+                            key={option}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={sending}
+                            onClick={() => send(option)}
+                        >
+                            {option}
+                        </Button>
+                    ))}
+                </div>
+            )}
+            {isLast && turn.failed && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="self-start"
+                    disabled={sending}
+                    onClick={retry}
+                >
+                    Kirim lagi
+                </Button>
+            )}
+        </div>
+    );
+}
+
+function Conversation() {
+    const { turns, sending, form, send, reset } = useAssistant();
+    const [text, setText] = useState('');
+    const input = useRef<HTMLTextAreaElement>(null);
+    const end = useRef<HTMLDivElement>(null);
+    const last = turns.at(-1);
+
+    useEffect(() => {
+        end.current?.scrollIntoView({ block: 'end' });
+    }, [turns, sending]);
+
+    const submit = (event?: FormEvent) => {
+        event?.preventDefault();
+
+        if (text.trim() === '' || sending) {
+            return;
+        }
+
+        send(text);
+        setText('');
+    };
+
+    return (
+        <>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+                {turns.length === 0 ? (
+                    <div className="flex flex-col gap-2">
+                        <p className="text-sm text-muted-foreground">
+                            Coba tulis seperti ini:
+                        </p>
+                        {examples[form ?? 'none'].map((example) => (
+                            <button
+                                key={example}
+                                type="button"
+                                onClick={() => {
+                                    setText(example);
+                                    input.current?.focus();
+                                }}
+                                className="min-h-11 rounded-lg border bg-card px-3 py-2 text-left text-sm shadow-button-soft hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                            >
+                                {example}
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    turns.map((turn, index) => (
+                        <Turn key={index} turn={turn} index={index} />
+                    ))
+                )}
+                {sending && (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Spinner aria-hidden role={undefined} />
+                        AI sedang membaca…
+                    </p>
+                )}
+                <div ref={end} />
+            </div>
+
+            <p className="sr-only" aria-live="polite">
+                {sending
+                    ? 'AI sedang membaca pesanmu.'
+                    : last?.role === 'assistant'
+                      ? last.text
+                      : ''}
+            </p>
+
+            <form
+                onSubmit={submit}
+                className="flex flex-col gap-2 border-t px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+            >
+                <Label htmlFor="assistant-message" className="sr-only">
+                    Pesan untuk AI
+                </Label>
+                <Textarea
+                    ref={input}
+                    id="assistant-message"
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                    // Enter sends, Shift+Enter starts a new line.
+                    onKeyDown={(event) => {
+                        if (
+                            event.key === 'Enter' &&
+                            !event.shiftKey &&
+                            !event.nativeEvent.isComposing
+                        ) {
+                            submit(event);
+                        }
+                    }}
+                    rows={2}
+                    maxLength={1000}
+                    placeholder="Tulis yang mau dicatat"
+                    className="max-h-32 resize-none"
+                    autoComplete="off"
+                />
+                <div className="flex items-center gap-2">
+                    {turns.length > 0 && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={sending}
+                            onClick={reset}
+                        >
+                            Mulai baru
+                        </Button>
+                    )}
+                    <Button
+                        type="submit"
+                        className="ml-auto"
+                        disabled={sending || text.trim() === ''}
+                    >
+                        <SendHorizontal aria-hidden />
+                        Kirim
+                    </Button>
+                </div>
+            </form>
+        </>
+    );
+}
+
+/**
+ * The conversation: a drawer on phones and tablets; on desktop a side sheet
+ * that does not block the page, so the form it fills stays in view.
+ */
+export function AssistantPanel() {
+    const isMobile = useIsMobile();
+    const { open, setOpen } = useAssistant();
+
+    if (isMobile) {
+        return (
+            <Drawer open={open} onOpenChange={setOpen}>
+                <DrawerContent className="max-h-[85dvh]">
+                    <DrawerHeader className="text-left">
+                        <DrawerTitle>{title}</DrawerTitle>
+                        <DrawerDescription>{description}</DrawerDescription>
+                    </DrawerHeader>
+                    <Conversation />
+                </DrawerContent>
+            </Drawer>
+        );
+    }
+
+    return (
+        <Sheet open={open} onOpenChange={setOpen} modal={false}>
+            <SheetContent
+                className="w-full gap-0 sm:max-w-md"
+                // Editing the form beside the panel must not close it.
+                onInteractOutside={(event) => event.preventDefault()}
+                onOpenAutoFocus={(event) => {
+                    event.preventDefault();
+                    document.getElementById('assistant-message')?.focus();
+                }}
+            >
+                <SheetHeader className="border-b pr-10">
+                    <SheetTitle>{title}</SheetTitle>
+                    <SheetDescription>{description}</SheetDescription>
+                </SheetHeader>
+                <Conversation />
+            </SheetContent>
+        </Sheet>
+    );
+}
+
+/** Floats above the bottom nav and any form action bar (app.css). */
+export function AssistantButton() {
+    const { setOpen } = useAssistant();
+
+    return (
+        <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOpen(true)}
+            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 bg-card pr-4 pl-3.5 shadow-toast lg:right-6"
+        >
+            <MessageCircleQuestion
+                className="size-5 text-brand-strong"
+                aria-hidden
+            />
+            Tanya AI
+        </Button>
+    );
+}
+
+/** Shown on a form "Tanya AI" filled, until the owner saves or leaves. */
+export function AssistantFilledNote() {
+    return (
+        <p
+            role="status"
+            className="flex gap-2 rounded-lg bg-secondary px-3 py-2.5 text-sm"
+        >
+            <MessageCircleQuestion
+                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+            />
+            Diisi Tanya AI. Periksa lagi sebelum menekan Simpan.
+        </p>
+    );
+}

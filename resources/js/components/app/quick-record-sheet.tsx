@@ -1,7 +1,11 @@
 import { Link } from '@inertiajs/react';
 import { ChevronRight, MessageCircle } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { transactionTypes } from '@/components/app/badges';
+import {
+    everydayTypes,
+    transactionTypes,
+    type EverydayType,
+} from '@/components/app/badges';
 import {
     Dialog,
     DialogContent,
@@ -20,54 +24,49 @@ import {
 } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { create } from '@/routes/transactions';
-import type { TransactionType } from '@/types/domain';
 
-const hints: Record<TransactionType, string> = {
+const hints: Record<EverydayType, string> = {
     penjualan: 'Jualan tunai, QRIS, atau yang belum dibayar',
     pembelian: 'Bahan baku, barang dagangan, atau peralatan',
     biaya: 'Listrik, gas, sewa, upah karyawan',
     utang_piutang: 'Terima bayaran pelanggan atau bayar supplier',
     modal: 'Setor modal atau ambil uang untuk rumah',
+    pindah_dana: 'Setor tunai ke bank, tarik tunai, atau antar rekening',
 };
 
 function Options({ onChoose }: { onChoose: () => void }) {
     return (
         <div className="flex flex-col gap-4">
             <ul className="flex flex-col divide-y rounded-lg border">
-                {(Object.keys(transactionTypes) as TransactionType[]).map(
-                    (type) => {
-                        const { label, icon: Icon } = transactionTypes[type];
+                {everydayTypes.map((type) => {
+                    const { label, icon: Icon } = transactionTypes[type];
 
-                        return (
-                            <li key={type}>
-                                <Link
-                                    href={create({ query: { jenis: type } })}
-                                    onClick={onChoose}
-                                    className="flex min-h-14 items-center gap-3 px-3 py-2.5 first:rounded-t-lg last:rounded-b-lg hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                                >
-                                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card text-brand-strong">
-                                        <Icon
-                                            className="size-[18px]"
-                                            aria-hidden
-                                        />
+                    return (
+                        <li key={type}>
+                            <Link
+                                href={create({ query: { jenis: type } })}
+                                onClick={onChoose}
+                                className="flex min-h-14 items-center gap-3 px-3 py-2.5 first:rounded-t-lg last:rounded-b-lg hover:bg-accent focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            >
+                                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card text-brand-strong">
+                                    <Icon className="size-[18px]" aria-hidden />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-semibold">
+                                        {label}
                                     </span>
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block text-sm font-semibold">
-                                            {label}
-                                        </span>
-                                        <span className="block text-xs text-muted-foreground">
-                                            {hints[type]}
-                                        </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                        {hints[type]}
                                     </span>
-                                    <ChevronRight
-                                        className="size-4 shrink-0 text-muted-foreground"
-                                        aria-hidden
-                                    />
-                                </Link>
-                            </li>
-                        );
-                    },
-                )}
+                                </span>
+                                <ChevronRight
+                                    className="size-4 shrink-0 text-muted-foreground"
+                                    aria-hidden
+                                />
+                            </Link>
+                        </li>
+                    );
+                })}
             </ul>
             <p className="flex gap-2 rounded-lg bg-secondary px-3 py-2.5 text-sm">
                 <MessageCircle

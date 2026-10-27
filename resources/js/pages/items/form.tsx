@@ -1,6 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { History } from 'lucide-react';
+import { History, ScrollText } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { ActivityList } from '@/components/app/activity-list';
+import { AssistantFilledNote } from '@/components/app/assistant/assistant-panel';
+import { useAssistantForm } from '@/components/app/assistant/assistant-provider';
 import { itemKinds } from '@/components/app/badges';
 import { Field } from '@/components/app/field';
 import { FormActionBar } from '@/components/app/form-action-bar';
@@ -42,12 +45,23 @@ export default function ItemForm({
     materials,
     units,
     movements,
+    activities = [],
 }: ItemFormProps) {
     const editing = item !== null;
     const form = useForm<ItemFormData>(initialItemForm(item, initialKind));
     const { data, processing } = form;
     const errors = formErrors(form);
     const setField = fieldSetter(form);
+    // The assistant fills new products only; an edit opens a new form instead.
+    const filledByAssistant = useAssistantForm(
+        'produk',
+        data,
+        (values) => {
+            form.setData(values);
+            form.clearErrors();
+        },
+        !editing,
+    );
     const { kind } = data;
     const sold = isSoldKind(kind);
     const stocked = isStockedKind(kind);
@@ -86,10 +100,12 @@ export default function ItemForm({
                 />
 
                 <form
+                    key={filledByAssistant}
                     onSubmit={submit}
                     noValidate
                     className="flex flex-1 flex-col gap-4 md:gap-6"
                 >
+                    {filledByAssistant > 0 && <AssistantFilledNote />}
                     <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-12">
                         <div className="flex min-w-0 flex-col gap-4 md:gap-6 lg:col-span-7">
                             {!editing && (
@@ -367,6 +383,16 @@ export default function ItemForm({
                                             unit={item.unit}
                                         />
                                     )}
+                                </SectionCard>
+                            )}
+
+                            {editing && (
+                                <SectionCard
+                                    title="Riwayat perubahan"
+                                    icon={ScrollText}
+                                    description="Siapa mengubah harga, resep, atau data lain, dan kapan."
+                                >
+                                    <ActivityList entries={activities} />
                                 </SectionCard>
                             )}
                         </div>

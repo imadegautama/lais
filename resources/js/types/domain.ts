@@ -1,6 +1,8 @@
 import type {
+    ActivityCategory,
     ContactType,
     ItemKind,
+    MoneyAccountKind,
     PaymentMethod,
     Period as PeriodKey,
     StockReason as StockMovementReason,
@@ -14,8 +16,10 @@ import type { TablePage } from '@/types/ui';
 // through the generated enums.ts. Money is integer rupiah everywhere.
 
 export type {
+    ActivityCategory,
     ContactType,
     ItemKind,
+    MoneyAccountKind,
     PaymentMethod,
     PeriodKey,
     StockMovementReason,
@@ -61,7 +65,25 @@ export type TransactionRow = {
     direction: MoneyDirection;
     /** Customer or supplier name, when there is one. */
     contact: string | null;
+    /** The rekening the money moved through; the source of a Pindah dana. */
+    moneyAccount?: string | null;
+    /** The target of a Pindah dana. */
+    toMoneyAccount?: string | null;
     voided: boolean;
+};
+
+/** A rekening with its balance (MoneyAccountResource). */
+export type MoneyAccountOption = {
+    id: number;
+    kind: MoneyAccountKind;
+    name: string;
+    balance: Rupiah;
+};
+
+export type MoneyAccountsIndexProps = {
+    needsOnboarding: boolean;
+    /** Kas tunai first, then the rekening in the order they were added. */
+    accounts: MoneyAccountOption[];
 };
 
 /** A link target that exists, or an honest "not built yet" marker. */
@@ -84,17 +106,21 @@ export type HealthRule = {
 };
 
 export type StockAlert = {
-    id: string;
+    /** The item's id. */
+    id: number;
     name: string;
     unit: string;
     stock: number;
-    minimum: number;
+    /** Null when the item has no minimum; it alerts on days left alone. */
+    minimum: number | null;
     /** Null when there are fewer than 3 days of usage data. */
     daysLeft: number | null;
 };
 
 export type DashboardProps = {
-    isDemo: boolean;
+    /** The books are not opened yet (no saldo awal). */
+    needsOnboarding: boolean;
+    /** No record yet besides the saldo awal. */
     isEmpty: boolean;
     business: { name: string; ownerName: string };
     period: Period;
@@ -186,6 +212,8 @@ export type ItemFormProps = {
     /** Units this business already uses. */
     units: string[];
     movements: StockMovementRow[];
+    /** The product's Riwayat; only when editing. */
+    activities?: ActivityEntry[];
 };
 
 /** An item the record form can sell or buy, with what the impact preview needs. */
@@ -217,12 +245,37 @@ export type TransactionsIndexProps = {
     hasTransactions: boolean;
 };
 
+export type RecordLine = { item_id: string; qty: string; price: number | null };
+
+/** The record form's data (C3), also sent filled in by "Ubah" (TransactionFormResource). */
+export type RecordFormData = {
+    type: TransactionType;
+    kind: TransactionKind | '';
+    method: PaymentMethod;
+    occurred_at: string;
+    lines: RecordLine[];
+    amount: number | null;
+    paid_amount: number | null;
+    /** A contact id, or a new name typed into the field. */
+    contact: string;
+    note: string;
+    /** The chosen rekening (non-tunai), or the source of a Pindah dana. */
+    money_account_id: string;
+    /** The target of a Pindah dana. */
+    to_money_account_id: string;
+};
+
 export type TransactionCreateProps = {
     initialType: TransactionType;
     /** Server time (WIB) as a datetime-local value. */
     now: string;
     items: RecordItem[];
     contacts: ContactOption[];
+    /** Active rekening with their balances; as if the edited record were cancelled. */
+    moneyAccounts: MoneyAccountOption[];
+    /** Set when the form edits a record ("Ubah"). */
+    editing?: { id: number; description: string };
+    initial?: RecordFormData;
 };
 
 export type TransactionDetailProps = {
@@ -233,6 +286,10 @@ export type TransactionDetailProps = {
         cashFlow: Rupiah;
         voidedAt: string | null;
         voidReason: string | null;
+        /** The record "Ubah" saved in place of this one. */
+        replacedById: number | null;
+        /** The record this one replaced. */
+        replacesId: number | null;
     };
     lines: Array<{
         id: number;
@@ -251,8 +308,33 @@ export type TransactionDetailProps = {
         lines: Array<{
             code: string;
             account: string;
+            /** Which rekening, on a 1101/1102 line. */
+            moneyAccount: string | null;
             debit: Rupiah;
             credit: Rupiah;
         }>;
     }>;
+    activities: ActivityEntry[];
+};
+
+/** One audit-log entry (ActivityResource): Log aktivitas and each record's Riwayat. */
+export type ActivityEntry = {
+    id: number;
+    at: string;
+    category: ActivityCategory;
+    event: string | null;
+    /** Who did it; "Tidak dikenal" for a failed sign-in, "Sistem" without a user. */
+    actor: string;
+    source: TransactionSource | null;
+    /** The whole sentence, written when it happened: "Mengubah produk Nasi Goreng". */
+    description: string;
+    /** Reason, email tried, IP, or the value of a stock count. */
+    detail: string | null;
+    /** The record it is about, while it can still be opened. */
+    href: string | null;
+    changes: Array<{ label: string; old: string; new: string }>;
+};
+
+export type ActivityIndexProps = {
+    activities: TablePage<ActivityEntry>;
 };

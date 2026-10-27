@@ -8,14 +8,22 @@ use App\Enums\TransactionSource;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Http\Requests\TransactionRequest;
+use App\Http\Resources\ActivityResource;
 use App\Http\Resources\ContactResource;
 use App\Http\Resources\ItemOptionResource;
 use App\Http\Resources\JournalEntryResource;
+use App\Http\Resources\MoneyAccountResource;
 use App\Http\Resources\StockMovementResource;
 use App\Http\Resources\TransactionDetailResource;
+use App\Http\Resources\TransactionFormResource;
 use App\Http\Resources\TransactionLineResource;
 use App\Http\Resources\TransactionResource;
+use App\Models\Activity;
+use App\Models\Business;
 use App\Models\Contact;
+use App\Models\Item;
+use App\Models\MoneyAccount;
+use App\Models\StockMovement;
 use App\Models\Transaction;
 use App\Services\Ledger;
 use App\Services\TransactionService;
@@ -39,7 +47,7 @@ class TransactionController extends Controller
         return Inertia::render('transactions/index', [
             'transactions' => TableQuery::paginate(
                 $request,
-                $business->transactions()->getQuery()->with('contact'),
+                $business->transactions()->getQuery()->with(['contact', 'moneyAccount', 'toMoneyAccount']),
                 map: fn (Transaction $transaction) => TransactionResource::make($transaction)->resolve(),
                 sorts: ['waktu' => 'occurred_at', 'nominal' => 'total'],
                 defaultSort: '-waktu',
@@ -53,9 +61,10 @@ class TransactionController extends Controller
                     'sumber' => ['source', TransactionSource::values()],
                 ],
                 search: ['description', 'note', '(select contacts.name from contacts where contacts.id = transactions.contact_id)'],
+                // An opening balance is money the business already had, not money that came in.
                 summary: fn (Builder $query) => [
-                    'cashIn' => (int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.cash_flow', '>', 0)->sum('transactions.cash_flow'),
-                    'cashOut' => -(int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.cash_flow', '<', 0)->sum('transactions.cash_flow'),
+                    'cashIn' => (int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.type', '<>', TransactionType::SaldoAwal)->where('transactions.cash_flow', '>', 0)->sum('transactions.cash_flow'),
+                    'cashOut' => -(int) (clone $query)->where('transactions.status', TransactionStatus::Posted)->where('transactions.type', '<>', TransactionType::SaldoAwal)->where('transactions.cash_flow', '<', 0)->sum('transactions.cash_flow'),
                     'count' => (clone $query)->count(),
                 ],
             ),
@@ -65,20 +74,46 @@ class TransactionController extends Controller
 
     /**
      * Record form (UI-PAGES C3). `?jenis=` opens the matching tab.
-     * shortcut: sends every item and contact, fine for a few hundred; search on the server beyond that.
      */
     public function create(Request $request, Ledger $ledger): Response
     {
         $business = $request->user()->currentBusiness();
-        $balances = $ledger->contactBalances($business);
 
         return Inertia::render('transactions/create', [
             'initialType' => TransactionType::tryFrom((string) $request->query('jenis')) ?? TransactionType::Penjualan,
-            'now' => now()->format('Y-m-d\TH:i'),
-            'items' => ItemOptionResource::collection($business->items()->with('recipeLines')->orderBy('items.name')->get())->resolve(),
-            'contacts' => $business->contacts()->orderBy('contacts.name')->get()
-                ->map(fn (Contact $contact) => (new ContactResource($contact, $balances[$contact->id] ?? 0))->resolve())
-                ->values()->all(),
+            ...$this->formOptions($business, $ledger),
+        ]);
+    }
+
+    /**
+     * "Ubah" (UI-PAGES C4): the record form filled in. Nothing is cancelled
+     * until it is saved, so leaving the page changes nothing.
+     */
+    public function edit(Request $request, Transaction $transaction, Ledger $ledger): Response|RedirectResponse
+    {
+        Gate::authorize('manage', $transaction);
+
+        $transaction->load(['lines.item', 'stockMovements.item', 'moneyAccount', 'toMoneyAccount']);
+        $archived = $transaction->lines->pluck('item')->merge($transaction->stockMovements->pluck('item'))
+            ->merge([$transaction->moneyAccount, $transaction->toMoneyAccount])
+            ->filter(fn (mixed $model): bool => ($model instanceof Item || $model instanceof MoneyAccount) && $model->trashed())->pluck('name')->unique();
+
+        if ($transaction->isVoid() || $archived->isNotEmpty()) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => $transaction->isVoid()
+                    ? 'Catatan ini sudah dibatalkan.'
+                    : "{$archived->join(', ', ' dan ')} sudah diarsipkan, jadi catatan ini tidak bisa diubah.",
+            ]);
+
+            return to_route('transactions.show', $transaction);
+        }
+
+        return Inertia::render('transactions/create', [
+            'initialType' => $transaction->type,
+            'editing' => ['id' => $transaction->id, 'description' => $transaction->description],
+            'initial' => TransactionFormResource::make($transaction)->resolve(),
+            ...$this->formOptions($request->user()->currentBusiness(), $ledger, $transaction),
         ]);
     }
 
@@ -98,6 +133,41 @@ class TransactionController extends Controller
             : to_route('transactions.index');
     }
 
+    public function update(TransactionRequest $request, Transaction $transaction, TransactionService $service): RedirectResponse
+    {
+        Gate::authorize('manage', $transaction);
+
+        $replacement = $service->replace($transaction, $request->validated());
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Perubahan disimpan.',
+            'description' => $replacement->description,
+        ]);
+
+        return to_route('transactions.show', $replacement);
+    }
+
+    public function cancel(Request $request, Transaction $transaction, TransactionService $service): RedirectResponse
+    {
+        Gate::authorize('manage', $transaction);
+
+        $validated = $request->validate(
+            ['reason' => ['nullable', 'string', 'max:200']],
+            ['reason.max' => 'Alasannya paling panjang 200 huruf.'],
+        );
+
+        $service->cancel($transaction, $validated['reason'] ?? null);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Catatan dibatalkan.',
+            'description' => 'Stok, kas, dan utang-piutangnya sudah dikembalikan.',
+        ]);
+
+        return to_route('transactions.show', $transaction);
+    }
+
     /**
      * Transaction detail (UI-PAGES C4): lines, stock changes, and the journal.
      */
@@ -105,13 +175,47 @@ class TransactionController extends Controller
     {
         Gate::authorize('manage', $transaction);
 
-        $transaction->load(['contact', 'lines.item', 'stockMovements.item', 'journalEntries.lines.account']);
+        $transaction->load(['contact', 'moneyAccount', 'toMoneyAccount', 'replaces:id,replaced_by_id', 'lines.item', 'stockMovements.item', 'journalEntries.lines.account', 'journalEntries.lines.moneyAccount']);
 
         return Inertia::render('transactions/show', [
             'transaction' => TransactionDetailResource::make($transaction)->resolve(),
             'lines' => TransactionLineResource::collection($transaction->lines)->resolve(),
             'movements' => StockMovementResource::collection($transaction->stockMovements)->resolve(),
             'journal' => JournalEntryResource::collection($transaction->journalEntries)->resolve(),
+            'activities' => ActivityResource::collection(Activity::historyOf($transaction))->resolve(),
         ]);
+    }
+
+    /**
+     * Items and contacts for the record form. When editing, stock and balances
+     * read as if $editing were already cancelled, so the impact preview adds up.
+     * shortcut: sends every item and contact, fine for a few hundred; search on the server beyond that.
+     *
+     * @return array{now: string, items: array<mixed>, contacts: array<mixed>, moneyAccounts: array<mixed>}
+     */
+    private function formOptions(Business $business, Ledger $ledger, ?Transaction $editing = null): array
+    {
+        $balances = $ledger->contactBalances($business, excluding: $editing?->id);
+        $moneyBalances = $ledger->moneyBalances($business, excluding: $editing?->id);
+        $movements = $editing?->stockMovements->groupBy('item_id') ?? collect();
+        $items = $business->items()->with('recipeLines')->orderBy('items.name')->get()
+            ->each(function (Item $item) use ($movements) {
+                if ($moved = $movements->get($item->id)) {
+                    // Exact unless units moved since; only for the preview, never saved.
+                    $item->stock = (string) round((float) $item->stock - $moved->sum(fn (StockMovement $movement) => (float) $movement->qty), 3);
+                    $item->stock_value -= (int) $moved->sum('value');
+                }
+            });
+
+        return [
+            'now' => now()->format('Y-m-d\TH:i'),
+            'items' => ItemOptionResource::collection($items)->resolve(),
+            'contacts' => $business->contacts()->orderBy('contacts.name')->get()
+                ->map(fn (Contact $contact) => (new ContactResource($contact, $balances[$contact->id] ?? 0))->resolve())
+                ->values()->all(),
+            'moneyAccounts' => $business->moneyAccounts()->orderBy('money_accounts.id')->get()
+                ->map(fn (MoneyAccount $moneyAccount) => (new MoneyAccountResource($moneyAccount, $moneyBalances[$moneyAccount->id] ?? 0))->resolve())
+                ->values()->all(),
+        ];
     }
 }

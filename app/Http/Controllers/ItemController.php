@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ActivityCategory;
+use App\Enums\ActivityEvent;
 use App\Enums\ItemKind;
-use App\Enums\StockReason;
 use App\Http\Requests\ItemRequest;
+use App\Http\Resources\ActivityResource;
 use App\Http\Resources\ItemOptionResource;
 use App\Http\Resources\ItemResource;
 use App\Http\Resources\StockMovementResource;
-use App\Models\Account;
+use App\Models\Activity;
 use App\Models\Business;
 use App\Models\Item;
+use App\Services\Catalog;
 use App\Services\Inventory;
 use App\Support\TableQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -65,25 +68,12 @@ class ItemController extends Controller
         ]);
     }
 
-    public function store(ItemRequest $request, Inventory $inventory): RedirectResponse
+    public function store(ItemRequest $request, Catalog $catalog): RedirectResponse
     {
         $business = $request->user()->currentBusiness();
         $data = $request->validated();
 
-        $item = DB::transaction(function () use ($business, $data, $inventory) {
-            $kind = ItemKind::from($data['kind']);
-            $item = $business->items()->create(['kind' => $kind] + $this->attributes($data, $kind));
-
-            if ($kind === ItemKind::Komposisi) {
-                $item->recipeLines()->createMany($data['recipe']);
-            }
-
-            if ((float) ($data['opening_stock'] ?? 0) > 0) {
-                $inventory->receive($item, (float) $data['opening_stock'], (int) $data['opening_cost'], StockReason::StokAwal, Account::OWNER_CAPITAL);
-            }
-
-            return $item;
-        });
+        $item = $catalog->create($business, $data);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$item->name} tersimpan."]);
 
@@ -110,6 +100,7 @@ class ItemController extends Controller
             'movements' => StockMovementResource::collection(
                 $item->stockMovements()->latest('stock_movements.occurred_at')->latest('stock_movements.id')->limit(20)->get(),
             )->resolve(),
+            'activities' => ActivityResource::collection(Activity::historyOf($item))->resolve(),
         ]);
     }
 
@@ -120,11 +111,22 @@ class ItemController extends Controller
         $data = $request->validated();
 
         DB::transaction(function () use ($item, $data) {
-            $item->update($this->attributes($data, $item->kind));
+            $item->update(Catalog::attributes($data, $item->kind));
 
             if ($item->kind === ItemKind::Komposisi) {
+                $before = $item->load('recipeLines.material')->recipeText();
                 $item->recipeLines()->delete();
                 $item->recipeLines()->createMany($data['recipe']);
+                $after = $item->load('recipeLines.material')->recipeText();
+
+                // The recipe is rewritten as new rows, which model events cannot see, so its change is logged here.
+                if ($after !== $before) {
+                    activity(ActivityCategory::Produk)
+                        ->event(ActivityEvent::RecipeUpdated->value)
+                        ->performedOn($item)
+                        ->withChanges(['old' => ['recipe' => $before], 'attributes' => ['recipe' => $after]])
+                        ->log(ActivityEvent::RecipeUpdated->verb()." {$item->name}");
+                }
             }
         });
 
@@ -215,24 +217,6 @@ class ItemController extends Controller
             'lowStockNames' => $low()->orderBy('items.name')->limit(2)->pluck('items.name'),
             'negativeStockCount' => $negative()->count(),
             'negativeStockNames' => $negative()->orderBy('items.name')->limit(2)->pluck('items.name'),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    private function attributes(array $data, ItemKind $kind): array
-    {
-        return [
-            'name' => $data['name'],
-            'aliases' => $data['aliases'] ?? [],
-            'unit' => $data['unit'],
-            'price' => $kind->isSold() ? $data['price'] : null,
-            'min_stock' => $kind->isStocked() ? ($data['min_stock'] ?? null) : null,
-            'show_in_store' => $kind->isSold() && ($data['show_in_store'] ?? true),
-            // PRD US-08: stocked items are sold out by their stock; only recipe products have a switch.
-            'available' => $kind->isStocked() || ($data['available'] ?? true),
         ];
     }
 

@@ -133,6 +133,9 @@
 
     /* Toasts sit above the bottom nav (< 1024px), then near the corner. */
     --toast-offset-bottom: calc(4.25rem + 1rem + env(safe-area-inset-bottom));
+    /* "Tanya AI" floats there too; the content keeps room below for both. */
+    --assistant-offset-bottom: var(--toast-offset-bottom);
+    --content-pad-bottom: calc(7.5rem + env(safe-area-inset-bottom));
     /* Owner override: 1.46:1, below the 3:1 non-text guideline (DESIGN.md). */
     --input: #dad5cf;
 
@@ -207,9 +210,22 @@
     }
 }
 
+/* A form's sticky action bar already holds the bottom edge: the button
+   rises above it and the content needs only the bottom nav's room. */
+:root:has([data-slot='form-action-bar']) {
+    --assistant-offset-bottom: calc(9.25rem + env(safe-area-inset-bottom));
+    --content-pad-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
 @media (width >= 64rem) {
     :root {
         --toast-offset-bottom: 1.5rem;
+        --content-pad-bottom: 3.5rem;
+    }
+
+    :root:has([data-slot='form-action-bar']) {
+        --assistant-offset-bottom: 5.25rem;
+        --content-pad-bottom: 0px;
     }
 }
 

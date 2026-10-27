@@ -3,11 +3,15 @@ import {
     ChartColumn,
     CircleCheck,
     ClipboardList,
+    HandCoins,
     HeartPulse,
+    House,
+    Landmark,
     ListChecks,
     NotebookPen,
     PackageMinus,
     ReceiptText,
+    Scale,
     Flag,
     TriangleAlert,
     Wallet,
@@ -15,25 +19,33 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { ActionButton, SoonTag } from '@/components/app/action-button';
-import { DemoDataBadge } from '@/components/app/demo-data-badge';
-import { DeltaBadge, MetricFocus, MetricInline } from '@/components/app/metric';
+import { DeltaBadge, MetricTile } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
+import { OnboardingReminder } from '@/components/app/onboarding-reminder';
 import { PageHeader } from '@/components/app/page-header';
 import { PeriodPicker } from '@/components/app/period-picker';
 import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
-import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
+import { EmptyState, ErrorState } from '@/components/app/states';
 import { TransactionTable } from '@/features/transactions/transaction-table';
 import { Progress } from '@/components/ui/progress';
 import {
     formatDate,
     formatPercent,
     formatQty,
+    formatRupiah,
     formatRupiahCompact,
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import { create as createItem } from '@/routes/items';
+import { index as moneyAccountsIndex } from '@/routes/money-accounts';
+import {
+    create as createTransaction,
+    index as transactionsIndex,
+} from '@/routes/transactions';
 import type { ActionItem, DashboardProps, PeriodKey } from '@/types/domain';
+import { TransactionType } from '@/types/enums';
 
 function greeting(): string {
     const hour = Number(
@@ -94,7 +106,6 @@ export default function Dashboard(props: DashboardProps) {
             <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
                 <PageHeader
                     title={`${greeting()}, ${props.business.ownerName}`}
-                    meta={props.isDemo && <DemoDataBadge />}
                     description={`${props.business.name} · ${formatDate(new Date(), 'long')}`}
                     actions={
                         !props.isEmpty && (
@@ -107,6 +118,8 @@ export default function Dashboard(props: DashboardProps) {
                         )
                     }
                 />
+
+                {props.needsOnboarding && <OnboardingReminder />}
 
                 {failed && (
                     <ErrorState
@@ -127,170 +140,230 @@ export default function Dashboard(props: DashboardProps) {
 }
 
 function Overview(props: DashboardProps & { loading: boolean }) {
-    const { summary, period, wallets, loading } = props;
+    const { wallets } = props;
     const drawnShare =
         wallets.netProfitThisMonth > 0
             ? (wallets.drawnThisMonth / wallets.netProfitThisMonth) * 100
             : null;
 
     return (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-12">
-            <ActionsPanel
-                actions={props.actions}
-                className="md:col-span-2 xl:col-span-7"
-            />
+        <>
+            <SummaryCards {...props} />
 
-            <SectionCard
-                title={`Ringkasan ${period.label.toLowerCase()}`}
-                icon={ChartColumn}
-                busy={loading}
-                className="md:col-span-2 xl:col-span-5"
-            >
-                {loading ? (
-                    <LoadingBlock
-                        label={`Memuat ringkasan ${period.label.toLowerCase()}`}
-                        rows={4}
-                    />
-                ) : (
-                    <div className="flex flex-col gap-4">
-                        <MetricFocus
-                            label="Laba bersih"
-                            value={summary.netProfit.value}
-                            delta={
-                                <DeltaBadge
-                                    value={summary.netProfit.value}
-                                    previous={summary.netProfit.previous}
-                                    comparisonLabel={period.comparisonLabel}
-                                />
-                            }
-                            hint="Penjualan dikurangi modal bahan yang terjual dan biaya operasional."
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-12">
+                <ActionsPanel
+                    actions={props.actions}
+                    className="md:col-span-2 xl:col-span-7"
+                />
+
+                <HealthCard
+                    rules={props.health}
+                    className="md:col-span-2 xl:col-span-5"
+                />
+
+                <SectionCard
+                    title="Hari apa paling ramai?"
+                    description="Penjualan per hari, 30 hari terakhir"
+                    icon={ChartColumn}
+                    className="md:col-span-2 xl:col-span-8"
+                >
+                    {props.salesChart.some((point) => point.sales > 0) ? (
+                        <SalesBarChart data={props.salesChart} />
+                    ) : (
+                        <EmptyState
+                            title="Belum ada penjualan 30 hari terakhir"
+                            description="Grafik muncul setelah penjualan pertama dicatat."
                         />
-                        <div className="divide-y border-t pt-3">
-                            <MetricInline
-                                label="Penjualan"
-                                value={<Money value={summary.sales.value} />}
-                                detail={`${summary.sales.count} transaksi`}
-                                delta={
-                                    <DeltaBadge
-                                        value={summary.sales.value}
-                                        previous={summary.sales.previous}
-                                        comparisonLabel={period.comparisonLabel}
-                                    />
-                                }
-                            />
-                            <MetricInline
-                                label="Kas usaha saat ini"
-                                value={<Money value={summary.cash.total} />}
-                                detail={`Tunai ${formatRupiahCompact(summary.cash.onHand)} · non-tunai ${formatRupiahCompact(summary.cash.nonCash)}`}
-                            />
-                            <MetricInline
-                                label="Diambil untuk pribadi"
-                                value={
-                                    <Money value={summary.personalDraw.value} />
-                                }
-                                delta={
-                                    <DeltaBadge
-                                        value={summary.personalDraw.value}
-                                        previous={summary.personalDraw.previous}
-                                        comparisonLabel={period.comparisonLabel}
-                                        goodWhen="neutral"
-                                    />
-                                }
-                            />
-                        </div>
-                    </div>
-                )}
-            </SectionCard>
-
-            <SectionCard
-                title="Hari apa paling ramai?"
-                description="Penjualan per hari, 30 hari terakhir"
-                icon={ChartColumn}
-                className="md:col-span-2 xl:col-span-8"
-            >
-                {props.salesChart.some((point) => point.sales > 0) ? (
-                    <SalesBarChart data={props.salesChart} />
-                ) : (
-                    <EmptyState
-                        title="Belum ada penjualan 30 hari terakhir"
-                        description="Grafik muncul setelah penjualan pertama dicatat."
-                    />
-                )}
-            </SectionCard>
-
-            <SectionCard
-                title="Uang usaha dan uang pribadi"
-                description="Dipisah supaya laba tidak tercampur kebutuhan rumah."
-                icon={Wallet}
-                className="md:self-start xl:col-span-4 xl:self-stretch"
-            >
-                <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-2 overflow-hidden rounded-lg border">
-                        <div className="flex flex-col gap-1 p-3">
-                            <span className="text-xs font-medium text-muted-foreground">
-                                Uang usaha
-                            </span>
-                            <Money value={wallets.businessCash} size="lg" />
-                            <span className="text-xs text-muted-foreground">
-                                Kas tunai + non-tunai
-                            </span>
-                        </div>
-                        <div className="flex flex-col gap-1 border-l bg-secondary p-3">
-                            <span className="text-xs font-medium text-muted-foreground">
-                                Diambil untuk rumah
-                            </span>
-                            <Money value={wallets.drawnThisMonth} size="lg" />
-                            <span className="text-xs text-muted-foreground">
-                                Bulan ini
-                            </span>
-                        </div>
-                    </div>
-                    {drawnShare !== null && (
-                        <div className="flex flex-col gap-1.5">
-                            <Progress
-                                value={Math.min(100, drawnShare)}
-                                aria-label="Bagian laba bulan ini yang diambil untuk pribadi"
-                            />
-                            <p className="text-sm">
-                                Diambil{' '}
-                                <strong className="num">
-                                    {formatPercent(drawnShare, 0)}
-                                </strong>{' '}
-                                dari laba bulan ini.
-                                {drawnShare > 100 &&
-                                    ' Modal usaha ikut terpakai.'}
-                            </p>
-                        </div>
                     )}
-                    <p className="text-sm text-muted-foreground">
-                        Modal usaha{' '}
-                        <span className="num font-semibold text-foreground">
-                            {formatRupiahCompact(wallets.equityOpening)}
-                        </span>{' '}
-                        di awal bulan, sekarang{' '}
-                        <span className="num font-semibold text-foreground">
-                            {formatRupiahCompact(wallets.equityNow)}
-                        </span>
-                        .
-                    </p>
-                </div>
-            </SectionCard>
+                </SectionCard>
 
-            {/* Sits beside the wallets card on tablets; moves right of the table on xl. */}
-            <div className="flex flex-col gap-4 md:gap-6 xl:col-span-4 xl:col-start-9 xl:row-start-3">
-                <HealthCard rules={props.health} />
-                <StockCard alerts={props.stockAlerts} />
+                <SectionCard
+                    title="Uang usaha dan uang pribadi"
+                    description="Dipisah supaya laba tidak tercampur kebutuhan rumah."
+                    icon={Wallet}
+                    className="md:self-start xl:col-span-4 xl:self-stretch"
+                >
+                    <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-2 overflow-hidden rounded-lg border">
+                            <div className="flex flex-col gap-1 p-3">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                    Uang usaha
+                                </span>
+                                <Money value={wallets.businessCash} size="lg" />
+                                <span className="text-xs text-muted-foreground">
+                                    Kas tunai + non-tunai
+                                </span>
+                            </div>
+                            <div className="flex flex-col gap-1 border-l bg-secondary p-3">
+                                <span className="text-xs font-medium text-muted-foreground">
+                                    Diambil untuk rumah
+                                </span>
+                                <Money
+                                    value={wallets.drawnThisMonth}
+                                    size="lg"
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                    Bulan ini
+                                </span>
+                            </div>
+                        </div>
+                        {drawnShare !== null && (
+                            <div className="flex flex-col gap-1.5">
+                                <Progress
+                                    value={Math.min(100, drawnShare)}
+                                    aria-label="Bagian laba bulan ini yang diambil untuk pribadi"
+                                />
+                                <p className="text-sm">
+                                    Diambil{' '}
+                                    <strong className="num">
+                                        {formatPercent(drawnShare, 0)}
+                                    </strong>{' '}
+                                    dari laba bulan ini.
+                                    {drawnShare > 100 &&
+                                        ' Modal usaha ikut terpakai.'}
+                                </p>
+                            </div>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                            Modal usaha{' '}
+                            <span className="num font-semibold text-foreground">
+                                {formatRupiah(wallets.equityOpening)}
+                            </span>{' '}
+                            di awal bulan, sekarang{' '}
+                            <span className="num font-semibold text-foreground">
+                                {formatRupiah(wallets.equityNow)}
+                            </span>
+                            .
+                        </p>
+                    </div>
+                </SectionCard>
+
+                {/* Beside the wallets card on tablets; right of the table on xl. */}
+                <StockCard
+                    alerts={props.stockAlerts}
+                    className="md:self-start xl:col-span-4 xl:col-start-9 xl:row-start-3"
+                />
+
+                <SectionCard
+                    title="Transaksi terakhir"
+                    description="Catatan terbaru dari WhatsApp, web, dan halaman toko"
+                    icon={ReceiptText}
+                    className="md:col-span-2 xl:col-span-8 xl:col-start-1 xl:row-start-3"
+                >
+                    <TransactionTable rows={props.recentTransactions} />
+                </SectionCard>
             </div>
+        </>
+    );
+}
 
-            <SectionCard
-                title="Transaksi terakhir"
-                description="Catatan terbaru dari WhatsApp, web, dan halaman toko"
-                icon={ReceiptText}
-                className="md:col-span-2 xl:col-span-8 xl:col-start-1 xl:row-start-3"
-            >
-                <TransactionTable rows={props.recentTransactions} />
-            </SectionCard>
-        </div>
+/**
+ * The period at a glance (UI-PAGES C1): four tiles, each a number, its
+ * change against the named period before, and one line saying what it
+ * means. Tiles open the records behind them where a page exists.
+ */
+function SummaryCards({
+    summary,
+    period,
+    loading,
+}: DashboardProps & { loading: boolean }) {
+    const span = period.label.toLowerCase();
+    const delta = (
+        value: number,
+        previous: number | null,
+        goodWhen?: 'up' | 'neutral',
+    ) => (
+        <DeltaBadge
+            value={value}
+            previous={previous}
+            comparisonLabel={period.comparisonLabel}
+            goodWhen={goodWhen}
+        />
+    );
+    // Big on wide screens, still whole in a two-column tile at 360 px.
+    const amount = (value: number) => (
+        <Money
+            value={value}
+            size="xl"
+            className="text-xl md:text-[28px] xl:text-[32px]"
+        />
+    );
+
+    return (
+        <section
+            aria-label={`Ringkasan ${span}`}
+            aria-busy={loading || undefined}
+            className={cn(
+                'grid grid-cols-2 gap-3 transition-opacity md:gap-4 lg:grid-cols-4',
+                loading && 'opacity-60',
+            )}
+        >
+            <MetricTile
+                label="Penjualan"
+                icon={HandCoins}
+                href={transactionsIndex.url({
+                    query: {
+                        jenis: TransactionType.Penjualan,
+                        periode: period.key,
+                    },
+                })}
+                value={
+                    <div className="flex flex-col gap-1.5">
+                        {amount(summary.sales.value)}
+                        {delta(summary.sales.value, summary.sales.previous)}
+                    </div>
+                }
+                detail={`${summary.sales.count} transaksi ${span}`}
+            />
+            <MetricTile
+                label="Untung bersih"
+                icon={Scale}
+                tone={summary.netProfit.value < 0 ? 'danger' : 'neutral'}
+                value={
+                    <div className="flex flex-col gap-1.5">
+                        {amount(summary.netProfit.value)}
+                        {delta(
+                            summary.netProfit.value,
+                            summary.netProfit.previous,
+                        )}
+                    </div>
+                }
+                detail="Penjualan dikurangi modal bahan dan biaya"
+            />
+            <MetricTile
+                label="Uang usaha"
+                icon={Landmark}
+                href={moneyAccountsIndex.url()}
+                value={amount(summary.cash.total)}
+                detail={`Saat ini · tunai ${formatRupiahCompact(summary.cash.onHand)} · non-tunai ${formatRupiahCompact(summary.cash.nonCash)}`}
+            />
+            <MetricTile
+                label="Diambil untuk pribadi"
+                icon={House}
+                href={transactionsIndex.url({
+                    query: {
+                        jenis: TransactionType.Modal,
+                        periode: period.key,
+                    },
+                })}
+                value={
+                    <div className="flex flex-col gap-1.5">
+                        {amount(summary.personalDraw.value)}
+                        {delta(
+                            summary.personalDraw.value,
+                            summary.personalDraw.previous,
+                            'neutral',
+                        )}
+                    </div>
+                }
+                detail={`Untuk keperluan rumah, ${span}`}
+            />
+            {loading && (
+                <span role="status" className="sr-only">
+                    Memuat ringkasan {span}
+                </span>
+            )}
+        </section>
     );
 }
 
@@ -362,11 +435,18 @@ function ActionsPanel({
     );
 }
 
-function HealthCard({ rules }: { rules: DashboardProps['health'] }) {
+function HealthCard({
+    rules,
+    className,
+}: {
+    rules: DashboardProps['health'];
+    className?: string;
+}) {
     const failing = rules.filter((rule) => !rule.passed).length;
 
     return (
         <SectionCard
+            className={className}
             title="Kesehatan usaha"
             description={
                 failing === 0
@@ -419,9 +499,16 @@ function HealthCard({ rules }: { rules: DashboardProps['health'] }) {
     );
 }
 
-function StockCard({ alerts }: { alerts: DashboardProps['stockAlerts'] }) {
+function StockCard({
+    alerts,
+    className,
+}: {
+    alerts: DashboardProps['stockAlerts'];
+    className?: string;
+}) {
     return (
         <SectionCard
+            className={className}
             title="Bahan hampir habis"
             description="Perkiraan dari pemakaian 7 hari terakhir"
             icon={PackageMinus}
@@ -443,9 +530,9 @@ function StockCard({ alerts }: { alerts: DashboardProps['stockAlerts'] }) {
                                     {alert.name}
                                 </p>
                                 <p className="num text-xs text-muted-foreground">
-                                    Sisa {formatQty(alert.stock, alert.unit)} ·
-                                    minimum{' '}
-                                    {formatQty(alert.minimum, alert.unit)}
+                                    Sisa {formatQty(alert.stock, alert.unit)}
+                                    {alert.minimum !== null &&
+                                        ` · minimum ${formatQty(alert.minimum, alert.unit)}`}
                                 </p>
                             </div>
                             <span
@@ -469,16 +556,22 @@ function StockCard({ alerts }: { alerts: DashboardProps['stockAlerts'] }) {
     );
 }
 
-// TODO(C3/C6/A2/M0): each step links to its page once built.
+// TODO(GOWA/A2): the WhatsApp and store steps link once built.
 function FirstSteps() {
-    const steps = [
+    const steps: Array<{
+        title: string;
+        detail: string;
+        action?: { label: string; href: string };
+    }> = [
         {
             title: 'Tambahkan produk dan resep',
             detail: 'Supaya stok bahan berkurang otomatis saat terjual.',
+            action: { label: 'Tambah produk', href: createItem.url() },
         },
         {
             title: 'Catat penjualan pertama',
             detail: 'Dari tombol Catat, atau kirim pesan ke bot WhatsApp.',
+            action: { label: 'Catat penjualan', href: createTransaction.url() },
         },
         {
             title: 'Hubungkan WhatsApp',
@@ -502,20 +595,34 @@ function FirstSteps() {
                 {steps.map((step, index) => (
                     <li
                         key={step.title}
-                        className="flex items-center gap-3 py-3.5"
+                        className="flex items-start gap-3 py-3.5 sm:items-center"
                     >
                         <span className="num flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold text-muted-foreground">
                             {index + 1}
                         </span>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold">
-                                {step.title}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                {step.detail}
-                            </p>
+                        {/* The button drops below the text on phones, as in the actions panel. */}
+                        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold">
+                                    {step.title}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    {step.detail}
+                                </p>
+                            </div>
+                            {step.action ? (
+                                <ActionButton
+                                    target={{ href: step.action.href }}
+                                    variant="outline"
+                                    size="sm"
+                                    className="self-start sm:self-center"
+                                >
+                                    {step.action.label}
+                                </ActionButton>
+                            ) : (
+                                <SoonTag className="self-start sm:self-center" />
+                            )}
                         </div>
-                        <SoonTag />
                     </li>
                 ))}
             </ol>
