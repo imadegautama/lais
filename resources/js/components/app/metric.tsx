@@ -1,4 +1,11 @@
-import { Minus, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react';
+import { Link } from '@inertiajs/react';
+import {
+    ChevronRight,
+    Minus,
+    TrendingDown,
+    TrendingUp,
+    type LucideIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Money } from '@/components/app/money';
 import { formatPercent, formatRupiah } from '@/lib/format';
@@ -150,6 +157,8 @@ type MetricTileProps = {
     detail?: ReactNode;
     /** Status tones only for a real problem; a healthy number stays neutral. */
     tone?: keyof typeof tileTones;
+    /** Opens the records behind the number; the whole tile is the target. */
+    href?: string;
     className?: string;
 };
 
@@ -160,16 +169,18 @@ export function MetricTile({
     value,
     detail,
     tone = 'neutral',
+    href,
     className,
 }: MetricTileProps) {
-    return (
-        <div
-            className={cn(
-                'flex min-w-0 flex-col gap-2 rounded-lg border p-3 shadow-tile md:p-4',
-                tileTones[tone].tile,
-                className,
-            )}
-        >
+    const classes = cn(
+        'flex min-w-0 flex-col gap-2 rounded-lg border p-3 shadow-tile md:p-4',
+        tileTones[tone].tile,
+        href &&
+            'transition-colors hover:border-brand-soft hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none',
+        className,
+    );
+    const content = (
+        <>
             <span
                 className={cn(
                     'flex items-center gap-1.5 text-sm font-medium',
@@ -183,12 +194,27 @@ export function MetricTile({
                     aria-hidden
                 />
                 {label}
+                {/* Marks the tile as a way into its records, not decoration. */}
+                {href && (
+                    <ChevronRight
+                        className="ml-auto size-4 shrink-0 text-muted-foreground"
+                        aria-hidden
+                    />
+                )}
             </span>
             {value}
             {detail && (
                 <span className="text-xs text-muted-foreground">{detail}</span>
             )}
-        </div>
+        </>
+    );
+
+    return href ? (
+        <Link href={href} className={classes}>
+            {content}
+        </Link>
+    ) : (
+        <div className={classes}>{content}</div>
     );
 }
 

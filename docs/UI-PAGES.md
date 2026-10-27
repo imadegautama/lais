@@ -224,7 +224,13 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 - **Aktivitas terbaru:** 10 transaksi terakhir, lengkap dengan ikon sumber (WA / web / toko).
 - **Empty state pengguna baru:** checklist "Langkah pertama", yaitu tambah produk, catat penjualan pertama, hubungkan WA, dan bagikan link toko.
 - **Status pembuatan (slice 5):** semua angka sudah dihitung dari jurnal lewat `App\Services\Reports`.
-    - Panel "Perlu tindakan" berisi bahan yang habis ≤ 2 hari (tombol **Catat belanja** membuka tab Belanja, itemnya belum terisi) dan piutang yang lewat 7 hari (tombol **Catat bayaran**). Aksi pesanan menyusul di slice M4.
+    - Baris 4 kartu ringkasan (`MetricTile`, 2×2 di HP) mengikuti pemilih periode. Setiap kartu berisi angka, naik/turun, dan satu baris penjelasan:
+        - **Penjualan:** membuka `/transaksi` dengan saringan penjualan dan periode yang sama
+        - **Untung bersih:** belum bisa diketuk, menunggu halaman Laporan
+        - **Uang usaha:** saldo saat ini, membuka Kas & rekening
+        - **Diambil untuk pribadi:** membuka transaksi modal
+    - Kartu "Ringkasan" terpisah tidak dipakai lagi. Di sampingnya kini ada Kesehatan usaha.
+    - Panel "Perlu tindakan" berisi bahan yang sudah habis atau habis ≤ 2 hari (tombol **Catat belanja** membuka tab Belanja, itemnya belum terisi) dan piutang yang lewat 7 hari (tombol **Catat bayaran**). Aksi pesanan menyusul di slice M4.
     - Kartu "Pesanan aktif" dan "Utang & piutang" menyusul bersama halaman C9 dan C11.
     - Empty state muncul selama belum ada catatan selain saldo awal. Langkah "Hubungkan WhatsApp" dan "Bagikan link toko" masih bertanda Segera.
 

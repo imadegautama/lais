@@ -74,20 +74,21 @@ class DashboardController extends Controller
     }
 
     /**
-     * Stock gone within two days: buy more.
+     * Stock already out, or gone within two days: buy more.
      *
      * @param  list<array{id: int, name: string, unit: string, stock: float, minimum: float|null, daysLeft: float|null}>  $alerts
      * @return list<array<string, mixed>>
      */
     private function stockActions(array $alerts): array
     {
-        $soon = array_filter($alerts, fn (array $alert) => $alert['daysLeft'] !== null && $alert['daysLeft'] <= 2);
+        $soon = array_filter($alerts, fn (array $alert) => $alert['stock'] <= 0 || ($alert['daysLeft'] !== null && $alert['daysLeft'] <= 2));
 
         return array_values(array_map(fn (array $alert) => [
             'id' => "stok-{$alert['id']}",
             'kind' => 'stok',
-            'title' => "{$alert['name']} habis ±".Format::qty($alert['daysLeft']).' hari lagi',
-            'detail' => 'Sisa '.Format::qty($alert['stock'])." {$alert['unit']}"
+            // Stock already at or below zero is out now, not "gone in ±0 days".
+            'title' => $alert['stock'] <= 0 ? "{$alert['name']} sudah habis" : "{$alert['name']} habis ±".Format::qty($alert['daysLeft']).' hari lagi',
+            'detail' => ($alert['stock'] < 0 ? 'Stok tercatat ' : 'Sisa ').Format::qty($alert['stock'])." {$alert['unit']}"
                 .($alert['minimum'] === null ? '' : ', batas minimum '.Format::qty($alert['minimum'])." {$alert['unit']}"),
             'actionLabel' => 'Catat belanja',
             'target' => ['href' => route('transactions.create', ['jenis' => TransactionType::Pembelian->value])],

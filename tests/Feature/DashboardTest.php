@@ -137,6 +137,12 @@ class DashboardTest extends TestCase
         $this->get(route('dashboard'))->assertInertia(fn (AssertableInertia $page) => $page
             ->where('stockAlerts', [['id' => Item::query()->where('name', 'Telur')->value('id'), 'name' => 'Telur', 'unit' => 'butir', 'stock' => 28, 'minimum' => 50, 'daysLeft' => null]])
             ->where('actions', []));
+
+        // Stock sold past zero is out now, whatever the estimate: it asks for buying straight away.
+        $sell(now()->subMinutes(30)->toDateTimeString());
+        $this->get(route('dashboard'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('actions.0.title', 'Beras sudah habis')
+            ->where('actions.0.detail', 'Stok tercatat -1 kg'));
     }
 
     public function test_with_only_the_opening_balance_the_dashboard_shows_the_first_steps(): void
