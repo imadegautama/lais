@@ -27,7 +27,7 @@ class AssistantTest extends TestCase
         parent::setUp();
 
         Http::preventStrayRequests();
-        config(['services.llm.url' => 'http://9router.test/v1', 'services.llm.key' => 'test-key', 'services.llm.model' => 'test-model']);
+        config(['services.llm.url' => 'http://9router.test/v1', 'services.llm.key' => 'test-key', 'services.llm.model' => 'test-model', 'services.llm.vision_model' => 'test-vision']);
 
         $this->business = Business::factory()->create();
         app(Catalog::class)->createMany($this->business, [
@@ -248,6 +248,72 @@ class AssistantTest extends TestCase
             ->assertJsonPath('link', ['label' => 'Buka Dashboard', 'href' => '/dashboard']);
     }
 
+    public function test_a_receipt_photo_is_copied_by_the_vision_model_then_recorded_like_a_message(): void
+    {
+        $this->model(
+            ['tulis_nota', ['bukan_nota' => false, 'toko' => 'Toko Makmur Jaya', 'tanggal' => '2026-10-27 09:14', 'cara_bayar' => 'tunai', 'baris' => [
+                ['nama' => 'Beras 5 kg', 'jumlah' => 1, 'total' => 70000],
+                ['nama' => 'Telur', 'jumlah' => 30, 'total' => 60000],
+            ]]],
+            ['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'metode_bayar' => 'tunai', 'kontak' => 'Toko Makmur Jaya', 'tanggal' => '2026-10-27 09:14', 'baris' => [
+                ['item' => 'Beras', 'qty' => 5, 'total' => 70000],
+                ['item' => 'Telur', 'qty' => 30, 'total' => 60000],
+            ]]],
+        );
+
+        $response = $this->ask('', null, photo: $this->photo())->assertOk();
+
+        $this->assertSame([
+            ['name' => 'Beras', 'qty' => 5, 'unit' => 'kg', 'price' => 14000, 'amount' => 70000],
+            ['name' => 'Telur', 'qty' => 30, 'unit' => 'butir', 'price' => 2000, 'amount' => 60000],
+        ], $response->json('card.lines'));
+        $response->assertJsonPath('card.total.amount', 130000)
+            ->assertJsonPath('values.contact', 'Toko Makmur Jaya')
+            ->assertJsonPath('confirm', true);
+        $this->assertSame(0, Transaction::query()->count());
+
+        // The image only goes to the short copying step; the catalog step gets the copy as text.
+        $recorded = Http::recorded();
+        $this->assertSame('test-vision', $recorded[0][0]['model']);
+        $this->assertSame(['type' => 'image_url', 'image_url' => ['url' => $this->photo()]], $recorded[0][0]['messages'][1]['content'][1]);
+        $this->assertStringNotContainsString('Nasi Goreng', $recorded[0][0]['messages'][0]['content']);
+        $this->assertSame('test-model', $recorded[1][0]['model']);
+        $this->assertSame(
+            'Dari foto nota Toko Makmur Jaya, tanggal 2026-10-27 09:14, dibayar tunai: Beras 5 kg jumlah 1 total 70000; Telur jumlah 30 total 60000.',
+            $recorded[1][0]['messages'][1]['content'],
+        );
+    }
+
+    public function test_a_photo_is_always_read_and_one_that_is_not_a_receipt_says_so(): void
+    {
+        $this->model(
+            ['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'Nasi Goreng', 'qty' => 1]]]],
+            ['tulis_nota', ['bukan_nota' => true]],
+        );
+        $draft = $this->ask('jual 1 nasgor tunai', 'transaksi')->json('values');
+
+        // "iya" with a new photo is something new to read, not a confirmation of the old draft.
+        $this->ask('iya', 'transaksi', draft: ['form' => 'transaksi', 'values' => $draft], photo: $this->photo())->assertOk()
+            ->assertJsonPath('reply', 'Foto ini tidak terbaca sebagai nota belanja. Coba foto notanya lagi dengan lebih terang, atau ketik saja yang mau dicatat.')
+            ->assertJsonPath('values', null);
+
+        $this->assertSame(0, Transaction::query()->count());
+        Http::assertSentCount(2);
+    }
+
+    public function test_only_real_images_up_to_five_megabytes_are_read(): void
+    {
+        Http::fake();
+
+        $this->ask('', null, photo: 'data:text/plain;base64,'.base64_encode('bukan gambar'))->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo' => 'Foto harus berupa gambar JPG, PNG, atau WebP sampai 5 MB.']);
+        $this->ask('', null, photo: 'data:image/png;base64,'.base64_encode('bukan gambar'))->assertJsonValidationErrors('photo');
+        $this->ask('', null, photo: 'data:image/png;base64,'.base64_encode(str_repeat('a', 5 * 1024 * 1024 + 1)))->assertJsonValidationErrors('photo');
+        $this->ask('', null)->assertJsonValidationErrors(['message' => 'Tulis dulu apa yang mau dicatat, atau kirim foto notanya.']);
+
+        Http::assertNothingSent();
+    }
+
     public function test_values_the_form_cannot_take_are_dropped(): void
     {
         $this->model(['isi_transaksi', ['jenis' => 'saldo_awal', 'metode_bayar' => 'bitcoin', 'baris' => [['item' => 'Kopi Susu Tetangga', 'qty' => 1]]]]);
@@ -279,14 +345,21 @@ class AssistantTest extends TestCase
      * @param  array{form: string, values: mixed}|null  $draft
      * @return TestResponse<JsonResponse>
      */
-    private function ask(string $message, ?string $form, array $current = [], ?array $draft = null): TestResponse
+    private function ask(string $message, ?string $form, array $current = [], ?array $draft = null, ?string $photo = null): TestResponse
     {
         return $this->actingAs($this->business->user)->postJson(route('assistant.store'), [
             'message' => $message,
             'form' => $form,
             'current' => $current,
             'draft' => $draft,
+            'photo' => $photo,
         ]);
+    }
+
+    /** The eval's printed receipt, as the browser sends it. */
+    private function photo(): string
+    {
+        return 'data:image/png;base64,'.base64_encode((string) file_get_contents(base_path('tests/Fixtures/nota-belanja.png')));
     }
 
     /**

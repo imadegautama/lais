@@ -58,7 +58,9 @@ type AssistantReplyTurn = {
     failed?: boolean;
 };
 
-export type AssistantTurn = { role: 'user'; text: string } | AssistantReplyTurn;
+export type AssistantTurn =
+    /** `photo`: a receipt photo as a data URI (lib/image.ts), shown as a thumbnail. */
+    { role: 'user'; text: string; photo?: string } | AssistantReplyTurn;
 
 /** AssistantController@store. `values` is the form's data shape, filled in. */
 type AssistantReply = {
@@ -99,7 +101,7 @@ type AssistantContextValue = {
     form: AssistantFormName | null;
     /** Which turn shows the live draft, or null. */
     draftTurn: number | null;
-    send: (message: string) => void;
+    send: (message: string, photo?: string) => void;
     retry: () => void;
     reset: () => void;
     openInForm: () => void;
@@ -186,22 +188,32 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const send = useCallback(
-        async (message: string, base: AssistantTurn[], shown: Draft | null) => {
+        async (
+            message: string,
+            photo: string | undefined,
+            base: AssistantTurn[],
+            shown: Draft | null,
+        ) => {
             const text = message.trim();
 
-            if (text === '') {
+            if (text === '' && !photo) {
                 return;
             }
 
             const current = registration.current;
             let failure = UNAVAILABLE;
-            setTurns([...base, { role: 'user', text }]);
+            setTurns([...base, { role: 'user', text, photo }]);
             http.transform(() => ({
                 message: text,
+                photo: photo ?? null,
                 form: current?.form ?? null,
                 history: base
                     .filter((turn) => !('failed' in turn && turn.failed))
-                    .map((turn) => ({ role: turn.role, text: turn.text }))
+                    // The photo is read once; later turns only need to know there was one.
+                    .map((turn) => ({
+                        role: turn.role,
+                        text: turn.text || 'Foto nota',
+                    }))
                     .slice(-12),
                 current: current?.values() ?? {},
                 draft: shown && { form: shown.form, values: shown.values },
@@ -272,13 +284,13 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             sending: http.processing,
             form,
             draftTurn: draft?.turn ?? null,
-            send: (message) => void send(message, turns, draft),
+            send: (message, photo) => void send(message, photo, turns, draft),
             // The failed reply and the message before it make way for the new try.
             retry: () => {
                 const last = turns.at(-2);
 
                 if (last?.role === 'user') {
-                    void send(last.text, turns.slice(0, -2), draft);
+                    void send(last.text, last.photo, turns.slice(0, -2), draft);
                 }
             },
             reset: () => {

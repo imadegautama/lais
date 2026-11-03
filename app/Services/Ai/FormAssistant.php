@@ -55,7 +55,58 @@ class FormAssistant
         'pertanyaan_laporan' => 'Pertanyaan soal laporan, misalnya untung atau produk terlaris, belum bisa saya jawab. Untuk sekarang, angkanya ada di Dashboard.',
     ];
 
+    private const NOT_A_RECEIPT = 'Foto ini tidak terbaca sebagai nota belanja. Coba foto notanya lagi dengan lebih terang, atau ketik saja yang mau dicatat.';
+
     public function __construct(private LlmClient $llm, private TransactionService $transactions, private Catalog $catalog) {}
+
+    /**
+     * Step one of a receipt photo: the vision model only copies what the
+     * receipt says, with a short prompt of its own. With the catalog and
+     * all the rules beside an image the model stalls (measured: over 90 s
+     * against 10 s), so mapping onto the catalog stays with the text step.
+     * Null when the photo is not a readable receipt.
+     */
+    private function readReceipt(string $photo): ?string
+    {
+        $call = $this->llm->toolCall(
+            'Salin isi foto nota belanja atau tagihan apa adanya, tanpa menghitung dan tanpa menebak. Tulis setiap baris barang dengan nama, jumlah, dan harga total baris seperti tertulis. Kalau foto bukan nota atau tidak terbaca, isi bukan_nota.',
+            [['role' => 'user', 'content' => [
+                ['type' => 'text', 'text' => 'Salin nota ini.'],
+                ['type' => 'image_url', 'image_url' => ['url' => $photo]],
+            ]]],
+            [[
+                'type' => 'function',
+                'function' => ['name' => 'tulis_nota', 'description' => 'Isi nota seperti tertulis.', 'parameters' => ['type' => 'object', 'properties' => [
+                    'bukan_nota' => ['type' => 'boolean'],
+                    'toko' => ['type' => 'string'],
+                    'tanggal' => ['type' => 'string', 'description' => 'YYYY-MM-DD HH:MM'],
+                    'cara_bayar' => ['type' => 'string', 'description' => 'Misalnya tunai, transfer, QRIS, atau belum dibayar.'],
+                    'baris' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
+                        'nama' => ['type' => 'string'],
+                        'jumlah' => ['type' => 'number'],
+                        'total' => ['type' => 'integer'],
+                    ], 'required' => ['nama']]],
+                ], 'required' => ['bukan_nota']]],
+            ]],
+            vision: true,
+        );
+        $args = $call['arguments'];
+        $rows = is_array($args['baris'] ?? null) ? array_filter($args['baris'], 'is_array') : [];
+
+        if (($args['bukan_nota'] ?? false) === true || $rows === []) {
+            return null;
+        }
+
+        $lines = array_map(fn (array $row) => trim(mb_substr(self::text($row['nama'] ?? null), 0, 80)
+            .(is_numeric($row['jumlah'] ?? null) ? ' jumlah '.$row['jumlah'] : '')
+            .(is_numeric($row['total'] ?? null) ? ' total '.(int) $row['total'] : '')), $rows);
+
+        return 'Dari foto nota'
+            .(self::text($args['toko'] ?? null) === '' ? '' : ' '.mb_substr(self::text($args['toko']), 0, 80))
+            .(self::text($args['tanggal'] ?? null) === '' ? '' : ', tanggal '.mb_substr(self::text($args['tanggal']), 0, 20))
+            .(self::text($args['cara_bayar'] ?? null) === '' ? '' : ', dibayar '.mb_substr(self::text($args['cara_bayar']), 0, 30))
+            .': '.implode('; ', $lines).'.';
+    }
 
     /**
      * Whether the whole message only agrees ("iya", "oke gas", "simpan").
@@ -70,17 +121,29 @@ class FormAssistant
      * @param  list<array{role: string, text: string}>  $history  earlier turns, oldest first
      * @param  array<string, mixed>  $current  the open form's values
      * @param  array{form: string, values: array<string, mixed>}|null  $draft  the draft the owner was last shown
+     * @param  string|null  $photo  a receipt photo as a data URI (AssistantRequest::isPhoto); read, never stored
      * @return Reply
      */
-    public function reply(User $user, string $message, ?string $form, array $history, array $current, ?array $draft = null): array
+    public function reply(User $user, string $message, ?string $form, array $history, array $current, ?array $draft = null, ?string $photo = null): array
     {
         $business = $user->currentBusiness();
         $items = $business->items()->orderBy('items.name')->limit(100)->get();
         $contacts = $business->contacts()->orderBy('contacts.name')->limit(100)->get();
         $moneyAccounts = $business->moneyAccounts()->orderBy('money_accounts.id')->get();
 
-        if ($draft !== null && self::confirms($message)) {
+        // A new photo is something new to read, even when it comes with "iya".
+        if ($draft !== null && $photo === null && self::confirms($message)) {
             return $this->save($user, $draft, $items, $contacts, $moneyAccounts);
+        }
+
+        if ($photo !== null) {
+            $receipt = $this->readReceipt($photo);
+
+            if ($receipt === null) {
+                return self::result(['reply' => self::NOT_A_RECEIPT]);
+            }
+
+            $message = trim($receipt.' '.$message);
         }
 
         // A follow-up builds on the draft; without one, on what the open form holds.
@@ -332,6 +395,7 @@ class FormAssistant
         - Panggil tanya_balik hanya kalau maksud pemilik ragu, misalnya satu nama cocok dengan beberapa produk di daftar, atau satuannya tidak sejenis. Pertanyaannya hanya soal isian catatan. Beri pilihan singkat.
         - Kalau pemilik bertanya cara atau tempat mencatat sesuatu ("dicatat di mana", "masuk apa", "gimana nyatatnya", "bingung"), panggil jelaskan dengan topik yang paling cocok, dan isi nominal, kontak, atau barang kalau disebut. Kalau pemilik menyuruh mencatat, tetap panggil isi_transaksi.
         - Pertanyaan soal pencatatan usaha yang tidak cocok dengan topik mana pun memakai jelaskan dengan topik belum_didukung. Pertanyaan soal laporan (untung, omzet, produk terlaris) memakai jawab_singkat dengan jenis pertanyaan_laporan.
+        - Pesan yang diawali "Dari foto nota" adalah isi nota belanja atau tagihan yang sudah disalin. Panggil isi_transaksi: jenis pembelian (jenis_biaya barang, atau peralatan kalau isinya alat) atau biaya untuk tagihan listrik, air, atau sewa. Satu baris per item dengan total baris seperti tertulis; total nota tidak dipakai. Ubah jumlah kemasan ke satuan di daftar kalau ukurannya tertulis (1 karung beras 5 kg = 5 kg). kontak = nama toko, tanggal dari nota, dan metode_bayar hanya kalau tertulis (transfer atau QRIS = non_tunai, belum dibayar = kredit). Petakan nama item ke nama di daftar kalau jelas barang yang sama; yang tidak ada di daftar ditulis apa adanya.
         - jawab_singkat dengan jenis di_luar_tugas hanya untuk yang bukan soal usaha, misalnya minta dibuatkan kode, resep masakan, tulisan, atau pertanyaan umum. Jangan menjawab isinya.
 
         Topik untuk jelaskan:

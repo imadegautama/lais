@@ -6,6 +6,7 @@ use App\Enums\ContactType;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
+use App\Services\Ai\AssistantUnavailable;
 use App\Services\Ai\FormAssistant;
 use App\Services\Catalog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,10 +27,11 @@ class AssistantEvalTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * [message, open form, what the filled form must hold]. Lines and
-     * recipes are compared by name and quantity, contacts by name.
+     * [message, open form, what the filled form must hold, receipt photo in
+     * tests/Fixtures]. Lines and recipes are compared by name and quantity,
+     * contacts by name.
      *
-     * @var list<array{0: string, 1: string|null, 2: array<string, mixed>}>
+     * @var list<array{0: string, 1: string|null, 2: array<string, mixed>, 3?: string}>
      */
     private const CASES = [
         ['jual 3 nasgor 2 es teh qris', 'transaksi', ['form' => 'transaksi', 'type' => 'penjualan', 'method' => 'non_tunai', 'lines' => ['Nasi Goreng' => 3, 'Es Teh' => 2]]],
@@ -55,11 +57,15 @@ class AssistantEvalTest extends TestCase
         ['beli kompor itu masuk biaya atau apa?', null, ['form' => null, 'topic' => 'beli_peralatan']],
         ['telur ada yang pecah 5 butir, gimana nyatatnya?', null, ['form' => null, 'topic' => 'stok_tidak_sesuai']],
         ['pinjam uang ke bank 5 juta dicatat di mana?', null, ['form' => null, 'topic' => 'belum_didukung']],
+        // A printed receipt; real photos from owners go next to it (PRD §3.2: 15 photos, field ≥ 80%).
+        ['', null, ['form' => 'transaksi', 'type' => 'pembelian', 'kind' => 'barang', 'method' => 'tunai', 'lines' => ['Beras' => 5, 'Telur' => 30], 'prices' => ['Beras' => 14000, 'Telur' => 2000]], 'nota-belanja.png'],
         ['untung bulan ini berapa?', null, ['form' => null, 'reply' => 'Pertanyaan soal laporan, misalnya untung atau produk terlaris, belum bisa saya jawab. Untuk sekarang, angkanya ada di Dashboard.']],
     ];
 
     public function test_the_assistant_reads_owner_messages_well_enough(): void
     {
+        // The eval measures reading, not 9Router's slow moments; each case's time is in the report.
+        config(['services.llm.timeout' => 60, 'services.llm.vision_timeout' => 90]);
         $business = Business::factory()->create();
         app(Catalog::class)->createMany($business, [
             ['name' => 'Beras', 'kind' => 'bahan', 'unit' => 'kg', 'opening_stock' => 10, 'opening_cost' => 14000],
@@ -75,14 +81,24 @@ class AssistantEvalTest extends TestCase
 
         $rows = [];
 
-        foreach (self::CASES as [$message, $form, $expected]) {
+        foreach (self::CASES as $case) {
+            [$message, $form, $expected] = $case;
+            $file = $case[3] ?? null;
+            $photo = $file === null ? null : 'data:image/png;base64,'.base64_encode((string) file_get_contents(base_path("tests/Fixtures/{$file}")));
             $start = microtime(true);
-            $reply = app(FormAssistant::class)->reply($business->user, $message, $form, [], []);
+
+            try {
+                $reply = app(FormAssistant::class)->reply($business->user, $message, $form, [], [], photo: $photo);
+            } catch (AssistantUnavailable $exception) {
+                // A slow or failed answer is a miss on every field, not the end of the run.
+                $reply = ['reply' => $exception->getMessage(), 'form' => 'gagal', 'values' => null, 'guide' => null];
+            }
+
             $observed = self::observed($reply, $items, $contacts);
             $wrong = array_keys(array_filter($expected, fn (mixed $want, string $key) => ($observed[$key] ?? null) != $want, ARRAY_FILTER_USE_BOTH));
 
             $rows[] = [
-                'message' => $message,
+                'message' => $file === null ? $message : "(foto {$file}) {$message}",
                 'seconds' => round(microtime(true) - $start, 1),
                 'intent' => ! in_array('form', $wrong, true),
                 'fields' => count($expected),

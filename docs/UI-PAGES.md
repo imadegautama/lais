@@ -486,6 +486,11 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - tombol draf ("Catat setor modal Rp200.000"), yang langsung menampilkan kartu draf tanpa menunggu AI, atau tombol halaman ("Buka Produk & stok", "Buka form Pindah dana", "Catat saldo awal")
 - Pertanyaan laporan ("untung bulan ini berapa?") diarahkan ke Dashboard sampai tanya-jawab laporan dibuat.
 - Permintaan di luar urusan usaha dijawab dengan kalimat tetap: "Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru…".
+- **Foto nota:** tombol ikon foto di samping Kirim membuka kamera atau galeri (JPG, PNG, WebP).
+    - Pratinjau kecil muncul di atas input, dengan tombol "Hapus foto". Foto bisa dikirim tanpa teks.
+    - Status memuat: "AI sedang membaca nota…". Hasilnya kartu draf Belanja yang dikonfirmasi seperti biasa.
+    - Foto yang bukan nota dijawab dengan kalimat tetap. File yang tidak bisa dibuka menampilkan "Foto tidak bisa dibaca. Coba foto lain."
+    - Foto tidak disimpan.
 - **State:**
     - kosong: contoh kalimat sesuai form yang dibuka; mengetuknya hanya mengisi input
     - memuat: "AI sedang membaca…"

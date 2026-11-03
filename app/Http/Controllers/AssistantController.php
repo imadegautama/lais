@@ -18,11 +18,12 @@ class AssistantController extends Controller
 
         return response()->json($assistant->reply(
             $request->user(),
-            $validated['message'],
+            $validated['message'] ?? '',
             $validated['form'] ?? null,
             array_values($validated['history'] ?? []),
             $validated['current'] ?? [],
             $validated['draft'] ?? null,
+            $validated['photo'] ?? null,
         ));
     }
 }

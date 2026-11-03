@@ -303,6 +303,17 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 **US-16. Foto nota belanja.** Pemilik mengirim foto nota ke bot → AI vision membaca item, qty, dan harga → draf pembelian → konfirmasi → stok bertambah dan foto tersimpan sebagai bukti transaksi.
 
+- **Status (28 Okt 2026): bagian web sudah jadi** di panel Tanya AI.
+    - Foto diperkecil di browser (sisi terpanjang 1.600 px, JPEG), lalu dibaca dalam dua langkah:
+        1. Model vision dengan prompt pendek hanya menyalin isi nota (`tulis_nota`: toko, tanggal, cara bayar, baris dengan jumlah dan total).
+        2. Salinannya masuk ke alur teks biasa untuk dicocokkan ke katalog, lalu menjadi kartu draf yang dikonfirmasi seperti biasa.
+    - Prompt penuh (katalog dan aturan) yang digabung dengan gambar membuat model macet lebih dari 90 detik, sementara prompt pendek hanya sekitar 10 detik. Karena itu pembacaan dipisah.
+    - Foto yang bukan nota dijawab dengan kalimat tetap.
+- **Menyusul:**
+    - foto disimpan sebagai bukti transaksi (migration, rute privat, thumbnail di detail)
+    - jalur WhatsApp
+    - eval 15 foto nota asli
+
 **US-17. Pengingat piutang & pelanggan lama.** Ringkasan menyertakan piutang berumur > 7 hari dan pelanggan yang > 14 hari tidak memesan. Masing-masing dilengkapi link `wa.me` dengan pesan terisi.
 
 **US-18. Peringatan margin turun.** Jika biaya rata-rata bahan naik sehingga margin produk berkomposisi turun > 5 poin persen dibanding 30 hari sebelumnya, pemilik diberi peringatan beserta saran harga jual untuk mengembalikan margin.
@@ -363,8 +374,9 @@ Base URL, API key, dan ID model disimpan di `.env`, jadi penyedia bisa diganti t
 LLM_BASE_URL=http://9router:20128/v1           # 9Router, OpenAI-compatible
 LLM_API_KEY=<key dari dashboard 9Router>
 LLM_MODEL_TEXT=ag/gemini-3.8-flash-low         # hasil spike: 2–7 detik per pesan
-LLM_MODEL_VISION=…                             # ditentukan saat pembaca nota (v1.1)
-LLM_TIMEOUT=20
+LLM_MODEL_VISION=ag/gemini-3.8-flash-low       # baca foto nota: 8–10 detik per foto lewat 9Router
+LLM_TIMEOUT=40                                 # kalimat resep 15–35 detik, penjualan 5–10 detik (diukur 28 Okt)
+LLM_TIMEOUT_VISION=45                          # foto nota butuh sekitar dua kali lipat waktu pesan teks
 ```
 
 Varian `flash-high` dan `flash-medium` diuji dengan kalimat yang sama: ketepatannya sama, tetapi waktunya 25–60 detik dan kadang melewati batas waktu. Model tetap bisa diganti lewat `.env`.

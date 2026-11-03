@@ -50,6 +50,10 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - AI tidak menghitung angka; misalnya harga satuan dari total baris dihitung server
 - Data yang kurang dinilai oleh `FormRequest` milik form itu (`rules()` dan `messages()`), bukan oleh AI. Lihat `FormAssistant::problems()`.
 - Balasan ke pemilik disusun dari template. Teks bebas dari model hanya dipakai untuk pertanyaan `tanya_balik` (maksimal 200 huruf). Sapaan, pertanyaan laporan, dan permintaan di luar urusan usaha memakai `jawab_singkat` dengan kalimat tetap.
+- Foto nota masuk sebagai data URI yang divalidasi `AssistantRequest::isPhoto()`: JPG, PNG, atau WebP sungguhan, maksimal 5 MB.
+    - Foto hanya dibaca dan tidak disimpan.
+    - Gambar hanya dikirim ke `FormAssistant::readReceipt()`, yang memakai prompt pendek dan satu tool `tulis_nota`. Gambar jangan pernah digabung dengan prompt katalog: model macet.
+    - Salinan nota lalu masuk ke alur teks biasa.
 - Saran pembukuan ("dicatat di mana?") hanya berasal dari `App\Enums\GuideTopic` (`explanation()`, `needs()`, `draft()`, `link()`). Model hanya memilih topik lewat tool `jelaskan`. Topik baru ditambahkan di enum itu, bukan di prompt.
 - Test memakai `Http::fake()` dengan `tool_calls` tiruan dan `Http::preventStrayRequests()`. Eval dengan model sungguhan memakai `#[Group('llm')]`, yang tidak ikut test biasa.
 
