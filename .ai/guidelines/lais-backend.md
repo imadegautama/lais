@@ -36,6 +36,10 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - Angka laporan (laba rugi per periode, prive, modal, cek kesehatan, stok menipis, piutang terbuka, penjualan per hari) dihitung di `App\Services\Reports`, selalu dari jurnal. Dashboard, halaman laporan, dan tool baca AI memakai method yang sama, jadi angkanya tidak pernah berbeda antarlayar.
     - Pembatalan tidak perlu disaring, karena jurnal cerminnya bertanggal sama sehingga nilainya nol dalam periode apa pun. Daftar yang memakai baris transaksi (umur piutang, pemakaian stok) menyaring `TransactionStatus::Posted`.
     - Modal awal sebuah periode dihitung dengan `Reports::openingEquity()`. Di periode saat pembukuan dibuka, nilainya adalah neraca pembukaan (`started_on` 00.00).
+    - Laporan memakai `Reports::profitAndLoss()`, `expensesByKind()`, `equityChanges()`, `balanceSheet()`, dan `cashReconciliation()`.
+        - Pergerakan sebuah periode dihitung mulai `started_on` + 1 detik kalau pembukuan dibuka di dalam periode itu (`periodStart()`). Dengan begitu saldo awal menjadi modal awal, bukan setoran.
+        - Setoran = −net 3101 di jendela itu: setor modal, belanja dengan uang pribadi, dan stok awal produk baru.
+        - Rekonsiliasi laba vs kas harus selalu bersisa Rp0. Akun baru di bagan akun wajib ditambahkan ke `Reports::CASH_STEPS`, karena `LedgerTest` akan gagal.
 - Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
 
 ## AI

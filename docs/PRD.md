@@ -239,6 +239,12 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Filter periode: hari ini, minggu ini, bulan ini, bulan lalu, atau rentang tanggal.
 - Ekspor PDF untuk Laba Rugi, Neraca, Buku Kas, Perubahan Modal, dan Utang-Piutang. Header PDF berisi nama usaha, periode, dan tanggal cetak.
 - Laporan untuk data 1 tahun (±10.000 transaksi) tampil dalam ≤ 1 detik di server.
+- **Status slice 8 (3 Nov 2026):**
+    - Sudah jadi: Pusat laporan, Laba rugi (biaya per jenis), Perubahan modal dengan kartu **Laba vs Kas** (rekonsiliasi untuk skenario demo 4), dan Neraca per tanggal dengan badge Seimbang.
+    - Semua angka dihitung di `App\Services\Reports` dari jurnal. Uji acak `LedgerTest` memeriksa bahwa neraca seimbang, laba vs kas selisih Rp0, dan perubahan modal cocok (K3).
+    - Filter periode bertambah **Bulan lalu**. Rentang tanggal belum dibuat.
+    - PDF untuk sementara lewat **cetak dari browser** ("Cetak / simpan PDF"), dengan header nama usaha, periode, dan tanggal cetak. PDF dari server (dompdf) menyusul untuk "kirim laporan pdf" lewat WA.
+    - Buku kas dan Produk terlaris masih "Segera".
 
 **US-13.** Sebagai pemilik, saya ingin dashboard yang langsung menunjukkan kondisi hari ini.
 

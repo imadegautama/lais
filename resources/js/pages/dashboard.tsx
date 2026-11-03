@@ -38,6 +38,7 @@ import {
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import reports from '@/routes/reports';
 import { create as createItem } from '@/routes/items';
 import { index as moneyAccountsIndex } from '@/routes/money-accounts';
 import {
@@ -329,6 +330,9 @@ function SummaryCards({
                     </div>
                 }
                 detail="Penjualan dikurangi modal bahan dan biaya"
+                href={reports.profitLoss.url({
+                    query: { periode: period.key },
+                })}
             />
             <MetricTile
                 label="Uang usaha"

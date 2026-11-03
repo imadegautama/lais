@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MoneyAccountController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +34,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
 
     Route::get('log-aktivitas', [ActivityController::class, 'index'])->name('activity.index');
+
+    Route::get('laporan', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('laporan/laba-rugi', [ReportController::class, 'profitAndLoss'])->name('reports.profit-loss');
+    Route::get('laporan/perubahan-modal', [ReportController::class, 'equity'])->name('reports.equity');
+    Route::get('laporan/neraca', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
 
     // Every turn is a paid model call, so a runaway client is cut off quickly.
     Route::post('asisten', [AssistantController::class, 'store'])->middleware('throttle:20,1')->name('assistant.store');

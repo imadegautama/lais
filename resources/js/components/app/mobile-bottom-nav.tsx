@@ -71,7 +71,7 @@ export function MobileBottomNav() {
     return (
         <nav
             aria-label="Navigasi utama"
-            className="fixed inset-x-0 bottom-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)] lg:hidden"
+            className="fixed inset-x-0 bottom-0 z-40 border-t bg-card pb-[env(safe-area-inset-bottom)] lg:hidden print:hidden"
         >
             <div className="mx-auto flex max-w-lg items-stretch gap-1 px-2 py-1">
                 <NavLink

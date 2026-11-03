@@ -226,7 +226,7 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 - **Status pembuatan (slice 5):** semua angka sudah dihitung dari jurnal lewat `App\Services\Reports`.
     - Baris 4 kartu ringkasan (`MetricTile`, 2×2 di HP) mengikuti pemilih periode. Setiap kartu berisi angka, naik/turun, dan satu baris penjelasan:
         - **Penjualan:** membuka `/transaksi` dengan saringan penjualan dan periode yang sama
-        - **Untung bersih:** belum bisa diketuk, menunggu halaman Laporan
+        - **Untung bersih:** membuka Laba rugi (C14) dengan periode yang sama
         - **Uang usaha:** saldo saat ini, membuka Kas & rekening
         - **Diambil untuk pribadi:** membuka transaksi modal
     - Kartu "Ringkasan" terpisah tidak dipakai lagi. Di sampingnya kini ada Kesehatan usaha.
@@ -410,6 +410,13 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - tombol **Hapus data kontak** (dialog konfirmasi, untuk prinsip UU PDP)
 
 ### C13. Pusat laporan `/laporan`
+
+**Status pembuatan (slice 8):**
+
+- C13, C14, C15, dan C17 sudah jadi. C16 dan C18 tampil sebagai kartu "Segera".
+- Bar aksi untuk sementara hanya berisi pemilih periode (Neraca: tanggal) dan **Cetak / simpan PDF**. Kirim ke WA dan Tanya AI tentang laporan menunggu fiturnya.
+- Rincian biaya di C14 selalu tampil, tidak dibuka-tutup, supaya ikut tercetak.
+- Kolom pembanding di C14 dan grafik waterfall di C17 belum dibuat.
 
 - **Pemilih periode global**, yang terbawa ke semua sub-laporan.
 - **Grid kartu laporan:** setiap kartu berisi nama, angka kunci, dan satu kalimat penjelasan.

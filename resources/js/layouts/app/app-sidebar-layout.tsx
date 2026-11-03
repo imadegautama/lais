@@ -29,7 +29,7 @@ export default function AppSidebarLayout({
                     id="konten"
                     tabIndex={-1}
                     variant="sidebar"
-                    className="min-w-0 overflow-x-clip bg-page-wash pb-(--content-pad-bottom) outline-none"
+                    className="min-w-0 overflow-x-clip bg-page-wash pb-(--content-pad-bottom) outline-none print:bg-none print:pb-0"
                 >
                     <AppSidebarHeader breadcrumbs={breadcrumbs} />
                     {children}

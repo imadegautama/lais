@@ -537,7 +537,7 @@ export function AssistantButton() {
             type="button"
             variant="outline"
             onClick={() => setOpen(true)}
-            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 bg-card pr-4 pl-3.5 shadow-toast lg:right-6"
+            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 bg-card pr-4 pl-3.5 shadow-toast lg:right-6 print:hidden"
         >
             <MessageCircleQuestion
                 className="size-5 text-brand-strong"

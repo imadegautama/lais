@@ -28,6 +28,7 @@ use App\Models\Transaction;
 use App\Services\Ledger;
 use App\Services\TransactionService;
 use App\Support\TableQuery;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,7 +54,8 @@ class TransactionController extends Controller
                 defaultSort: '-waktu',
                 filters: [
                     'periode' => [
-                        fn (Builder $query, array $values) => $query->where('transactions.occurred_at', '>=', Period::from($values[0])->start()),
+                        fn (Builder $query, array $values) => $query->where('transactions.occurred_at', '>=', Period::from($values[0])->start())
+                            ->when(Period::from($values[0])->end(), fn (Builder $query, CarbonImmutable $end) => $query->where('transactions.occurred_at', '<', $end)),
                         Period::values(),
                     ],
                     'jenis' => ['type', TransactionType::values()],

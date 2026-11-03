@@ -30,6 +30,7 @@ import { dashboard } from '@/routes';
 import activity from '@/routes/activity';
 import items from '@/routes/items';
 import moneyAccounts from '@/routes/money-accounts';
+import reports from '@/routes/reports';
 import transactions from '@/routes/transactions';
 import { edit as editProfile } from '@/routes/profile';
 
@@ -63,7 +64,7 @@ const navGroups = (openAssistant: () => void): AppNavGroup[] => [
     {
         label: 'Analisis',
         items: [
-            { title: 'Laporan', icon: ChartColumn, comingSoon: true },
+            { title: 'Laporan', href: reports.index(), icon: ChartColumn },
             {
                 title: 'Tanya AI',
                 icon: MessageCircleQuestion,

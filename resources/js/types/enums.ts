@@ -151,6 +151,7 @@ export const Period = {
     HariIni: 'hari_ini',
     MingguIni: 'minggu_ini',
     BulanIni: 'bulan_ini',
+    BulanLalu: 'bulan_lalu',
 } as const;
 
 export type Period = (typeof Period)[keyof typeof Period];
@@ -159,6 +160,7 @@ export const periodLabels: Record<Period, string> = {
     hari_ini: 'Hari ini',
     minggu_ini: 'Minggu ini',
     bulan_ini: 'Bulan ini',
+    bulan_lalu: 'Bulan lalu',
 };
 
 export const ActivityCategory = {

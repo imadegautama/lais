@@ -338,3 +338,84 @@ export type ActivityEntry = {
 export type ActivityIndexProps = {
     activities: TablePage<ActivityEntry>;
 };
+
+/** What every report page gets around its numbers (ReportController::frame). */
+export type ReportFrame = {
+    business: { name: string };
+    period: Pick<Period, 'key' | 'label'>;
+    periods: Array<Pick<Period, 'key' | 'label'>>;
+    /** When the books were opened, Y-m-d. */
+    startedOn: string | null;
+};
+
+export type ReportsIndexProps = ReportFrame & {
+    netProfit: Rupiah;
+    closingEquity: Rupiah;
+    balanceSheet: BalanceSheet;
+};
+
+/** Reports::profitAndLoss + expensesByKind. */
+export type ProfitAndLossProps = ReportFrame & {
+    report: {
+        sales: Rupiah;
+        cogs: Rupiah;
+        grossProfit: Rupiah;
+        expenses: Rupiah;
+        stockDifference: Rupiah;
+        netProfit: Rupiah;
+        expensesByKind: Partial<Record<TransactionKind, Rupiah>>;
+    };
+};
+
+/** Reports::cashReconciliation: each step is its effect on cash. */
+export type CashStepKey =
+    | 'inventory'
+    | 'receivables'
+    | 'equipment'
+    | 'payables'
+    | 'customerDeposits'
+    | 'deposits'
+    | 'drawings';
+
+export type EquityProps = ReportFrame & {
+    report: {
+        opening: Rupiah;
+        deposits: Rupiah;
+        netProfit: Rupiah;
+        drawings: Rupiah;
+        closing: Rupiah;
+    };
+    reconciliation: {
+        netProfit: Rupiah;
+        steps: Array<{ key: CashStepKey; amount: Rupiah }>;
+        cashChange: Rupiah;
+        difference: Rupiah;
+    };
+};
+
+/** Reports::balanceSheet, at the end of a day. */
+export type BalanceSheet = {
+    assets: {
+        cash: Rupiah;
+        nonCash: Rupiah;
+        receivables: Rupiah;
+        inventory: Rupiah;
+        equipment: Rupiah;
+        total: Rupiah;
+    };
+    liabilities: { payables: Rupiah; customerDeposits: Rupiah; total: Rupiah };
+    equity: {
+        capital: Rupiah;
+        drawings: Rupiah;
+        profit: Rupiah;
+        total: Rupiah;
+    };
+    balanced: boolean;
+};
+
+export type BalanceSheetProps = ReportFrame & {
+    /** Y-m-d, never after today. */
+    date: string;
+    today: string;
+    report: BalanceSheet;
+};

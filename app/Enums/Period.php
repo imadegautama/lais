@@ -16,6 +16,7 @@ enum Period: string
     case HariIni = 'hari_ini';
     case MingguIni = 'minggu_ini';
     case BulanIni = 'bulan_ini';
+    case BulanLalu = 'bulan_lalu';
 
     public function label(): string
     {
@@ -23,6 +24,7 @@ enum Period: string
             self::HariIni => 'Hari ini',
             self::MingguIni => 'Minggu ini',
             self::BulanIni => 'Bulan ini',
+            self::BulanLalu => 'Bulan lalu',
         };
     }
 
@@ -32,6 +34,7 @@ enum Period: string
             self::HariIni => 'vs kemarin di jam yang sama',
             self::MingguIni => 'vs minggu lalu',
             self::BulanIni => 'vs bulan lalu',
+            self::BulanLalu => 'vs bulan sebelumnya',
         };
     }
 
@@ -46,17 +49,32 @@ enum Period: string
             self::HariIni => $now->startOfDay(),
             self::MingguIni => $now->startOfWeek(CarbonInterface::MONDAY),
             self::BulanIni => $now->startOfMonth(),
+            self::BulanLalu => $now->subMonthNoOverflow()->startOfMonth(),
         };
     }
 
     /**
-     * The period before, up to the same moment: [start, before).
+     * Where the period stops (exclusive), or null when it runs up to now.
+     */
+    public function end(?CarbonImmutable $at = null): ?CarbonImmutable
+    {
+        return $this === self::BulanLalu ? ($at ?? now()->toImmutable())->startOfMonth() : null;
+    }
+
+    /**
+     * The period before, up to the same moment: [start, before). A finished
+     * month is compared with the whole month before it.
      *
      * @return array{0: CarbonImmutable, 1: CarbonImmutable}
      */
     public function previous(): array
     {
         $now = now()->toImmutable();
+
+        if ($this === self::BulanLalu) {
+            return [$now->subMonthsNoOverflow(2)->startOfMonth(), $now->subMonthNoOverflow()->startOfMonth()];
+        }
+
         $then = match ($this) {
             self::HariIni => $now->subDay(),
             self::MingguIni => $now->subWeek(),

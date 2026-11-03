@@ -53,8 +53,11 @@ class TransactionControllerTest extends TestCase
     public function test_the_period_filter_keeps_only_recent_transactions(): void
     {
         $business = Business::factory()->create();
-        $this->travelTo(now()->subMonths(2));
+        $this->travelTo(now()->subMonthsNoOverflow(2));
         $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 100000]);
+        $this->travelBack();
+        $this->travelTo(now()->subMonthNoOverflow());
+        $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 150000]);
         $this->travelBack();
         $this->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 200000]);
 
@@ -64,6 +67,12 @@ class TransactionControllerTest extends TestCase
                 ->has('transactions.data', 1)
                 ->where('transactions.query.periode', ['bulan_ini'])
                 ->where('transactions.summary.cashIn', 200000));
+
+        // Last month stops where this month begins.
+        $this->get(route('transactions.index', ['periode' => 'bulan_lalu']))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('transactions.data', 1)
+                ->where('transactions.summary.cashIn', 150000));
     }
 
     public function test_the_form_opens_the_requested_tab_and_lists_contacts_with_their_balance(): void

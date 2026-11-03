@@ -26,12 +26,13 @@ class DashboardController extends Controller
         $business = $request->user()->currentBusiness();
         $period = Period::tryFrom((string) $request->query('periode')) ?? Period::HariIni;
         $from = $period->start();
+        $before = $period->end();
         [$previousFrom, $previousBefore] = $period->previous();
         // Compared only once the books reach back into the period before.
         $compare = ($business->firstRecordAt() ?? CarbonImmutable::now()) < $previousBefore;
         $monthStart = now()->startOfMonth();
 
-        $profit = $reports->profitAndLoss($business, $from);
+        $profit = $reports->profitAndLoss($business, $from, $before);
         $previous = $compare ? $reports->profitAndLoss($business, $previousFrom, $previousBefore) : null;
         $onHand = $ledger->balance($business, Account::CASH);
         $nonCash = $ledger->balance($business, Account::NON_CASH);
@@ -49,10 +50,10 @@ class DashboardController extends Controller
             'periods' => array_map(fn (Period $option) => ['key' => $option, 'label' => $option->label()], Period::cases()),
             'summary' => [
                 'netProfit' => ['value' => $profit['netProfit'], 'previous' => $previous['netProfit'] ?? null],
-                'sales' => ['value' => $profit['sales'], 'previous' => $previous['sales'] ?? null, 'count' => $reports->salesCount($business, $from)],
+                'sales' => ['value' => $profit['sales'], 'previous' => $previous['sales'] ?? null, 'count' => $reports->salesCount($business, $from, $before)],
                 'cash' => ['total' => $onHand + $nonCash, 'onHand' => $onHand, 'nonCash' => $nonCash],
                 'personalDraw' => [
-                    'value' => $reports->drawings($business, $from),
+                    'value' => $reports->drawings($business, $from, $before),
                     'previous' => $compare ? $reports->drawings($business, $previousFrom, $previousBefore) : null,
                 ],
             ],

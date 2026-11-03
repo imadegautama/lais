@@ -13,6 +13,8 @@ use App\Models\Transaction;
 use App\Support\Format;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,6 +25,20 @@ use Illuminate\Support\Facades\DB;
 class Reports
 {
     /**
+     * Laba vs kas steps: the accounts between profit and cash, keyed for the
+     * page's plain-language labels.
+     */
+    private const CASH_STEPS = [
+        'inventory' => Account::INVENTORY,
+        'receivables' => Account::RECEIVABLE,
+        'equipment' => Account::EQUIPMENT,
+        'payables' => Account::PAYABLE,
+        'customerDeposits' => Account::CUSTOMER_DEPOSITS,
+        'deposits' => Account::OWNER_CAPITAL,
+        'drawings' => Account::DRAWINGS,
+    ];
+
+    /**
      * Net amount per account in a time range: + debit, − credit. $from is
      * inclusive, $before exclusive.
      *
@@ -30,12 +46,7 @@ class Reports
      */
     public function net(Business $business, ?CarbonInterface $from = null, ?CarbonInterface $before = null): array
     {
-        return DB::table('journal_lines')
-            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
-            ->join('accounts', 'accounts.id', '=', 'journal_lines.account_id')
-            ->where('journal_entries.business_id', $business->id)
-            ->when($from, fn ($query) => $query->where('journal_entries.occurred_at', '>=', $from))
-            ->when($before, fn ($query) => $query->where('journal_entries.occurred_at', '<', $before))
+        return $this->journal($business, $from, $before)
             ->groupBy('accounts.code')
             // Debit and credit are unsigned, so each side is summed before subtracting (MySQL rejects a negative unsigned).
             ->selectRaw('accounts.code, sum(journal_lines.debit) as debit, sum(journal_lines.credit) as credit')
@@ -103,11 +114,109 @@ class Reports
      * open, that is the opening balance sheet, which the wizard dates at
      * started_on 00:00 (saldo awal and opening stock alike).
      */
-    public function openingEquity(Business $business, CarbonInterface $from): int
+    public function openingEquity(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): int
     {
-        $opened = $business->started_on?->toImmutable()->startOfDay();
+        return $this->equityAt($business, $this->periodStart($business, $from, $before));
+    }
 
-        return $this->equityAt($business, $opened !== null && $opened >= $from ? $opened->addSecond() : $from);
+    /**
+     * Biaya operasional per jenis (listrik & air, upah, …): the 6101 lines
+     * grouped by the kind of the record that posted them. A cancellation is
+     * mirrored with the same source, so it nets out here as well.
+     *
+     * @return array<string, int> TransactionKind value => rupiah, without zeros
+     */
+    public function expensesByKind(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): array
+    {
+        return $this->journal($business, $from, $before)
+            ->join('transactions', fn (JoinClause $join) => $join->on('transactions.id', '=', 'journal_entries.source_id')
+                ->where('journal_entries.source_type', (new Transaction)->getMorphClass()))
+            ->where('accounts.code', Account::EXPENSES)
+            ->groupBy('transactions.kind')
+            ->selectRaw('transactions.kind, sum(journal_lines.debit) as debit, sum(journal_lines.credit) as credit')
+            ->get()
+            ->mapWithKeys(fn (object $row) => [(string) $row->kind => (int) $row->debit - (int) $row->credit])
+            ->filter(fn (int $amount) => $amount !== 0)
+            ->all();
+    }
+
+    /**
+     * Perubahan modal (PRD M6): modal awal + setoran + laba bersih − prive =
+     * modal akhir. Setoran is every credit to Modal Pemilik after the
+     * opening: setor modal, spending paid with personal money, and the
+     * opening stock of products added later.
+     *
+     * @return array{opening: int, deposits: int, netProfit: int, drawings: int, closing: int}
+     */
+    public function equityChanges(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): array
+    {
+        $start = $this->periodStart($business, $from, $before);
+        $net = $this->net($business, $start, $before);
+
+        return [
+            'opening' => $this->equityAt($business, $start),
+            'deposits' => -($net[Account::OWNER_CAPITAL] ?? 0),
+            'netProfit' => self::profit($net),
+            'drawings' => $net[Account::DRAWINGS] ?? 0,
+            'closing' => $this->equityAt($business, $before),
+        ];
+    }
+
+    /**
+     * Neraca at the end of $date (PRD M6): what the business owns, what it
+     * owes, and the owner's part. It balances by construction (§4.4);
+     * `balanced` is the proof shown on screen.
+     *
+     * @return array{assets: array{cash: int, nonCash: int, receivables: int, inventory: int, equipment: int, total: int}, liabilities: array{payables: int, customerDeposits: int, total: int}, equity: array{capital: int, drawings: int, profit: int, total: int}, balanced: bool}
+     */
+    public function balanceSheet(Business $business, CarbonInterface $date): array
+    {
+        $net = $this->net($business, before: CarbonImmutable::instance($date)->addDay()->startOfDay());
+        $at = fn (string $code) => $net[(int) $code] ?? 0;
+
+        $assets = ['cash' => $at(Account::CASH), 'nonCash' => $at(Account::NON_CASH), 'receivables' => $at(Account::RECEIVABLE), 'inventory' => $at(Account::INVENTORY), 'equipment' => $at(Account::EQUIPMENT)];
+        $liabilities = ['payables' => -$at(Account::PAYABLE), 'customerDeposits' => -$at(Account::CUSTOMER_DEPOSITS)];
+        // Prive is shown as what it takes away from the owner's part.
+        $equity = ['capital' => -$at(Account::OWNER_CAPITAL), 'drawings' => -$at(Account::DRAWINGS), 'profit' => self::profit($net)];
+
+        return [
+            'assets' => [...$assets, 'total' => array_sum($assets)],
+            'liabilities' => [...$liabilities, 'total' => array_sum($liabilities)],
+            'equity' => [...$equity, 'total' => array_sum($equity)],
+            'balanced' => array_sum($assets) === array_sum($liabilities) + array_sum($equity),
+        ];
+    }
+
+    /**
+     * Laba vs kas (PRD §3.1 rekonsiliasi_laba_kas): why cash moved by more or
+     * less than the profit. Each step is its effect on cash (the account's
+     * net with the sign flipped), so laba + steps = perubahan kas and the
+     * difference is always Rp0 (K3).
+     *
+     * @return array{netProfit: int, steps: list<array{key: string, amount: int}>, cashChange: int, difference: int}
+     */
+    public function cashReconciliation(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): array
+    {
+        $net = $this->net($business, $this->periodStart($business, $from, $before), $before);
+        $profit = self::profit($net);
+        $steps = [];
+
+        foreach (self::CASH_STEPS as $key => $code) {
+            $amount = -($net[(int) $code] ?? 0);
+
+            if ($amount !== 0) {
+                $steps[] = ['key' => $key, 'amount' => $amount];
+            }
+        }
+
+        $cashChange = ($net[(int) Account::CASH] ?? 0) + ($net[(int) Account::NON_CASH] ?? 0);
+
+        return [
+            'netProfit' => $profit,
+            'steps' => $steps,
+            'cashChange' => $cashChange,
+            'difference' => $profit + array_sum(array_column($steps, 'amount')) - $cashChange,
+        ];
     }
 
     /**
@@ -284,6 +393,41 @@ class Reports
             ->sum('transactions.total');
 
         return intdiv($total, $months);
+    }
+
+    /**
+     * Journal lines of one business in a time range, joined to their accounts.
+     */
+    private function journal(Business $business, ?CarbonInterface $from, ?CarbonInterface $before): Builder
+    {
+        return DB::table('journal_lines')
+            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
+            ->join('accounts', 'accounts.id', '=', 'journal_lines.account_id')
+            ->where('journal_entries.business_id', $business->id)
+            ->when($from, fn ($query) => $query->where('journal_entries.occurred_at', '>=', $from))
+            ->when($before, fn ($query) => $query->where('journal_entries.occurred_at', '<', $before));
+    }
+
+    /**
+     * Where a period's own movements begin: just after the opening balance
+     * sheet when the books open inside the period, so saldo awal is where
+     * the period starts and never counts as a deposit.
+     */
+    private function periodStart(Business $business, CarbonInterface $from, ?CarbonInterface $before): CarbonInterface
+    {
+        $opened = $business->started_on?->toImmutable()->startOfDay();
+
+        return $opened !== null && $opened >= $from && ($before === null || $opened < $before) ? $opened->addSecond() : $from;
+    }
+
+    /**
+     * Laba bersih from account nets: −(sales + HPP + biaya + selisih stok).
+     *
+     * @param  array<int, int>  $net
+     */
+    private static function profit(array $net): int
+    {
+        return -array_sum(array_map(fn (string $code) => $net[(int) $code] ?? 0, [Account::SALES, Account::COGS, Account::EXPENSES, Account::STOCK_DIFFERENCE]));
     }
 
     /**

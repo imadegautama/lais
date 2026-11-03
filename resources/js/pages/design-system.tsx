@@ -51,6 +51,7 @@ import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { SearchSelect } from '@/components/app/search-select';
 import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
+import { Statement } from '@/features/reports/statement';
 import { TransactionTable } from '@/features/transactions/transaction-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1255,6 +1256,56 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                     <div className="mt-4 max-w-xl">
                         <AssistantFilledNote />
                     </div>
+                </Section>
+
+                <Section
+                    id="laporan"
+                    title="Laporan"
+                    intro="Laporan bertingkat: label kiri, nominal kanan, pengurang dengan tanda −, subtotal bergaris tipis, total bergaris tebal. Istilah akuntansi diberi tombol ⓘ yang bisa diketuk. Saat dicetak, hanya isi laporan dan header cetak yang tampil."
+                >
+                    <Panel className="max-w-xl">
+                        <Statement
+                            rows={[
+                                {
+                                    label: 'Penjualan',
+                                    amount: 9334000,
+                                    term: 'sales',
+                                },
+                                {
+                                    label: 'HPP',
+                                    amount: -2627000,
+                                    term: 'cogs',
+                                },
+                                {
+                                    label: 'Laba kotor',
+                                    amount: 6707000,
+                                    term: 'grossProfit',
+                                    level: 'subtotal',
+                                },
+                                {
+                                    label: 'Biaya operasional',
+                                    amount: -1860000,
+                                    term: 'expenses',
+                                },
+                                {
+                                    label: 'Upah karyawan',
+                                    amount: -1560000,
+                                    level: 'detail',
+                                },
+                                {
+                                    label: 'Listrik & air',
+                                    amount: -300000,
+                                    level: 'detail',
+                                },
+                                {
+                                    label: 'Laba bersih',
+                                    amount: 4847000,
+                                    term: 'netProfit',
+                                    level: 'total',
+                                },
+                            ]}
+                        />
+                    </Panel>
                 </Section>
 
                 <Section
