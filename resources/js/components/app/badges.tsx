@@ -34,7 +34,9 @@ import type {
 } from '@/types/domain';
 import {
     itemKindLabels,
+    orderStatusLabels,
     paymentMethodLabels,
+    paymentStatusLabels,
     transactionSourceLabels,
     transactionTypeLabels,
 } from '@/types/enums';
@@ -140,36 +142,42 @@ export function SourceLabel({ source }: { source: TransactionSource }) {
     );
 }
 
-const orderStatuses: Record<
+export const orderStatuses: Record<
     OrderStatus,
-    { label: string; icon: LucideIcon; tone: Tone }
+    { icon: LucideIcon; tone: Tone }
 > = {
-    menunggu: { label: 'Menunggu konfirmasi', icon: Clock, tone: 'warning' },
-    diproses: { label: 'Diproses', icon: CircleDashed, tone: 'accent' },
-    siap: { label: 'Siap / diantar', icon: PackageCheck, tone: 'accent' },
-    selesai: { label: 'Selesai', icon: CircleCheck, tone: 'success' },
-    ditolak: { label: 'Ditolak', icon: CircleX, tone: 'danger' },
+    menunggu: { icon: Clock, tone: 'warning' },
+    diproses: { icon: CircleDashed, tone: 'accent' },
+    siap: { icon: PackageCheck, tone: 'accent' },
+    selesai: { icon: CircleCheck, tone: 'success' },
+    ditolak: { icon: CircleX, tone: 'danger' },
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-    const { label, icon, tone } = orderStatuses[status];
+    const { icon, tone } = orderStatuses[status];
 
-    return <LabelBadge icon={icon} label={label} tone={tone} />;
+    return (
+        <LabelBadge icon={icon} label={orderStatusLabels[status]} tone={tone} />
+    );
 }
 
-const paymentStatuses: Record<
-    PaymentStatus,
-    { label: string; icon: LucideIcon; tone: Tone }
-> = {
-    belum: { label: 'Belum bayar', icon: CircleX, tone: 'danger' },
-    dp: { label: 'DP', icon: CircleDashed, tone: 'warning' },
-    lunas: { label: 'Lunas', icon: CircleCheck, tone: 'success' },
-};
+const paymentStatuses: Record<PaymentStatus, { icon: LucideIcon; tone: Tone }> =
+    {
+        belum: { icon: CircleX, tone: 'danger' },
+        dp: { icon: CircleDashed, tone: 'warning' },
+        lunas: { icon: CircleCheck, tone: 'success' },
+    };
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
-    const { label, icon, tone } = paymentStatuses[status];
+    const { icon, tone } = paymentStatuses[status];
 
-    return <LabelBadge icon={icon} label={label} tone={tone} />;
+    return (
+        <LabelBadge
+            icon={icon}
+            label={paymentStatusLabels[status]}
+            tone={tone}
+        />
+    );
 }
 
 export const itemKinds = withIcons<ItemKind>(itemKindLabels, {

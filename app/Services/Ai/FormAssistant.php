@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\Catalog;
 use App\Services\TransactionService;
 use App\Support\Format;
+use App\Support\Proof;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Arr;
@@ -120,7 +121,7 @@ class FormAssistant
     /**
      * @param  list<array{role: string, text: string}>  $history  earlier turns, oldest first
      * @param  array<string, mixed>  $current  the open form's values
-     * @param  array{form: string, values: array<string, mixed>}|null  $draft  the draft the owner was last shown
+     * @param  array{form: string, values: array<string, mixed>, photo?: string|null}|null  $draft  the draft the owner was last shown, with the receipt it was read from
      * @param  string|null  $photo  a receipt photo as a data URI (AssistantRequest::isPhoto); read, never stored
      * @return Reply
      */
@@ -270,7 +271,7 @@ class FormAssistant
      * browser, so it is laid over the form defaults and judged again by the
      * form's own request before the same service as Simpan records it.
      *
-     * @param  array{form: string, values: array<string, mixed>}  $draft
+     * @param  array{form: string, values: array<string, mixed>, photo?: string|null}  $draft
      * @param  Collection<int, Item>  $items
      * @param  Collection<int, Contact>  $contacts
      * @param  Collection<int, MoneyAccount>  $moneyAccounts
@@ -312,6 +313,11 @@ class FormAssistant
             $filled['notes'] = array_values(Arr::flatten($exception->errors()));
 
             return $this->transaction($user, $filled, $items, $contacts, $moneyAccounts, $refused);
+        }
+
+        // A draft read from a receipt keeps the photo as its proof (PRD US-16).
+        if (! empty($draft['photo'])) {
+            Proof::attach($transaction, $draft['photo']);
         }
 
         return self::result([
@@ -431,10 +437,10 @@ class FormAssistant
             'type' => 'function',
             'function' => ['name' => $name, 'description' => $description, 'parameters' => ['type' => 'object', 'properties' => $properties, 'required' => $required]],
         ];
-        $kinds = array_values(array_map(
+        $kinds = array_map(
             fn (TransactionKind $kind) => $kind->value,
-            array_filter(TransactionKind::cases(), fn (TransactionKind $kind) => in_array($kind->type(), TransactionDraft::TYPES, true)),
-        ));
+            array_merge(...array_map(fn (TransactionType $type) => $type->kinds(), TransactionDraft::TYPES)),
+        );
 
         return [
             $function('isi_transaksi', 'Isi form catat transaksi dari kalimat pemilik.', [

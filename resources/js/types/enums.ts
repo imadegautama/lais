@@ -48,6 +48,7 @@ export const TransactionKind = {
     Lain: 'lain',
     TerimaPiutang: 'terima_piutang',
     BayarUtang: 'bayar_utang',
+    UangMuka: 'uang_muka',
     Setor: 'setor',
     Prive: 'prive',
     SaldoKas: 'saldo_kas',
@@ -70,6 +71,7 @@ export const transactionKindLabels: Record<TransactionKind, string> = {
     lain: 'Lain-lain',
     terima_piutang: 'Terima bayaran dari pelanggan',
     bayar_utang: 'Bayar utang ke supplier',
+    uang_muka: 'Uang muka pesanan',
     setor: 'Setor modal',
     prive: 'Ambil untuk pribadi',
     saldo_kas: 'Kas & rekening',
@@ -209,6 +211,50 @@ export const businessCategoryLabels: Record<BusinessCategory, string> = {
     fashion: 'Fashion',
     kerajinan: 'Kerajinan',
     lainnya: 'Lainnya',
+};
+
+export const OrderStatus = {
+    Menunggu: 'menunggu',
+    Diproses: 'diproses',
+    Siap: 'siap',
+    Selesai: 'selesai',
+    Ditolak: 'ditolak',
+} as const;
+
+export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
+
+export const orderStatusLabels: Record<OrderStatus, string> = {
+    menunggu: 'Menunggu konfirmasi',
+    diproses: 'Diproses',
+    siap: 'Siap / diantar',
+    selesai: 'Selesai',
+    ditolak: 'Ditolak',
+};
+
+export const OrderFulfillment = {
+    Ambil: 'ambil',
+    Antar: 'antar',
+} as const;
+
+export type OrderFulfillment = (typeof OrderFulfillment)[keyof typeof OrderFulfillment];
+
+export const orderFulfillmentLabels: Record<OrderFulfillment, string> = {
+    ambil: 'Ambil sendiri',
+    antar: 'Diantar',
+};
+
+export const PaymentStatus = {
+    Belum: 'belum',
+    Dp: 'dp',
+    Lunas: 'lunas',
+} as const;
+
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+
+export const paymentStatusLabels: Record<PaymentStatus, string> = {
+    belum: 'Belum bayar',
+    dp: 'DP',
+    lunas: 'Lunas',
 };
 
 export const soldItemKinds: readonly ItemKind[] = ['produk', 'komposisi'];

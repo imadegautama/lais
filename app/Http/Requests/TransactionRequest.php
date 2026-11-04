@@ -8,6 +8,7 @@ use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionType;
+use App\Support\Proof;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -57,6 +58,9 @@ class TransactionRequest extends FormRequest
             'to_money_account_id' => $isTransfer ? ['required', 'integer', 'different:money_account_id', $activeMoneyAccount()] : ['prohibited'],
             'occurred_at' => ['nullable', 'date', 'before_or_equal:now'],
             'note' => [in_array($kind, [TransactionKind::Peralatan, TransactionKind::SaldoPeralatan], true) ? 'required' : 'nullable', 'string', 'max:200'],
+            'proof' => Proof::RULES,
+            // On "Ubah": drop the proof the old version had instead of carrying it over.
+            'remove_proof' => ['boolean'],
             'lines' => $hasLines ? ['required', 'array', 'min:1', 'max:50'] : ['prohibited'],
             'lines.*.item_id' => [
                 'required', 'integer', 'distinct',
@@ -93,6 +97,7 @@ class TransactionRequest extends FormRequest
         $isSale = $type === TransactionType::Penjualan;
 
         return [
+            ...Proof::MESSAGES,
             'type.required' => 'Pilih jenis catatannya.',
             'type.enum' => 'Jenis catatan tidak dikenal.',
             'kind.required' => match ($type) {

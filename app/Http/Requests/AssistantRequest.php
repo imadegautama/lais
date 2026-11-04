@@ -39,6 +39,12 @@ class AssistantRequest extends FormRequest
             'draft' => ['nullable', 'array'],
             'draft.form' => ['required_with:draft', Rule::in(FormAssistant::FORMS)],
             'draft.values' => ['required_with:draft', 'array'],
+            // The receipt the draft was read from, kept as the record's proof when it is saved.
+            'draft.photo' => ['nullable', 'string', function (string $attribute, mixed $value, Closure $fail) {
+                if (! self::isPhoto($value)) {
+                    $fail('Foto harus berupa gambar JPG, PNG, atau WebP sampai 5 MB.');
+                }
+            }],
         ];
     }
 

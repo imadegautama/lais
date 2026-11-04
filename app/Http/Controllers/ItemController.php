@@ -21,6 +21,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -74,6 +75,7 @@ class ItemController extends Controller
         $data = $request->validated();
 
         $item = $catalog->create($business, $data);
+        $this->savePhoto($request, $item);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$item->name} tersimpan."]);
 
@@ -129,6 +131,8 @@ class ItemController extends Controller
                 }
             }
         });
+
+        $this->savePhoto($request, $item);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$item->name} diperbarui."]);
 
@@ -242,5 +246,21 @@ class ItemController extends Controller
             ->when($except, fn ($query) => $query->whereKeyNot($except->getKey()))
             ->orderBy('items.name')
             ->get())->resolve();
+    }
+
+    /**
+     * A new photo replaces the old file; "Hapus foto" removes it.
+     */
+    private function savePhoto(ItemRequest $request, Item $item): void
+    {
+        if (! $request->hasFile('photo') && ! $request->boolean('remove_photo')) {
+            return;
+        }
+
+        if ($item->photo_path !== null) {
+            Storage::disk('public')->delete($item->photo_path);
+        }
+
+        $item->update(['photo_path' => $request->hasFile('photo') ? $request->file('photo')->store('produk', 'public') : null]);
     }
 }

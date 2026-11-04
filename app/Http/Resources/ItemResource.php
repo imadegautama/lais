@@ -35,6 +35,7 @@ class ItemResource extends JsonResource
             'marginPercent' => $this->marginPercent(),
             'showInStore' => $this->show_in_store,
             'available' => $this->available,
+            'photoUrl' => $this->photoUrl(),
             'lowStock' => $this->isLowStock(),
             'negativeStock' => $this->isNegativeStock(),
         ];

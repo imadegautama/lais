@@ -40,6 +40,15 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
         - Pergerakan sebuah periode dihitung mulai `started_on` + 1 detik kalau pembukuan dibuka di dalam periode itu (`periodStart()`). Dengan begitu saldo awal menjadi modal awal, bukan setoran.
         - Setoran = −net 3101 di jendela itu: setor modal, belanja dengan uang pribadi, dan stok awal produk baru.
         - Rekonsiliasi laba vs kas harus selalu bersisa Rp0. Akun baru di bagan akun wajib ditambahkan ke `Reports::CASH_STEPS`, karena `LedgerTest` akan gagal.
+- Pesanan (M4) hanya bergerak lewat `App\Services\Orders`: `place`, `accept`, `reject`, `markReady`, `complete`, `cancel`, `recordPayment`.
+    - Harga selalu diambil dari katalog di server dan disimpan sebagai snapshot di `order_lines`. Browser hanya mengirim `item_id` dan `qty`.
+    - Uang tidak disimpan di pesanan. Pembayaran sebelum Selesai adalah transaksi `utang_piutang` kind `uang_muka` (Kas/2201), Selesai mencatat penjualan dengan `deposit` (2201 dipakai, sisanya piutang), dan pembayaran sesudahnya `terima_piutang`. Status bayar dihitung dari `Orders::paid()`, yang membaca sisa tagihan penjualannya dari `Debts`.
+    - Transaksi dengan `order_id` dikunci di halaman Transaksi; ubah atau batalkan dari pesanannya. Batal pesanan membatalkan uang mukanya lewat `TransactionService::cancel()`.
+    - `uang_muka` tidak ada di `TransactionType::kinds()`, jadi tidak bisa dipilih di form manual maupun oleh AI.
+    - Batas 5 pesanan per IP per 10 menit dihitung hanya dari pesanan yang berhasil (`ShopController::store`).
+- Sisa utang-piutang per tagihan hanya dihitung di `App\Services\Debts` (`books()`, `summary()`, `remaining()`). Aturannya: pembayaran yang punya `order_id` melunasi tagihan pesanan itu dulu, sisanya melunasi tagihan paling lama dulu. Halaman Utang-piutang, aksi piutang di dashboard, dan `Orders::paid()` memakai jalur ini, jadi status bayar pesanan ikut berubah walaupun dibayar dari halaman Utang-piutang. Saldo total per kontak tetap boleh dibaca dari `Ledger::contactBalances()`; keduanya sama.
+- Bukti transaksi lewat `App\Support\Proof::attach()`, dipanggil **setelah** transaksi tersimpan. Disimpan di disk `local` (privat) dan hanya dilayani `TransactionController::proof` dengan `Gate::authorize('manage')`. Jangan pernah membuat URL publik untuknya. File bukti tidak pernah dihapus; "Ubah" menyalin `proof_path` ke versi baru kecuali diganti atau dihapus. Aturan validasinya `Proof::RULES` dan `Proof::MESSAGES`.
+- Foto produk dan gambar QRIS disimpan di disk `public` (bukan disk privat), karena memang ditampilkan ke publik. URL-nya lewat `Item::photoUrl()` dan `Business::qrisUrl()` (`asset()`), supaya ikut host yang membuka halaman.
 - Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
 
 ## AI

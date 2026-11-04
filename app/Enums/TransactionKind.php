@@ -23,6 +23,8 @@ enum TransactionKind: string
     case Lain = 'lain';
     case TerimaPiutang = 'terima_piutang';
     case BayarUtang = 'bayar_utang';
+    // Paid on an order before it is done (PRD §4.4: Kas / Uang Muka Pesanan); recorded only from the order.
+    case UangMuka = 'uang_muka';
     case Setor = 'setor';
     case Prive = 'prive';
     case SaldoKas = 'saldo_kas';
@@ -34,7 +36,7 @@ enum TransactionKind: string
     {
         return match ($this) {
             self::Barang, self::Peralatan => TransactionType::Pembelian,
-            self::TerimaPiutang, self::BayarUtang => TransactionType::UtangPiutang,
+            self::TerimaPiutang, self::BayarUtang, self::UangMuka => TransactionType::UtangPiutang,
             self::Setor, self::Prive => TransactionType::Modal,
             self::SaldoKas, self::SaldoPeralatan, self::SaldoUtang, self::SaldoPiutang => TransactionType::SaldoAwal,
             default => TransactionType::Biaya,
@@ -55,6 +57,7 @@ enum TransactionKind: string
             self::Lain => 'Lain-lain',
             self::TerimaPiutang => 'Terima bayaran dari pelanggan',
             self::BayarUtang => 'Bayar utang ke supplier',
+            self::UangMuka => 'Uang muka pesanan',
             self::Setor => 'Setor modal',
             self::Prive => 'Ambil untuk pribadi',
             self::SaldoKas => 'Kas & rekening',

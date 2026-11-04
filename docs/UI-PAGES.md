@@ -138,6 +138,8 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik.
 - **Tombol Kirim pesanan** dengan state loading. Field honeypot tersembunyi.
 - **Error:** pesan per field dan pesan rate limit ("Terlalu banyak pesanan, coba lagi 10 menit lagi").
 
+> **Catatan implementasi (4 Nov):** A2 dan A3 dibuat sebagai satu halaman `/t/{slug}` dengan dua langkah (katalog, lalu form), dan form dikirim ke `POST /t/{slug}/pesan`. Keranjang disimpan per toko di `sessionStorage`. Batas 5 pesanan per IP dihitung dari pesanan yang berhasil saja.
+
 ### A4. Status pesanan & nota `/p/{token}`
 
 - **Header:** kode pesanan (A012), tanggal, nama toko.
@@ -298,7 +300,7 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 - **Kartu "Pesan asli dari WA"** (jika sumbernya WA): bubble chat berisi pesan pemilik, untuk transparansi bahwa AI hanya membaca dan pemilik yang mengonfirmasi.
 - **Rincian:** tabel baris item (qty, harga, subtotal, HPP).
 - **Mutasi stok:** item, perubahan, saldo setelah.
-- **Bukti:** thumbnail foto yang bisa diperbesar.
+- **Bukti:** thumbnail foto yang bisa diperbesar. _(Sudah dibuat 4 Nov: kartu Bukti dengan dialog perbesar dan "Buka ukuran asli"; kolom "Bukti (opsional)" ada di semua jenis form C3, juga di dialog bayar Pesanan dan Utang-piutang saat Transfer/QRIS.)_
 - **"Lihat jurnal"** (collapsible, tertutup secara default): tabel akun dengan debit/kredit dan total yang seimbang. Bagian ini untuk menunjukkan kualitas teknis ke juri tanpa membingungkan pengguna awam.
 - **Aksi:**
     - **Batalkan**: dialog konfirmasi + alasan (opsional), lalu membuat jurnal dan mutasi stok pembalik. Tidak ada baris transaksi pembalik.
@@ -371,6 +373,8 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - tombol **QR toko** (dialog berisi QR link toko yang bisa diunduh untuk dicetak dan ditempel di meja)
 - Filter tanggal + pencarian nama/kode.
 
+> **Catatan implementasi (4 Nov):** daftar per tab berupa tabel di desktop dan daftar bertumpuk di HP, dengan pencarian (kode, nama, nomor WA), urut (masuk, waktu ambil/antar, total), dan 20 pesanan per halaman. Tab antrean (Menunggu, Diproses, Siap) menampilkan yang paling lama di atas; Selesai dan Ditolak yang terbaru di atas. Toko online menjadi bar ringkas di atas tab; nomor WA penjual dan QRIS ada di dialog "Pengaturan". Kanban, filter tanggal, dan aksi massal tidak dibuat. Daftar memuat ulang setiap 30 detik.
+
 ### C10. Detail pesanan `/pesanan/{kode}`
 
 - **Header:** kode, tanggal masuk, badge status + status bayar.
@@ -385,6 +389,8 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 - **Link nota:** salin / buka A4.
 - **Riwayat:** log perubahan status dengan waktu dan asal (web / WA).
 
+> **Catatan implementasi (4 Nov):** Riwayat status belum dibuat; waktu tiap langkah tampil di stepper. Kartu Bayar di nota baru mengajak membayar setelah pesanan diterima. Jenis pembayaran (DP atau pelunasan) tidak dipilih: sebelum Selesai otomatis uang muka, sesudahnya pelunasan.
+
 ### C11. Utang-piutang `/utang-piutang`
 
 - **Tab:** **Piutang** (pelanggan berutang ke saya) · **Utang** (saya berutang ke supplier).
@@ -396,6 +402,8 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - tombol **Catat pembayaran**
     - tombol **Ingatkan** (`wa.me` berisi pesan pengingat; v1.1, P2)
 - Klik baris untuk membuka rincian tagihan per kontak.
+
+> **Catatan implementasi (4 Nov):** tab berupa `?jenis=utang`. Tombol bayar berlabel "Terima bayaran" (piutang) atau "Bayar utang" (utang) dan langsung tercatat tanpa pindah halaman. Ingatkan hanya muncul untuk pelanggan yang nomor WA-nya diketahui; teksnya bisa diubah sebelum WhatsApp dibuka. Rincian per kontak ada di `/utang-piutang/{kontak}`: tagihan satu per satu (belum lunas di atas) dan daftar pembayaran.
 
 ### C12. Kontak `/kontak`, `/kontak/{id}`
 
@@ -602,9 +610,9 @@ Warna ini dipakai konsisten di badge, grafik, dan ikon.
 
 ## Temuan Saat Menyusun UI (belum ada di PRD, perlu diputuskan)
 
-1. **Pesanan manual oleh pemilik.** Saat ini hanya pelanggan yang bisa membuat pesanan. Pre-order lewat telepon atau chat pribadi juga umum. Usulan: tombol "+ Pesanan" di C9 yang memakai form A3. Usahanya kecil.
-2. **Toggle buka/tutup toko.** Belum ada di PRD. Usulan: cukup satu toggle, tanpa jadwal jam buka.
-3. **QR link toko untuk dicetak.** Usahanya kecil dan berguna untuk UMKM offline.
+1. **(Sudah dibuat, 4 Nov)** **Pesanan manual oleh pemilik.** Saat ini hanya pelanggan yang bisa membuat pesanan. Pre-order lewat telepon atau chat pribadi juga umum. Usulan: tombol "+ Pesanan" di C9 yang memakai form A3. Usahanya kecil.
+2. **(Sudah dibuat)** **Toggle buka/tutup toko.** Belum ada di PRD. Usulan: cukup satu toggle, tanpa jadwal jam buka.
+3. **(Sudah dibuat)** **QR link toko untuk dicetak.** Usahanya kecil dan berguna untuk UMKM offline.
 4. **Landing page (A1).** Belum ada di PRD, padahal juri pertama kali membuka URL utama.
 5. **Halaman Kontak (C12).** Tersirat di PRD (hapus data, piutang per kontak) tapi belum eksplisit.
 6. **Kartu "Laba vs Kas" (C17).** Tool `rekonsiliasi_laba_kas` sudah ada di PRD, tetapi tampilannya belum. Kartu ini memperkuat skenario demo 4.

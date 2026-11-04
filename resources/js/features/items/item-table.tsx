@@ -63,13 +63,25 @@ function RowActions({ item }: { item: ItemRow }) {
 
 function NameCell({ item }: { item: ItemRow }) {
     return (
-        <div className="flex min-w-0 flex-col gap-1">
-            <span className="font-medium">{item.name}</span>
-            {item.aliases.length > 0 && (
-                <span className="line-clamp-1 text-xs text-muted-foreground">
-                    Juga disebut {item.aliases.join(', ')}
-                </span>
+        <div className="flex min-w-0 items-center gap-3">
+            {item.photoUrl && (
+                <img
+                    src={item.photoUrl}
+                    alt=""
+                    width={36}
+                    height={36}
+                    loading="lazy"
+                    className="size-9 shrink-0 rounded-md border object-cover"
+                />
             )}
+            <div className="flex min-w-0 flex-col gap-1">
+                <span className="font-medium">{item.name}</span>
+                {item.aliases.length > 0 && (
+                    <span className="line-clamp-1 text-xs text-muted-foreground">
+                        Juga disebut {item.aliases.join(', ')}
+                    </span>
+                )}
+            </div>
         </div>
     );
 }

@@ -18,6 +18,9 @@ export type ItemFormData = {
     opening_stock: string;
     opening_cost: number | null;
     recipe: RecipeRow[];
+    /** A new shop photo, already shrunk (lib/image.ts). */
+    photo: File | null;
+    remove_photo: boolean;
 };
 
 export const isSoldKind = (kind: ItemKind) => soldItemKinds.includes(kind);
@@ -45,6 +48,8 @@ export function initialItemForm(
             material_id: String(line.material_id),
             qty: decimalInput(line.qty),
         })) ?? [emptyRecipeRow()],
+        photo: null,
+        remove_photo: false,
     };
 }
 
@@ -84,6 +89,9 @@ export function toItemPayload(values: ItemFormData, editing: boolean) {
                   opening_cost: values.opening_cost,
               }
             : {}),
+        // A file switches the request to multipart (forceFormData).
+        ...(sold && values.photo ? { photo: values.photo } : {}),
+        ...(values.remove_photo ? { remove_photo: true } : {}),
         ...(values.kind === ItemKind.Komposisi
             ? {
                   recipe: values.recipe.map((line) => ({

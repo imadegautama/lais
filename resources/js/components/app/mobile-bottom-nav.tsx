@@ -1,4 +1,4 @@
-import { Link, type InertiaLinkProps } from '@inertiajs/react';
+import { Link, usePage, type InertiaLinkProps } from '@inertiajs/react';
 import {
     House,
     Menu,
@@ -12,6 +12,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import orders from '@/routes/orders';
 import transactions from '@/routes/transactions';
 
 const itemClass =
@@ -22,11 +23,14 @@ function NavLink({
     icon: Icon,
     label,
     active,
+    count = 0,
 }: {
     href: NonNullable<InertiaLinkProps['href']>;
     icon: LucideIcon;
     label: string;
     active: boolean;
+    /** Waiting items, shown as a small red number on the icon. */
+    count?: number;
 }) {
     return (
         <Link
@@ -37,26 +41,20 @@ function NavLink({
                 active ? 'text-accent-foreground' : 'text-muted-foreground',
             )}
         >
-            <Icon
-                className={cn('size-5', active && 'text-brand-strong')}
-                aria-hidden
-            />
+            <span className="relative">
+                <Icon
+                    className={cn('size-5', active && 'text-brand-strong')}
+                    aria-hidden
+                />
+                {count > 0 && (
+                    <span className="num absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-destructive px-1 text-center text-[10px] leading-4 font-semibold text-white">
+                        {count}
+                    </span>
+                )}
+            </span>
             {label}
+            {count > 0 && <span className="sr-only">, {count} menunggu</span>}
         </Link>
-    );
-}
-
-function SoonItem({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-    // TODO(C9): becomes a NavLink when the orders page exists.
-    return (
-        <span
-            aria-disabled="true"
-            className={cn(itemClass, 'text-muted-foreground/70')}
-        >
-            <Icon className="size-5" aria-hidden />
-            {label}
-            <span className="text-[10px] leading-none">Segera</span>
-        </span>
     );
 }
 
@@ -67,6 +65,7 @@ function SoonItem({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
 export function MobileBottomNav() {
     const { isCurrentUrl, isCurrentOrParentUrl } = useCurrentUrl();
     const { setOpenMobile } = useSidebar();
+    const { pendingOrders } = usePage().props;
 
     return (
         <nav
@@ -99,7 +98,13 @@ export function MobileBottomNav() {
                         </button>
                     }
                 />
-                <SoonItem icon={ShoppingBag} label="Pesanan" />
+                <NavLink
+                    href={orders.index()}
+                    icon={ShoppingBag}
+                    label="Pesanan"
+                    count={pendingOrders}
+                    active={isCurrentOrParentUrl(orders.index())}
+                />
                 <button
                     type="button"
                     onClick={() => setOpenMobile(true)}

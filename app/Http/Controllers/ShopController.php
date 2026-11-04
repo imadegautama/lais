@@ -1,0 +1,101 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\ItemKind;
+use App\Enums\TransactionSource;
+use App\Http\Requests\OrderRequest;
+use App\Http\Resources\OrderResource;
+use App\Models\Business;
+use App\Models\Item;
+use App\Models\Order;
+use App\Services\Orders;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+
+/**
+ * The public side (UI-PAGES A2–A4): the shop page, placing an order, and the
+ * customer's nota. No account needed; the nota is reached by its token only.
+ */
+class ShopController extends Controller
+{
+    public function show(string $slug): Response
+    {
+        $business = Business::query()->where('businesses.slug', $slug)->firstOrFail();
+
+        return Inertia::render('shop/show', [
+            'shop' => self::shop($business),
+            'items' => $business->items()
+                ->whereIn('items.kind', ItemKind::sold())
+                ->where('items.show_in_store', true)
+                ->whereNotNull('items.price')
+                ->orderBy('items.name')
+                ->get()
+                ->map(self::item(...))
+                ->values(),
+        ]);
+    }
+
+    public function store(OrderRequest $request, string $slug, Orders $orders): RedirectResponse
+    {
+        $business = Business::query()->where('businesses.slug', $slug)->firstOrFail();
+        // 5 orders per IP per 10 minutes (PRD §7); a form sent back with errors does not count.
+        $key = 'shop-orders:'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            throw ValidationException::withMessages(['lines' => 'Terlalu banyak pesanan dari jaringan ini. Coba lagi '.ceil(RateLimiter::availableIn($key) / 60).' menit lagi, atau hubungi penjual.']);
+        }
+
+        $order = $orders->place($business, $request->validated(), TransactionSource::Toko);
+        RateLimiter::hit($key, 600);
+
+        return to_route('shop.order', $order->token);
+    }
+
+    public function order(string $token): Response
+    {
+        $order = Order::query()->where('orders.token', $token)->with(['business', 'lines'])->firstOrFail();
+
+        return Inertia::render('shop/order', [
+            'shop' => self::shop($order->business),
+            'order' => OrderResource::make($order)->public(),
+        ]);
+    }
+
+    /**
+     * The shop's face: its name and link, whether it takes orders, the owner's
+     * WA number for "Hubungi penjual", and the QRIS to pay to.
+     *
+     * @return array{name: string, slug: string, open: bool, whatsapp: string|null, qrisUrl: string|null}
+     */
+    public static function shop(Business $business): array
+    {
+        return [
+            'name' => $business->name,
+            'slug' => $business->slug,
+            'open' => $business->accepting_orders,
+            'whatsapp' => $business->whatsapp === null ? null : Orders::phone($business->whatsapp),
+            'qrisUrl' => $business->qrisUrl(),
+        ];
+    }
+
+    /**
+     * A product as the order form shows it; the price is shown, never sent back.
+     *
+     * @return array{id: int, name: string, unit: string, price: int|null, photoUrl: string|null, orderable: bool}
+     */
+    public static function item(Item $item): array
+    {
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'unit' => $item->unit,
+            'price' => $item->price,
+            'photoUrl' => $item->photoUrl(),
+            'orderable' => Orders::orderable($item),
+        ];
+    }
+}

@@ -3,16 +3,24 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DebtController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MoneyAccountController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ShopController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::inertia('/', 'welcome')->name('home');
+
+// The shop and the customer's nota (UI-PAGES A2–A4): public, no account.
+Route::get('t/{slug}', [ShopController::class, 'show'])->name('shop.show');
+Route::post('t/{slug}/pesan', [ShopController::class, 'store'])->name('shop.store');
+Route::get('p/{token}', [ShopController::class, 'order'])->name('shop.order');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -32,6 +40,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('transaksi/{transaction}/ubah', [TransactionController::class, 'edit'])->name('transactions.edit');
     Route::put('transaksi/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::post('transaksi/{transaction}/batalkan', [TransactionController::class, 'cancel'])->name('transactions.cancel');
+    Route::get('transaksi/{transaction}/bukti', [TransactionController::class, 'proof'])->name('transactions.proof');
+
+    Route::get('pesanan', [OrderController::class, 'index'])->name('orders.index');
+    Route::post('pesanan', [OrderController::class, 'store'])->name('orders.store');
+    Route::patch('pesanan/toko', [OrderController::class, 'updateShop'])->name('orders.shop');
+    Route::prefix('pesanan/{code}')->where(['code' => 'A[0-9]+'])->name('orders.')->group(function () {
+        Route::get('/', [OrderController::class, 'show'])->name('show');
+        Route::post('terima', [OrderController::class, 'accept'])->name('accept');
+        Route::post('tolak', [OrderController::class, 'reject'])->name('reject');
+        Route::post('siap', [OrderController::class, 'ready'])->name('ready');
+        Route::post('selesai', [OrderController::class, 'complete'])->name('complete');
+        Route::post('batal', [OrderController::class, 'cancel'])->name('cancel');
+        Route::post('bayar', [OrderController::class, 'pay'])->name('pay');
+    });
+
+    Route::get('utang-piutang', [DebtController::class, 'index'])->name('debts.index');
+    Route::get('utang-piutang/{contact}', [DebtController::class, 'show'])->name('debts.show');
+    Route::post('utang-piutang/{contact}/bayar', [DebtController::class, 'pay'])->name('debts.pay');
 
     Route::get('log-aktivitas', [ActivityController::class, 'index'])->name('activity.index');
 

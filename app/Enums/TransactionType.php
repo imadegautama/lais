@@ -67,12 +67,13 @@ enum TransactionType: string
     }
 
     /**
-     * Sub-kinds of this type; a sale has none.
+     * Sub-kinds the owner chooses for this type; a sale has none. Uang muka
+     * is left out: it is recorded from its order only (Orders::recordPayment).
      *
      * @return list<TransactionKind>
      */
     public function kinds(): array
     {
-        return array_values(array_filter(TransactionKind::cases(), fn (TransactionKind $kind) => $kind->type() === $this));
+        return array_values(array_filter(TransactionKind::cases(), fn (TransactionKind $kind) => $kind->type() === $this && $kind !== TransactionKind::UangMuka));
     }
 }

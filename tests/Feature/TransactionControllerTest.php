@@ -208,7 +208,7 @@ class TransactionControllerTest extends TestCase
         $this->actingAs($business->user)->get(route('transactions.edit', $sale))->assertInertia(fn (AssertableInertia $page) => $page
             ->component('transactions/create')
             ->where('initialType', 'penjualan')
-            ->where('editing', ['id' => $sale->id, 'description' => '3 Air Mineral'])
+            ->where('editing', ['id' => $sale->id, 'description' => '3 Air Mineral', 'proofUrl' => null])
             ->where('initial.method', 'kredit')
             ->where('initial.paid_amount', 2000)
             ->where('initial.contact', (string) $sale->contact_id)

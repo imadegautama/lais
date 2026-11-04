@@ -7,7 +7,10 @@ use App\Enums\BusinessCategory;
 use App\Enums\ContactType;
 use App\Enums\ItemKind;
 use App\Enums\MoneyAccountKind;
+use App\Enums\OrderFulfillment;
+use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\Period;
 use App\Enums\StockReason;
 use App\Enums\TransactionKind;
@@ -45,6 +48,9 @@ class GenerateEnumTypes extends Command
         ActivityCategory::class,
         MoneyAccountKind::class,
         BusinessCategory::class,
+        OrderStatus::class,
+        OrderFulfillment::class,
+        PaymentStatus::class,
     ];
 
     public function handle(): int

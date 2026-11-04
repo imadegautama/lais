@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -144,6 +145,23 @@ class AssistantTest extends TestCase
             ->assertJsonPath('values.contact', (string) $this->business->contacts()->sole()->id)
             ->assertJsonPath('values.lines.0.qty', '2')
             ->assertJsonPath('confirm', true);
+    }
+
+    public function test_the_receipt_a_draft_was_read_from_is_kept_as_its_proof(): void
+    {
+        Storage::fake('local');
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'Nasi Goreng', 'qty' => 1]]]]);
+        $draft = $this->ask('jual 1 nasgor tunai', 'transaksi')->json('values');
+
+        $this->ask('iya', 'transaksi', draft: ['form' => 'transaksi', 'values' => $draft, 'photo' => 'data:image/png;base64,bm90IGFuIGltYWdl'])
+            ->assertUnprocessable();
+        $this->ask('iya', 'transaksi', draft: ['form' => 'transaksi', 'values' => $draft, 'photo' => $this->photo()])
+            ->assertOk()
+            ->assertJsonPath('reply', 'Penjualan tersimpan.');
+
+        $proof = Transaction::query()->sole()->proof_path;
+        $this->assertStringStartsWith("bukti/{$this->business->id}/", $proof);
+        Storage::disk('local')->assertExists($proof);
     }
 
     public function test_a_draft_from_the_browser_is_judged_again_before_saving(): void

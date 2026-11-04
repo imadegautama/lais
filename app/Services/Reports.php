@@ -7,7 +7,6 @@ use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\Business;
-use App\Models\Contact;
 use App\Models\Item;
 use App\Models\Transaction;
 use App\Support\Format;
@@ -318,58 +317,6 @@ class Reports
 
             return ['date' => $date, 'sales' => $byDay[$date] ?? 0];
         }, range($days - 1, 0));
-    }
-
-    /**
-     * Customers who still owe, with the date of the oldest sale not yet paid
-     * off: payments settle the oldest debts first. Oldest first.
-     *
-     * @return list<array{contact: Contact, balance: int, since: CarbonImmutable}>
-     */
-    public function openReceivables(Business $business): array
-    {
-        $lines = DB::table('journal_lines')
-            ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
-            ->join('accounts', 'accounts.id', '=', 'journal_lines.account_id')
-            ->join('transactions', function ($join) {
-                $join->on('transactions.id', '=', 'journal_entries.source_id')
-                    ->where('journal_entries.source_type', (new Transaction)->getMorphClass());
-            })
-            ->where('journal_entries.business_id', $business->id)
-            ->where('accounts.code', Account::RECEIVABLE)
-            // A cancelled record and its mirror both drop out, so they never shift the age.
-            ->where('transactions.status', TransactionStatus::Posted->value)
-            ->whereNotNull('transactions.contact_id')
-            ->orderBy('journal_entries.occurred_at')
-            ->orderBy('journal_entries.id')
-            ->get(['transactions.contact_id', 'journal_entries.occurred_at', 'journal_lines.debit', 'journal_lines.credit']);
-
-        $open = [];
-
-        foreach ($lines->groupBy('contact_id') as $contactId => $contactLines) {
-            $paid = (int) $contactLines->sum('credit');
-            $balance = (int) $contactLines->sum('debit') - $paid;
-
-            if ($balance <= 0) {
-                continue;
-            }
-
-            foreach ($contactLines as $line) {
-                $paid -= (int) $line->debit;
-
-                if ($paid < 0) {
-                    $open[(int) $contactId] = ['balance' => $balance, 'since' => CarbonImmutable::parse($line->occurred_at)];
-                    break;
-                }
-            }
-        }
-
-        $rows = Contact::query()->whereKey(array_keys($open))->get()
-            ->map(fn (Contact $contact) => ['contact' => $contact] + $open[$contact->id])
-            ->sortBy(fn (array $row) => $row['since']->getTimestamp())
-            ->all();
-
-        return array_values($rows);
     }
 
     /**

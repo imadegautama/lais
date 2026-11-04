@@ -3,7 +3,10 @@ import type {
     ContactType,
     ItemKind,
     MoneyAccountKind,
+    OrderFulfillment,
+    OrderStatus,
     PaymentMethod,
+    PaymentStatus,
     Period as PeriodKey,
     StockReason as StockMovementReason,
     TransactionKind,
@@ -20,7 +23,10 @@ export type {
     ContactType,
     ItemKind,
     MoneyAccountKind,
+    OrderFulfillment,
+    OrderStatus,
     PaymentMethod,
+    PaymentStatus,
     PeriodKey,
     StockMovementReason,
     TransactionKind,
@@ -31,15 +37,6 @@ export type {
 export type Rupiah = number;
 
 export type MoneyDirection = 'in' | 'out' | 'none';
-
-export type OrderStatus =
-    | 'menunggu'
-    | 'diproses'
-    | 'siap'
-    | 'selesai'
-    | 'ditolak';
-
-export type PaymentStatus = 'belum' | 'dp' | 'lunas';
 
 export type Period = {
     key: PeriodKey;
@@ -164,6 +161,8 @@ export type ItemRow = {
     available: boolean;
     lowStock: boolean;
     negativeStock: boolean;
+    /** Shown on the shop page; sold kinds only. */
+    photoUrl: string | null;
 };
 
 export type RecipeLineInput = { material_id: number; qty: number };
@@ -273,8 +272,8 @@ export type TransactionCreateProps = {
     contacts: ContactOption[];
     /** Active rekening with their balances; as if the edited record were cancelled. */
     moneyAccounts: MoneyAccountOption[];
-    /** Set when the form edits a record ("Ubah"). */
-    editing?: { id: number; description: string };
+    /** Set when the form edits a record ("Ubah"); its proof moves to the new version unless replaced or removed. */
+    editing?: { id: number; description: string; proofUrl: string | null };
     initial?: RecordFormData;
 };
 
@@ -290,6 +289,10 @@ export type TransactionDetailProps = {
         replacedById: number | null;
         /** The record this one replaced. */
         replacesId: number | null;
+        /** Set when an order made it; it is changed from that order only. */
+        orderCode: string | null;
+        /** The proof photo, served only to the owner. */
+        proofUrl: string | null;
     };
     lines: Array<{
         id: number;
@@ -418,4 +421,154 @@ export type BalanceSheetProps = ReportFrame & {
     date: string;
     today: string;
     report: BalanceSheet;
+};
+
+/** The shop's face (A2–A4); `whatsapp` is already in 62… form. */
+export type ShopInfo = {
+    name: string;
+    slug: string;
+    open: boolean;
+    whatsapp: string | null;
+    qrisUrl: string | null;
+};
+
+/** A product on the order form. The price is shown, never sent back. */
+export type ShopItem = {
+    id: number;
+    name: string;
+    unit: string;
+    price: Rupiah;
+    photoUrl: string | null;
+    orderable: boolean;
+};
+
+export type OrderLine = {
+    name: string;
+    unit: string;
+    qty: number;
+    price: Rupiah;
+    subtotal: Rupiah;
+};
+
+/** An order as the customer's nota shows it. */
+export type PublicOrder = {
+    code: string;
+    status: OrderStatus;
+    customerName: string;
+    fulfillment: OrderFulfillment;
+    address: string | null;
+    wantedAt: string | null;
+    note: string | null;
+    total: Rupiah;
+    /** Uang muka and payments after Selesai, never the sale itself. */
+    paid: Rupiah;
+    paymentStatus: PaymentStatus;
+    createdAt: string;
+    acceptedAt: string | null;
+    readyAt: string | null;
+    completedAt: string | null;
+    rejectedAt: string | null;
+    rejectReason: string | null;
+    token: string;
+    lines: OrderLine[];
+};
+
+export type OrderPayment = {
+    id: number;
+    occurredAt: string;
+    label: string;
+    method: PaymentMethod;
+    moneyAccount: string | null;
+    amount: Rupiah;
+    hasProof: boolean;
+};
+
+export type OwnerOrder = PublicOrder & {
+    customerPhone: string;
+    source: TransactionSource;
+    /** The sale recorded when the order was done. */
+    saleId: number | null;
+    payments: OrderPayment[];
+    /** Settled from the Utang-piutang page, so not among `payments`. */
+    paidElsewhere: Rupiah;
+};
+
+export type ShopShowProps = { shop: ShopInfo; items: ShopItem[] };
+
+export type ShopOrderProps = { shop: ShopInfo; order: PublicOrder };
+
+export type OrdersIndexProps = {
+    shop: ShopInfo & { url: string };
+    status: OrderStatus;
+    counts: Record<OrderStatus, number>;
+    /** One page of the tab, searched and sorted on the server (TableQuery). */
+    orders: TablePage<OwnerOrder>;
+    /** Every product with a price, for an order the owner enters. */
+    items: ShopItem[];
+    moneyAccounts: MoneyAccountOption[];
+};
+
+export type OrderShowProps = {
+    shop: ShopInfo & { url: string };
+    order: OwnerOrder;
+    notaUrl: string;
+    moneyAccounts: MoneyAccountOption[];
+};
+
+/** A customer or supplier on the debts page; the phone is for "Ingatkan". */
+export type DebtContact = {
+    id: number;
+    name: string;
+    type: ContactType;
+    phone: string | null;
+};
+
+export type DebtRow = DebtContact & {
+    balance: Rupiah;
+    /** The oldest bill still open. */
+    since: string;
+    ageDays: number;
+    open: number;
+};
+
+export type DebtTab = 'piutang' | 'utang';
+
+export type DebtsIndexProps = {
+    tab: DebtTab;
+    totals: Record<
+        DebtTab,
+        { balance: Rupiah; contacts: number; oldestDays: number | null }
+    >;
+    rows: DebtRow[];
+    moneyAccounts: MoneyAccountOption[];
+    businessName: string;
+};
+
+export type DebtBill = {
+    transactionId: number;
+    occurredAt: string;
+    description: string;
+    orderCode: string | null;
+    amount: Rupiah;
+    remaining: Rupiah;
+    ageDays: number;
+};
+
+export type DebtPayment = {
+    transactionId: number;
+    occurredAt: string;
+    orderCode: string | null;
+    method: PaymentMethod;
+    moneyAccount: string | null;
+    amount: Rupiah;
+    hasProof: boolean;
+};
+
+export type DebtShowProps = {
+    contact: DebtContact;
+    balance: Rupiah;
+    bills: DebtBill[];
+    payments: DebtPayment[];
+    moneyAccounts: MoneyAccountOption[];
+    businessName: string;
 };

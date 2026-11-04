@@ -6,6 +6,7 @@ import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
+    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
@@ -14,6 +15,8 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 export type AppNavItem = {
     title: string;
     icon: LucideIcon;
+    /** Something waiting there, e.g. new orders. */
+    count?: number;
 } & (
     | {
           href: NonNullable<InertiaLinkProps['href']>;
@@ -29,7 +32,7 @@ export type AppNavItem = {
 export type AppNavGroup = { label: string; items: AppNavItem[] };
 
 export function NavMain({ groups }: { groups: AppNavGroup[] }) {
-    const { isCurrentUrl } = useCurrentUrl();
+    const { isCurrentOrParentUrl } = useCurrentUrl();
 
     return (
         <>
@@ -45,13 +48,20 @@ export function NavMain({ groups }: { groups: AppNavGroup[] }) {
                                 {item.href ? (
                                     <SidebarMenuButton
                                         asChild
-                                        isActive={isCurrentUrl(item.href)}
+                                        isActive={isCurrentOrParentUrl(
+                                            item.href,
+                                        )}
                                         tooltip={{ children: item.title }}
                                         className="[&>svg]:text-muted-foreground data-[active=true]:[&>svg]:text-brand-strong"
                                     >
                                         <Link href={item.href} prefetch>
                                             <item.icon />
                                             <span>{item.title}</span>
+                                            {Boolean(item.count) && (
+                                                <span className="sr-only">
+                                                    , {item.count} menunggu
+                                                </span>
+                                            )}
                                         </Link>
                                     </SidebarMenuButton>
                                 ) : item.onSelect ? (
@@ -77,6 +87,14 @@ export function NavMain({ groups }: { groups: AppNavGroup[] }) {
                                         </span>
                                         <SoonTag className="group-data-[collapsible=icon]:hidden" />
                                     </SidebarMenuButton>
+                                )}
+                                {Boolean(item.count) && (
+                                    <SidebarMenuBadge
+                                        aria-hidden
+                                        className="num rounded-md bg-destructive text-white peer-hover/menu-button:text-white peer-data-[active=true]/menu-button:text-white"
+                                    >
+                                        {item.count}
+                                    </SidebarMenuBadge>
                                 )}
                             </SidebarMenuItem>
                         ))}

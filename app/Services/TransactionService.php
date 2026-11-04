@@ -82,10 +82,12 @@ class TransactionService
                 ? (int) $data['amount']
                 : array_sum(array_map(fn (array $line) => (int) round((float) $line['qty'] * $line['price']), $lines));
             $paid = $type === TransactionType::Penjualan && $method === PaymentMethod::Kredit ? (int) ($data['paid_amount'] ?? 0) : 0;
+            // An order's uang muka, settled by the sale when the order is done (Orders::complete). Never from a form.
+            $deposit = $type === TransactionType::Penjualan ? (int) ($data['deposit'] ?? 0) : 0;
 
-            $this->assertRules($business, $type, $kind, $method, $total, $paid, $contact);
+            $this->assertRules($business, $type, $kind, $method, $total, $paid, $contact, $deposit);
 
-            $amounts = $this->moneyLines($business, $type, $kind, $method, $total, $paid, $from, $to);
+            $amounts = $this->moneyLines($business, $type, $kind, $method, $total, $paid, $from, $to, $deposit);
 
             $transaction = $business->transactions()->create([
                 'type' => $type,
@@ -95,12 +97,14 @@ class TransactionService
                 'to_money_account_id' => $to?->id,
                 'occurred_at' => $occurredAt,
                 'total' => $total,
-                'paid_amount' => $paid,
+                // On a credit sale, what is already paid includes the order's uang muka.
+                'paid_amount' => $method === PaymentMethod::Kredit ? $paid + $deposit : 0,
                 'cash_flow' => Ledger::cashTotal($amounts),
                 'description' => $this->describe($type, $kind, $lines, $items, $contact, $data['note'] ?? null, $from, $to),
                 'note' => $data['note'] ?? null,
                 'contact_id' => $contact?->id,
                 'source' => $source,
+                'order_id' => $data['order_id'] ?? null,
             ]);
 
             foreach ($lines as $line) {
@@ -301,7 +305,7 @@ class TransactionService
      *
      * @return array<int|string, int>
      */
-    private function moneyLines(Business $business, TransactionType $type, ?TransactionKind $kind, PaymentMethod $method, int $total, int $paid, ?MoneyAccount $from, ?MoneyAccount $to): array
+    private function moneyLines(Business $business, TransactionType $type, ?TransactionKind $kind, PaymentMethod $method, int $total, int $paid, ?MoneyAccount $from, ?MoneyAccount $to, int $deposit = 0): array
     {
         // Tunai and non-tunai land on their rekening; personal money is owner capital.
         $cash = $from === null ? (string) $method->cashAccount() : Ledger::cashKey($from);
@@ -310,16 +314,18 @@ class TransactionService
         return match ($type) {
             TransactionType::Penjualan => $method === PaymentMethod::Kredit
                 // shortcut: the part paid on the spot of a credit sale goes to Kas tunai, add a rekening for it when orders/DP land.
-                ? self::add([Ledger::cashKey($business->cashBox()) => $paid, Account::RECEIVABLE => $total - $paid], [Account::SALES => -$total])
-                : self::add([$cash => $total], [Account::SALES => -$total]),
+                ? self::add([Ledger::cashKey($business->cashBox()) => $paid, Account::CUSTOMER_DEPOSITS => $deposit, Account::RECEIVABLE => $total - $paid - $deposit], [Account::SALES => -$total])
+                : self::add([$cash => $total - $deposit, Account::CUSTOMER_DEPOSITS => $deposit], [Account::SALES => -$total]),
             TransactionType::Pembelian => $kind === TransactionKind::Peralatan
                 ? self::add([Account::EQUIPMENT => $total], [$payable => -$total])
                 // Goods: Persediaan and any catch-up HPP are added per line.
                 : [$payable => -$total],
             TransactionType::Biaya => self::add([Account::EXPENSES => $total], [$payable => -$total]),
-            TransactionType::UtangPiutang => $kind === TransactionKind::TerimaPiutang
-                ? self::add([$cash => $total], [Account::RECEIVABLE => -$total])
-                : self::add([Account::PAYABLE => $total], [$cash => -$total]),
+            TransactionType::UtangPiutang => match ($kind) {
+                TransactionKind::TerimaPiutang => self::add([$cash => $total], [Account::RECEIVABLE => -$total]),
+                TransactionKind::UangMuka => self::add([$cash => $total], [Account::CUSTOMER_DEPOSITS => -$total]),
+                default => self::add([Account::PAYABLE => $total], [$cash => -$total]),
+            },
             TransactionType::Modal => $kind === TransactionKind::Setor
                 ? self::add([$cash => $total], [Account::OWNER_CAPITAL => -$total])
                 : self::add([Account::DRAWINGS => $total], [$cash => -$total]),
@@ -399,7 +405,7 @@ class TransactionService
      * Rules the form cannot check alone, raised as validation errors so the web
      * form and the WhatsApp bot get the same messages.
      */
-    private function assertRules(Business $business, TransactionType $type, ?TransactionKind $kind, PaymentMethod $method, int $total, int $paid, ?Contact $contact): void
+    private function assertRules(Business $business, TransactionType $type, ?TransactionKind $kind, PaymentMethod $method, int $total, int $paid, ?Contact $contact, int $deposit = 0): void
     {
         if ($total < 1) {
             throw ValidationException::withMessages(['lines' => 'Totalnya masih Rp0. Isi jumlah dan harganya.']);
@@ -411,11 +417,16 @@ class TransactionService
                 : 'Pilih atau tambahkan nama suppliernya.']);
         }
 
-        if ($type === TransactionType::Penjualan && $method === PaymentMethod::Kredit && $paid >= $total) {
+        if ($type === TransactionType::Penjualan && $method === PaymentMethod::Kredit && $deposit === 0 && $paid >= $total) {
             throw ValidationException::withMessages(['paid_amount' => 'Kalau sudah dibayar penuh, pilih Tunai atau Non-tunai.']);
         }
 
-        if ($type === TransactionType::UtangPiutang && $contact !== null) {
+        if ($paid + $deposit > $total) {
+            throw ValidationException::withMessages(['paid_amount' => 'Yang sudah dibayar melebihi totalnya.']);
+        }
+
+        // Uang muka raises what the business owes the customer, so there is no open balance to check.
+        if ($type === TransactionType::UtangPiutang && $kind !== TransactionKind::UangMuka && $contact !== null) {
             $balance = $this->ledger->contactBalances($business, $contact->id)[$contact->id] ?? 0;
 
             if ($balance <= 0) {
@@ -519,6 +530,7 @@ class TransactionService
             $kind === TransactionKind::Peralatan => 'Peralatan: '.($note ?? 'tanpa nama'),
             $kind === TransactionKind::TerimaPiutang => 'Terima bayaran dari '.($contact->name ?? 'pelanggan'),
             $kind === TransactionKind::BayarUtang => 'Bayar utang ke '.($contact->name ?? 'supplier'),
+            $kind === TransactionKind::UangMuka => 'Uang muka dari '.($contact->name ?? 'pelanggan'),
             // Expense kinds, setor, and prive read as their label.
             default => $kind?->label() ?? $type->label(),
         };

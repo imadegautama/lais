@@ -27,10 +27,13 @@ class VocabularyTest extends TestCase
     public function test_every_kind_belongs_to_exactly_one_type_and_sales_have_none(): void
     {
         $listed = array_merge(...array_map(fn (TransactionType $type) => $type->kinds(), TransactionType::cases()));
+        $chosen = array_values(array_filter(TransactionKind::cases(), fn (TransactionKind $kind) => $kind !== TransactionKind::UangMuka));
 
         $this->assertSame([], TransactionType::Penjualan->kinds());
-        $this->assertEqualsCanonicalizing(TransactionKind::cases(), $listed);
-        $this->assertCount(count(TransactionKind::cases()), $listed);
+        $this->assertEqualsCanonicalizing($chosen, $listed);
+        $this->assertCount(count($chosen), $listed);
+        // Uang muka belongs to Utang-piutang but is never chosen by hand: an order records it.
+        $this->assertSame(TransactionType::UtangPiutang, TransactionKind::UangMuka->type());
     }
 
     public function test_personal_money_is_only_for_purchases_and_expenses(): void

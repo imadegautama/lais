@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\OrderStatus;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,8 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Shown on the Pesanan menu; read on every page, so one indexed count.
+            'pendingOrders' => fn () => $request->user()?->business?->orders()->where('orders.status', OrderStatus::Menunggu)->count() ?? 0,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

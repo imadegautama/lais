@@ -6,6 +6,7 @@ import {
     Pencil,
     ReceiptText,
     ScrollText,
+    ShoppingBag,
 } from 'lucide-react';
 import { ActivityList } from '@/components/app/activity-list';
 import {
@@ -23,9 +24,11 @@ import { StockMovementList } from '@/components/app/stock-movement-list';
 import { Button } from '@/components/ui/button';
 import { CancelDialog } from '@/features/transactions/cancel-dialog';
 import { JournalCard } from '@/features/transactions/journal-card';
+import { ProofCard } from '@/features/transactions/proof-card';
 import { contactTypeFor } from '@/features/transactions/record';
 import { formatDate, formatQty, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { show as showOrder } from '@/routes/orders';
 import { edit, index, show } from '@/routes/transactions';
 import type { TransactionDetailProps } from '@/types/domain';
 import {
@@ -63,7 +66,8 @@ export default function TransactionShow({
                     }
                     description={`${formatDate(transaction.occurredAt, 'long')}, ${formatDate(transaction.occurredAt, 'time')} WIB`}
                     actions={
-                        !transaction.voided && (
+                        !transaction.voided &&
+                        !transaction.orderCode && (
                             <>
                                 <Button variant="outline" asChild>
                                     <Link href={edit(transaction.id)}>
@@ -76,6 +80,22 @@ export default function TransactionShow({
                         )
                     }
                 />
+
+                {transaction.orderCode && (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ShoppingBag className="size-4 shrink-0" aria-hidden />
+                        <span>
+                            Dikelola dari pesanan {transaction.orderCode}. Ubah
+                            atau batalkan dari halaman pesanannya.{' '}
+                            <Link
+                                href={showOrder(transaction.orderCode)}
+                                className="font-medium text-foreground underline underline-offset-4"
+                            >
+                                Buka pesanan
+                            </Link>
+                        </span>
+                    </p>
+                )}
 
                 {transaction.replacesId && (
                     <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -195,6 +215,10 @@ export default function TransactionShow({
                                 </dl>
                             )}
                         </SectionCard>
+
+                        {transaction.proofUrl && (
+                            <ProofCard url={transaction.proofUrl} />
+                        )}
 
                         {movements.length > 0 && (
                             <SectionCard

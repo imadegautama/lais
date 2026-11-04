@@ -37,8 +37,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $voided_at
  * @property string|null $void_reason
  * @property int|null $replaced_by_id
+ * @property int|null $order_id
  */
-#[Fillable(['type', 'kind', 'method', 'money_account_id', 'to_money_account_id', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source'])]
+#[Fillable(['type', 'kind', 'method', 'money_account_id', 'to_money_account_id', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source', 'order_id'])]
 class Transaction extends Model
 {
     /**
@@ -81,6 +82,14 @@ class Transaction extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
+    }
+
+    /**
+     * @return BelongsTo<Order, $this>
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
     }
 
     /**

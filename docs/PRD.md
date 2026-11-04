@@ -163,6 +163,8 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Setiap transaksi yang disimpan menghasilkan jurnal sesuai tabel §4.4, dalam satu transaksi database (atomic).
 - Transaksi tidak pernah dihapus. "Batalkan" membuat jurnal pembalik dan mutasi stok pembalik. "Ubah" berarti batalkan lalu buat ulang. Riwayatnya tetap terlihat.
 - Bukti transaksi (foto) bisa dilampirkan: jpg/png/webp, maksimal 5 MB.
+    - Status (4 Nov 2026): sudah ada di form Catat transaksi (semua jenis), di dialog bayar Pesanan dan Utang-piutang (saat Transfer/QRIS), dan foto nota dari Tanya AI ikut tersimpan saat drafnya disimpan.
+    - Satu foto per transaksi, disimpan di disk privat dan hanya dibuka lewat rute yang mewajibkan login pemilik (lebih ketat dari signed route di §Keamanan, karena link bertanda tangan bisa diteruskan ke orang lain). File tidak pernah dihapus; "Ubah" membawa bukti ke versi baru.
 
 **US-06.** Sebagai pemilik, saya ingin mencatat lewat chat WA dengan bahasa sehari-hari, supaya pencatatan tidak menyita waktu.
 
@@ -217,6 +219,13 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 - DP sebelum pesanan selesai dicatat sebagai Uang Muka Pesanan (kewajiban).
 - Saat pesanan Selesai, penjualan diakui dan stok berkurang. Uang muka dipindahkan ke penjualan, dan sisa yang belum dibayar menjadi piutang.
+- Pembayaran setelah Selesai dicatat sebagai terima piutang, paling banyak sebesar sisanya.
+- Pesanan yang sudah diterima tidak ditolak, tetapi **dibatalkan** (status akhir tetap Ditolak, dengan alasan). Uang mukanya dibatalkan lewat jurnal cermin, artinya uang dikembalikan ke pelanggan.
+- Transaksi yang dibuat pesanan hanya bisa diubah atau dibatalkan dari halaman pesanannya.
+
+**Status pengerjaan (web, 4 Nov 2026):** halaman toko, checkout, nota, daftar dan detail pesanan, pesanan manual oleh pemilik, upload QRIS, foto produk, dan QR toko untuk dicetak sudah jadi. Notifikasi dan perintah lewat WA (US-09) menunggu GOWA; sementara pesanan baru tampil sebagai angka di menu Pesanan dan aksi di dashboard, dan kabar ke pelanggan dikirim dari tombol `wa.me` di detail pesanan.
+
+**Penyimpangan dari §Keamanan:** foto produk dan QRIS disimpan di disk publik, bukan disk privat dengan signed route, karena keduanya memang untuk dilihat pelanggan tanpa login.
 
 #### M5. Utang-Piutang
 
@@ -226,6 +235,9 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Daftar berisi kontak, nominal, sisa, tanggal, dan umur (hari).
 - Pembayaran sebagian didukung. Lunas otomatis jika sisa = 0.
 - Lewat WA: "bu sari bayar 50rb" tercatat sebagai penerimaan piutang setelah konfirmasi.
+- Pembayaran melunasi tagihan paling lama lebih dulu. Pembayaran yang dicatat dari halaman pesanan melunasi pesanan itu dulu. Jadi status bayar pesanan tetap benar dari mana pun pembayarannya dicatat.
+
+**Status pengerjaan (web, 4 Nov 2026):** halaman Utang-piutang (tab Piutang/Utang, ringkasan, umur tagihan, catat pembayaran, tombol Ingatkan lewat `wa.me`) dan rincian per kontak sudah jadi. Pencatatan lewat WA menunggu GOWA.
 
 #### M6. Laporan & Dashboard
 
