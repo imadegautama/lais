@@ -99,6 +99,7 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
 export const TransactionSource = {
     Web: 'web',
     Wa: 'wa',
+    Telegram: 'tg',
     Toko: 'toko',
     Ocr: 'ocr',
 } as const;
@@ -108,6 +109,7 @@ export type TransactionSource = (typeof TransactionSource)[keyof typeof Transact
 export const transactionSourceLabels: Record<TransactionSource, string> = {
     web: 'Web',
     wa: 'WhatsApp',
+    tg: 'Telegram',
     toko: 'Halaman toko',
     ocr: 'Foto nota',
 };

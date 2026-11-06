@@ -15,6 +15,7 @@ import {
     PackageCheck,
     ReceiptText,
     ScanText,
+    Send,
     Wheat,
     ShoppingBasket,
     Store,
@@ -127,7 +128,7 @@ export function CategoryBadge({ type }: { type: TransactionType }) {
 
 export const transactionSources = withIcons<TransactionSource>(
     transactionSourceLabels,
-    { wa: MessageCircle, web: Monitor, toko: Store, ocr: ScanText },
+    { wa: MessageCircle, tg: Send, web: Monitor, toko: Store, ocr: ScanText },
 );
 
 /** Where a record came from. Plain text, no chip, so it stays quiet in lists. */

@@ -787,6 +787,7 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                             {(
                                 [
                                     'wa',
+                                    'tg',
                                     'web',
                                     'toko',
                                     'ocr',

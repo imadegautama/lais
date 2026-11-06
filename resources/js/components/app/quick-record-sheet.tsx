@@ -74,9 +74,9 @@ function Options({ onChoose }: { onChoose: () => void }) {
                     aria-hidden
                 />
                 <span>
-                    Nanti bisa juga lewat WhatsApp: kirim{' '}
+                    Bisa juga lewat chat: kirim{' '}
                     <q className="font-semibold">jual 3 nasgor 2 es teh qris</q>{' '}
-                    ke nomor bot.
+                    ke bot Lais.
                 </span>
             </p>
         </div>

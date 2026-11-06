@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\WhatsApp\BotChannel;
+use App\Services\WhatsApp\Gowa;
+use App\Services\WhatsApp\Telegram;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(BotChannel::class, fn ($app) => $app->make(config('services.bot.channel') === 'whatsapp' ? Gowa::class : Telegram::class));
     }
 
     /**

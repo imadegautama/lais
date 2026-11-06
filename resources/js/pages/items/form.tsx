@@ -166,7 +166,7 @@ export default function ItemForm({
                                             errors.aliases ??
                                             errors['aliases.0']
                                         }
-                                        hint="Pisahkan dengan koma. Bot WhatsApp jadi paham kalau ditulis begini."
+                                        hint="Pisahkan dengan koma. Bot Lais jadi paham kalau ditulis begini."
                                         className="md:col-span-2"
                                     >
                                         <Input

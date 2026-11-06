@@ -29,7 +29,6 @@ import {
 } from '@/features/orders/order-actions';
 import { OrderLines, OrderTimeline } from '@/features/orders/order-timeline';
 import { displayPhone, waLink } from '@/features/orders/phone';
-import { statusMessage } from '@/features/orders/vocabulary';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { index as debtsIndex } from '@/routes/debts';
@@ -40,9 +39,9 @@ import type { OrderShowProps } from '@/types/domain';
 
 /** One order (UI-PAGES C10): its next step, the customer, and the money. */
 export default function OrderShow({
-    shop,
     order,
     notaUrl,
+    statusMessage,
     moneyAccounts,
 }: OrderShowProps) {
     const rest = Math.max(0, order.total - order.paid);
@@ -241,7 +240,7 @@ export default function OrderShow({
                             // A new status or payment writes a new message.
                             key={`${order.status}-${order.paid}`}
                             phone={order.customerPhone}
-                            initial={statusMessage(order, shop.name, notaUrl)}
+                            initial={statusMessage}
                         />
 
                         <SectionCard title="Nota pelanggan" icon={ReceiptText}>

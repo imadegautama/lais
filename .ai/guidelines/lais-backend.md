@@ -47,6 +47,7 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - `uang_muka` tidak ada di `TransactionType::kinds()`, jadi tidak bisa dipilih di form manual maupun oleh AI.
     - Batas 5 pesanan per IP per 10 menit dihitung hanya dari pesanan yang berhasil (`ShopController::store`).
 - Sisa utang-piutang per tagihan hanya dihitung di `App\Services\Debts` (`books()`, `summary()`, `remaining()`). Aturannya: pembayaran yang punya `order_id` melunasi tagihan pesanan itu dulu, sisanya melunasi tagihan paling lama dulu. Halaman Utang-piutang, aksi piutang di dashboard, dan `Orders::paid()` memakai jalur ini, jadi status bayar pesanan ikut berubah walaupun dibayar dari halaman Utang-piutang. Saldo total per kontak tetap boleh dibaca dari `Ledger::contactBalances()`; keduanya sama.
+- Bot: salurannya dipilih `BOT_CHANNEL` lewat interface `App\Services\WhatsApp\BotChannel` (`Telegram` atau `Gowa`). Nama kelas, tabel, dan rute tetap memakai "WhatsApp" selama Telegram sementara. Hal yang berbeda per saluran masuk `BotChannel`, bukan `Inbox`. Semua pesan masuk lewat `App\Services\WhatsApp\Inbox` (dari job `ProcessWhatsAppMessage`), dan semua pesan keluar hanya lewat job `SendWhatsApp`. Perintah tetap (kode `LAIS`, perintah pesanan di `OrderCommands`, "1"/"2", pertanyaan laba vs kas) dibaca tanpa LLM. Selain itu memakai `FormAssistant::reply()` dengan sumber `BotChannel::source()`. Bot hanya membalas pemilik yang terhubung dan tidak pernah mengirim ke pelanggan; kabar ke pelanggan berupa link `wa.me` dari `App\Support\OrderMessages`.
 - Bukti transaksi lewat `App\Support\Proof::attach()`, dipanggil **setelah** transaksi tersimpan. Disimpan di disk `local` (privat) dan hanya dilayani `TransactionController::proof` dengan `Gate::authorize('manage')`. Jangan pernah membuat URL publik untuknya. File bukti tidak pernah dihapus; "Ubah" menyalin `proof_path` ke versi baru kecuali diganti atau dihapus. Aturan validasinya `Proof::RULES` dan `Proof::MESSAGES`.
 - Foto produk dan gambar QRIS disimpan di disk `public` (bukan disk privat), karena memang ditampilkan ke publik. URL-nya lewat `Item::photoUrl()` dan `Business::qrisUrl()` (`asset()`), supaya ikut host yang membuka halaman.
 - Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
@@ -83,7 +84,7 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 
 - Jurnal dan mutasi stok tidak dicatat ke log aktivitas, karena keduanya sudah menjadi jejak audit uang.
 - Label field dan format tampilannya ada di `ActivityResource::FIELDS`. Field baru yang perlu terlihat di riwayat ditambahkan di sana.
-- Jalur tanpa sesi login, misalnya bot WhatsApp, memanggil `Activity::defaultCauser($business->user)` (facade `Spatie\Activitylog\Facades\Activity`) dan `Context::add('activity_source', 'wa')` di titik masuknya.
+- Jalur tanpa sesi login, misalnya bot, memanggil `Activity::defaultCauser($owner, $callback)` (facade `Spatie\Activitylog\Facades\Activity`) dan `Context::add('activity_source', …)` di titik masuknya, seperti `Inbox::handle()`.
 - Password, token, kode OTP/2FA, dan secret lain tidak pernah masuk `properties` atau `logOnly`.
 
 ## Test

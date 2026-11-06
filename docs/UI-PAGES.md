@@ -536,6 +536,11 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - toggle ringkasan mingguan / peringatan stok / cek kesehatan
     - ambang peringatan stok (hari)
     - **riwayat 20 pesan terakhir** dengan bot (P2, berguna saat demo dan debugging)
+
+> **Catatan implementasi (6 Nov):** tab ini sekarang bernama **Bot** (`/settings/bot`) dan mengikuti saluran di `BOT_CHANNEL`. Di Telegram, tombolnya "Buka Telegram": link `t.me/<bot>?start=<kode>` yang menghubungkan akun setelah pemilik menekan Mulai. Catatan 4 Nov di bawah tetap berlaku untuk isi halamannya.
+
+> **Catatan implementasi (4 Nov):** tab **WhatsApp** di Pengaturan (`/settings/whatsapp`) berisi status terhubung, langkah "Buat kode" → "Kirim lewat WhatsApp" (pemilik mengirim `LAIS ######` ke bot; halaman memeriksa setiap 5 detik), tombol Putuskan, dan saklar ringkasan harian 21.00. Jam ringkasan, ringkasan mingguan, peringatan stok terpisah, contekan perintah, dan riwayat pesan belum dibuat; contekan ada di `docs/WHATSAPP.md`.
+
 - **Tampilan:** light / dark / sistem (sudah ada di starter kit).
 - **Keamanan:** di bawah pengaturan password dan 2FA ada **Aktivitas akun**, berisi 10 aktivitas terbaru (masuk, gagal masuk dengan email yang dicoba dan IP, ganti password), dengan tautan ke C21.
 

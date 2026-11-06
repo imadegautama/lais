@@ -6,10 +6,12 @@ use App\Enums\ItemKind;
 use App\Enums\TransactionSource;
 use App\Http\Requests\OrderRequest;
 use App\Http\Resources\OrderResource;
+use App\Jobs\SendWhatsApp;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\Order;
 use App\Services\Orders;
+use App\Support\OrderMessages;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
@@ -51,6 +53,13 @@ class ShopController extends Controller
 
         $order = $orders->place($business, $request->validated(), TransactionSource::Toko);
         RateLimiter::hit($key, 600);
+
+        // The owner hears at once through the bot (PRD US-09); the bot never writes to the customer.
+        $owner = $business->user;
+
+        if ($owner->whatsappAddress() !== null) {
+            SendWhatsApp::dispatch($owner->whatsappAddress(), OrderMessages::arrived($order->load('lines')), $owner->id);
+        }
 
         return to_route('shop.order', $order->token);
     }

@@ -25,7 +25,8 @@ final class ItemDraft
     {
         $notes = [];
         $values = self::start($current);
-        $kind = ItemKind::tryFrom(self::text($args['jenis'] ?? null));
+        // A recipe makes it a composed product, whatever word the model chose.
+        $kind = is_array($args['resep'] ?? null) && $args['resep'] !== [] ? ItemKind::Komposisi : ItemKind::tryFrom(self::text($args['jenis'] ?? null));
 
         if ($kind !== null && $kind->value !== $values['kind']) {
             $values['kind'] = $kind->value;
@@ -70,15 +71,18 @@ final class ItemDraft
             $recipe = [];
 
             foreach ($args['resep'] as $row) {
-                $material = is_array($row) ? Names::match($materials, $row['bahan'] ?? null, fn (Item $item) => [$item->name, ...($item->aliases ?? [])]) : null;
+                // Some models write a line as nama/jumlah, like tulis_nota, whatever the schema says.
+                $name = is_array($row) ? ($row['bahan'] ?? $row['nama'] ?? null) : null;
+                $material = Names::match($materials, $name, fn (Item $item) => [$item->name, ...($item->aliases ?? [])]);
 
                 if ($material === null) {
-                    $notes[] = 'Bahan "'.self::text(is_array($row) ? ($row['bahan'] ?? null) : null).'" belum ada. Tambahkan dulu sebagai bahan baku.';
+                    $notes[] = 'Bahan "'.self::text($name).'" belum ada. Tambahkan dulu sebagai bahan baku.';
 
                     continue;
                 }
 
-                $qty = is_numeric($row['qty'] ?? null) && (float) $row['qty'] > 0 ? (float) $row['qty'] : 1;
+                $written = $row['qty'] ?? $row['jumlah'] ?? null;
+                $qty = is_numeric($written) && (float) $written > 0 ? (float) $written : 1;
                 $recipe[] = ['material_id' => (string) $material->id, 'qty' => Format::decimalInput($qty)];
             }
 

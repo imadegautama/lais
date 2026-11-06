@@ -15,6 +15,7 @@ use App\Models\Business;
 use App\Models\Order;
 use App\Services\Ledger;
 use App\Services\Orders;
+use App\Support\OrderMessages;
 use App\Support\Proof;
 use App\Support\TableQuery;
 use Illuminate\Http\RedirectResponse;
@@ -76,7 +77,7 @@ class OrderController extends Controller
         return to_route('orders.show', $order->code);
     }
 
-    public function show(Request $request, string $code, Ledger $ledger): Response
+    public function show(Request $request, string $code, Ledger $ledger, Orders $orders): Response
     {
         $business = $request->user()->currentBusiness();
         $order = $this->find($business, $code);
@@ -85,6 +86,8 @@ class OrderController extends Controller
             'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug)],
             'order' => OrderResource::make($order->load(['lines']))->resolve(),
             'notaUrl' => route('shop.order', $order->token),
+            // The same words the bot links to (OrderMessages), so web and WhatsApp never differ.
+            'statusMessage' => OrderMessages::status($order, $orders->paid($order)),
             'moneyAccounts' => MoneyAccountResource::options($business, $ledger),
         ]);
     }

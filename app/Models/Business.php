@@ -26,8 +26,9 @@ use Illuminate\Support\Carbon;
  * @property bool $accepting_orders
  * @property string|null $whatsapp
  * @property string|null $qris_path
+ * @property bool $daily_summary
  */
-#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at', 'accepting_orders', 'whatsapp', 'qris_path'])]
+#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at', 'accepting_orders', 'whatsapp', 'qris_path', 'daily_summary'])]
 class Business extends Model
 {
     /** @use HasFactory<BusinessFactory> */
@@ -46,6 +47,7 @@ class Business extends Model
             'onboarding_draft' => 'array',
             'onboarded_at' => 'datetime',
             'accepting_orders' => 'boolean',
+            'daily_summary' => 'boolean',
         ];
     }
 

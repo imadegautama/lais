@@ -24,6 +24,10 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
+ * @property string|null $whatsapp 62…, linked through the bot (WhatsAppLink)
+ * @property string|null $whatsapp_lid
+ * @property string|null $telegram_chat_id
+ * @property Carbon|null $whatsapp_linked_at
  * @property string $password
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -65,6 +69,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     protected function casts(): array
     {
         return [
+            'whatsapp_linked_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
@@ -89,5 +94,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'name' => "Usaha {$this->name}",
             'slug' => Str::slug($this->name).'-'.$this->id,
         ]);
+    }
+
+    /**
+     * Where the bot reaches this owner: the number, the linked id when
+     * WhatsApp only gave that, or the Telegram chat. Null until linked (Pengaturan > Bot).
+     */
+    public function whatsappAddress(): ?string
+    {
+        return $this->whatsapp_linked_at === null ? null : ($this->whatsapp ?? $this->whatsapp_lid ?? $this->telegram_chat_id);
     }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
+use App\Http\Controllers\GowaWebhookController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MoneyAccountController;
 use App\Http\Controllers\OnboardingController;
@@ -21,6 +22,11 @@ Route::inertia('/', 'welcome')->name('home');
 Route::get('t/{slug}', [ShopController::class, 'show'])->name('shop.show');
 Route::post('t/{slug}/pesan', [ShopController::class, 'store'])->name('shop.store');
 Route::get('p/{token}', [ShopController::class, 'order'])->name('shop.order');
+
+// GOWA's webhook: signed with HMAC; bootstrap/app.php leaves it out of the CSRF check.
+Route::post('webhooks/gowa', GowaWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('webhooks.gowa');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');

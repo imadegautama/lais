@@ -41,6 +41,8 @@ import { dashboard } from '@/routes';
 import reports from '@/routes/reports';
 import { create as createItem } from '@/routes/items';
 import { index as moneyAccountsIndex } from '@/routes/money-accounts';
+import { index as ordersIndex } from '@/routes/orders';
+import { edit as editWhatsApp } from '@/routes/whatsapp';
 import {
     create as createTransaction,
     index as transactionsIndex,
@@ -247,7 +249,7 @@ function Overview(props: DashboardProps & { loading: boolean }) {
 
                 <SectionCard
                     title="Transaksi terakhir"
-                    description="Catatan terbaru dari WhatsApp, web, dan halaman toko"
+                    description="Catatan terbaru dari bot, web, dan halaman toko"
                     icon={ReceiptText}
                     className="md:col-span-2 xl:col-span-8 xl:col-start-1 xl:row-start-3"
                 >
@@ -560,7 +562,6 @@ function StockCard({
     );
 }
 
-// TODO(GOWA/A2): the WhatsApp and store steps link once built.
 function FirstSteps() {
     const steps: Array<{
         title: string;
@@ -574,16 +575,18 @@ function FirstSteps() {
         },
         {
             title: 'Catat penjualan pertama',
-            detail: 'Dari tombol Catat, atau kirim pesan ke bot WhatsApp.',
+            detail: 'Dari tombol Catat, atau kirim pesan ke bot Lais.',
             action: { label: 'Catat penjualan', href: createTransaction.url() },
         },
         {
-            title: 'Hubungkan WhatsApp',
-            detail: 'Ringkasan harian dan peringatan stok dikirim ke sana.',
+            title: 'Hubungkan bot',
+            detail: 'Catat lewat chat, dan terima ringkasan malam di sana.',
+            action: { label: 'Hubungkan', href: editWhatsApp.url() },
         },
         {
             title: 'Bagikan link toko',
             detail: 'Pelanggan bisa pesan sendiri tanpa chat bolak-balik.',
+            action: { label: 'Buka Pesanan', href: ordersIndex.url() },
         },
     ];
 

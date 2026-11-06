@@ -7,6 +7,7 @@ use App\Enums\ItemKind;
 use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionKind;
+use App\Enums\TransactionSource;
 use App\Enums\TransactionType;
 use App\Http\Requests\ItemRequest;
 use App\Http\Requests\TransactionRequest;
@@ -16,6 +17,7 @@ use App\Models\Item;
 use App\Models\MoneyAccount;
 use App\Models\User;
 use App\Services\Catalog;
+use App\Services\ReportAnswers;
 use App\Services\TransactionService;
 use App\Support\Format;
 use App\Support\Proof;
@@ -52,13 +54,11 @@ class FormAssistant
         'sapaan' => 'Halo! Saya bisa membantu mencatat transaksi dan produk baru. Ceritakan saja, misalnya "jual 3 nasi goreng tunai".',
         'terima_kasih' => 'Sama-sama. Kalau ada yang mau dicatat lagi, tulis saja di sini.',
         'di_luar_tugas' => self::SCOPE,
-        // shortcut: report questions wait for US-14 (next sprint); until then the Dashboard has the numbers.
-        'pertanyaan_laporan' => 'Pertanyaan soal laporan, misalnya untung atau produk terlaris, belum bisa saya jawab. Untuk sekarang, angkanya ada di Dashboard.',
     ];
 
     private const NOT_A_RECEIPT = 'Foto ini tidak terbaca sebagai nota belanja. Coba foto notanya lagi dengan lebih terang, atau ketik saja yang mau dicatat.';
 
-    public function __construct(private LlmClient $llm, private TransactionService $transactions, private Catalog $catalog) {}
+    public function __construct(private LlmClient $llm, private TransactionService $transactions, private Catalog $catalog, private ReportAnswers $answers) {}
 
     /**
      * Step one of a receipt photo: the vision model only copies what the
@@ -125,7 +125,7 @@ class FormAssistant
      * @param  string|null  $photo  a receipt photo as a data URI (AssistantRequest::isPhoto); read, never stored
      * @return Reply
      */
-    public function reply(User $user, string $message, ?string $form, array $history, array $current, ?array $draft = null, ?string $photo = null): array
+    public function reply(User $user, string $message, ?string $form, array $history, array $current, ?array $draft = null, ?string $photo = null, TransactionSource $source = TransactionSource::Web): array
     {
         $business = $user->currentBusiness();
         $items = $business->items()->orderBy('items.name')->limit(100)->get();
@@ -134,7 +134,12 @@ class FormAssistant
 
         // A new photo is something new to read, even when it comes with "iya".
         if ($draft !== null && $photo === null && self::confirms($message)) {
-            return $this->save($user, $draft, $items, $contacts, $moneyAccounts);
+            return $this->save($user, $draft, $items, $contacts, $moneyAccounts, $source);
+        }
+
+        // Demo scenario 4 must not wait on the model: "kenapa laba naik tapi kas turun?" is answered from the journal at once.
+        if ($photo === null && ReportAnswers::asksProfitVsCash($message)) {
+            return self::result(['reply' => $this->answers->profitVsCash($user->currentBusiness()), 'link' => ['label' => 'Buka Perubahan modal', 'href' => route('reports.equity', absolute: false)]]);
         }
 
         if ($photo !== null) {
@@ -169,7 +174,8 @@ class FormAssistant
             ]),
             'jelaskan' => $this->guide($user, $args, $items, $contacts, $moneyAccounts),
             default => self::text($args['jenis'] ?? null) === 'pertanyaan_laporan'
-                ? self::result(['reply' => self::REPLIES['pertanyaan_laporan'], 'link' => ['label' => 'Buka Dashboard', 'href' => route('dashboard', absolute: false)]])
+                // The numbers come from the journal, never from the model (ReportAnswers).
+                ? self::result(['reply' => $this->answers->profitVsCash($user->currentBusiness()), 'link' => ['label' => 'Buka Perubahan modal', 'href' => route('reports.equity', absolute: false)]])
                 : self::result(['reply' => self::REPLIES[self::text($args['jenis'] ?? null)] ?? self::SCOPE]),
         };
     }
@@ -277,7 +283,7 @@ class FormAssistant
      * @param  Collection<int, MoneyAccount>  $moneyAccounts
      * @return Reply
      */
-    private function save(User $user, array $draft, Collection $items, Collection $contacts, Collection $moneyAccounts): array
+    private function save(User $user, array $draft, Collection $items, Collection $contacts, Collection $moneyAccounts, TransactionSource $source): array
     {
         $business = $user->currentBusiness();
         $refused = 'Belum bisa disimpan. Lengkapi dulu yang kurang.';
@@ -307,7 +313,7 @@ class FormAssistant
         }
 
         try {
-            $transaction = $this->transactions->record($business, $checked['data']);
+            $transaction = $this->transactions->record($business, $checked['data'], $source);
         } catch (ValidationException $exception) {
             // Rules that need the books (stock, balances) are only known when recording.
             $filled['notes'] = array_values(Arr::flatten($exception->errors()));
@@ -485,7 +491,8 @@ class FormAssistant
                 'barang' => ['type' => 'string', 'description' => 'Nama barang atau peralatan kalau disebut.'],
             ], ['topik']),
             $function('jawab_singkat', 'Balasan tetap untuk sapaan, ucapan terima kasih, pertanyaan laporan, atau permintaan di luar urusan usaha.', [
-                'jenis' => ['type' => 'string', 'enum' => array_keys(self::REPLIES)],
+                // Report questions are answered from the journal (ReportAnswers), not from REPLIES.
+                'jenis' => ['type' => 'string', 'enum' => [...array_keys(self::REPLIES), 'pertanyaan_laporan']],
             ], ['jenis']),
         ];
     }

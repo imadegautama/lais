@@ -512,6 +512,8 @@ export type OrderShowProps = {
     shop: ShopInfo & { url: string };
     order: OwnerOrder;
     notaUrl: string;
+    /** "Kirim kabar": the news for the customer, written by App\Support\OrderMessages. */
+    statusMessage: string;
     moneyAccounts: MoneyAccountOption[];
 };
 

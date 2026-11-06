@@ -124,6 +124,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Sistem membuat jurnal saldo awal. Modal awal = total aset awal − utang awal, dan neraca hari pertama langsung seimbang.
 - Pemilik baru bisa menyelesaikan onboarding dengan 5 produk dalam ≤ 10 menit (uji ke 3 orang).
 - Reset password memakai OTP WA, jadi tidak perlu SMTP.
+- **Penyesuaian (4 Nov 2026):** login tetap memakai email dari starter kit. Nomor WA dihubungkan di Pengaturan > WhatsApp dengan cara **pemilik mengirim kode `LAIS ######` ke bot** dari WA-nya sendiri. Ini membuktikan kepemilikan nomor seperti OTP, sekaligus menyimpan LID pengirim (risiko `…@lid` di §Risiko). Daftar, login, dan reset password lewat nomor WA belum dibuat.
 
 #### M1. Produk & Stok
 
@@ -177,6 +178,8 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Draf kedaluwarsa setelah 15 menit. Satu pemilik hanya punya satu draf aktif. Pesan transaksi baru menggantikan draf lama, dan bot memberi tahu bahwa draf lama dibatalkan.
 - Setelah tersimpan, bot menyebut efek pentingnya, misalnya stok yang jatuh di bawah minimum.
 - Pesan dari nomor tidak terdaftar dibalas sekali per 24 jam dengan link pendaftaran. Pesan grup diabaikan.
+- **Status (4 Nov 2026):** sudah jalan lewat GOWA (`App\Services\WhatsApp\Inbox`), memakai `FormAssistant` yang sama dengan Tanya AI web, termasuk foto nota. "1"/"2" tanpa LLM, draf 15 menit di cache, riwayat hanya 15 menit terakhir. Sumber transaksi `wa`. Cara memasang: `docs/WHATSAPP.md`.
+- **Keputusan sementara (6 Nov 2026):** bot berjalan di Telegram (Bot API resmi) karena nomor bot lewat GOWA berisiko diblokir. Perilaku bot tetap sama dan semua kata "WhatsApp" di alur bot berlaku juga untuk Telegram. Sumber transaksinya `tg`. Saklarnya `BOT_CHANNEL`, dan GOWA tetap bisa dipakai lagi. Kabar ke pelanggan tetap link `wa.me` dari WA pemilik. Cara memasang: `docs/TELEGRAM.md`.
 
 #### M3. Dua Dompet (Uang Usaha vs Pribadi)
 
@@ -209,6 +212,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Status pesanan: Menunggu konfirmasi → Diproses → Siap/Diantar → Selesai, atau Ditolak.
 - Status bayar: Belum bayar → DP → Lunas. DP dan pelunasan dicatat dengan nominal dan metode.
 - Setiap perubahan status, bot mengirim link `wa.me` dengan pesan yang sudah terisi (termasuk link nota) untuk diteruskan pemilik dari WA-nya sendiri. Bot tidak pernah mengirim pesan langsung ke pelanggan.
+- **Status (4 Nov 2026):** notifikasi pesanan baru dan perintah `terima`, `tolak`, `siap`, `selesai`, `batal`, `dp <nominal> [qris]`, dan `lunas [qris]` sudah jalan tanpa LLM. Teks kabar ke pelanggan satu sumber di `App\Support\OrderMessages`, dipakai web dan bot.
 
 **US-10.** Sebagai pelanggan, saya ingin melihat nota dan status pesanan, supaya tahu apa yang harus dibayar dan kapan pesanan siap.
 
@@ -315,6 +319,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
     4. Prive bulan berjalan ≤ laba bersih bulan berjalan, artinya modal tidak tergerus (kasus Pak Darto). Kalau tidak ada yang diambil, aturan ini lulus walaupun bulan itu rugi; kerugiannya sudah tertangkap di aturan 1.
 - Setiap aturan ditampilkan lulus/tidak di dashboard dan disebut di ringkasan jika tidak lulus.
 - Jika LLM gagal atau timeout 10 detik, ringkasan tetap terkirim dalam versi template tanpa insight.
+- **Status (4 Nov 2026):** ringkasan harian 21.00 WIB versi template (`php artisan lais:ringkasan`, dijadwalkan di `routes/console.php`) dengan saklar di Pengaturan > WhatsApp. Insight AI, ringkasan mingguan, dan peringatan stok 07.00 belum dibuat; stok yang habis ≤ 3 hari dan aturan kesehatan yang gagal sudah masuk ringkasan harian. Pertanyaan "kenapa laba naik tapi kas turun" dijawab dari `Reports::cashReconciliation` (`App\Services\ReportAnswers`) tanpa menunggu LLM.
 - Pemilik bisa mematikan setiap jenis pesan terjadwal.
 
 #### v1.1 (dikerjakan minggu 3 jika MVP selesai, urut prioritas)
@@ -486,6 +491,7 @@ Varian `flash-high` dan `flash-medium` diuji dengan kalimat yang sama: ketepatan
 | Antrean          | Laravel Queue (driver database)                                                                                                     | Memproses webhook WA dan panggilan LLM secara asinkron |
 | Penjadwal        | Laravel Scheduler (cron `schedule:run` tiap menit)                                                                                  | Ringkasan, peringatan stok, kedaluwarsa draf/OTP       |
 | WhatsApp         | GOWA (go-whatsapp-web-multidevice) di Docker                                                                                        | Kirim/terima pesan, unduh media                        |
+| Bot (sementara)  | Telegram Bot API, long polling lewat `php artisan lais:telegram`, dipilih dengan `BOT_CHANNEL`                                      | Menggantikan GOWA untuk bot sampai ada keputusan baru  |
 | Gateway LLM      | 9Router → Gemini                                                                                                                    | Endpoint LLM OpenAI-compatible                         |
 | PDF              | Kandidat: `barryvdh/laravel-dompdf`                                                                                                 | Ekspor laporan                                         |
 | Grafik           | Kandidat: Recharts                                                                                                                  | Grafik dashboard                                       |
@@ -512,11 +518,13 @@ flowchart TB
 **Alur pesan WA masuk:**
 
 1. GOWA mengirim POST ke `/webhooks/gowa`.
-2. Aplikasi memverifikasi HMAC, menyimpan pesan ke `wa_messages` (idempotent berdasarkan `payload.id`), lalu langsung membalas 200.
+2. Aplikasi memverifikasi HMAC, menyimpan pesan ke `wa_messages` (idempotent berdasarkan `payload.id`), lalu langsung membalas 204. Rute ini dikecualikan dari CSRF di `bootstrap/app.php`.
 3. Pesan dengan `is_from_me: true` dan chat grup (`@g.us`) diabaikan.
 4. Job antrean mencari pemilik dari nomor pengirim (`payload.from`, format `628…@s.whatsapp.net`, dinormalisasi ke `628…`).
 5. Jika balasannya "1" atau "2", aplikasi memproses draf tanpa LLM. Selain itu, pesan dikirim ke agen LLM.
-6. Draf atau jawaban dikirim balik lewat GOWA `/send/message`.
+6. Draf atau jawaban dikirim balik lewat GOWA `/send/message` oleh job `SendWhatsApp` (3 percobaan). Versi GOWA terbaru **mewajibkan** header `X-Device-Id` (`GOWA_DEVICE_ID`).
+
+Di Telegram, langkah 1 sampai 3 digantikan `lais:telegram` (`getUpdates`, hanya chat pribadi, idempotent berdasarkan `update_id`), dan langkah 6 memakai `sendMessage`. Langkah lainnya sama.
 
 ### 4.2 Model Data (garis besar)
 
@@ -633,19 +641,19 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 
 ### 5.2 Technical Risks
 
-| Risiko                                                                                                                                        | Dampak                                              | Mitigasi                                                                                                                                                |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9Router tidak meneruskan `tools` atau input gambar ke Gemini dengan benar                                                                     | Agen WA dan foto nota tidak jalan                   | Spike di awal. Fallback: prompt dengan output JSON + validasi skema, atau langsung ke Gemini API via endpoint OpenAI-compatible                         |
-| Kuota atau rate limit Gemini lewat 9Router habis, atau koneksinya putus saat penjurian                                                        | Bot tidak bisa membaca pesan                        | Combo fallback di 9Router, API key AI Studio cadangan, form web tetap berfungsi penuh tanpa AI, rekaman video sebagai bukti                             |
-| Model `gc/…` berasal dari koneksi OAuth Gemini CLI, yang ditujukan untuk tool coding pribadi, sedangkan kita memakainya untuk aplikasi publik | Akun bisa dibatasi, atau melanggar ketentuan Google | Tambahkan API key Gemini (AI Studio) sebagai provider di 9Router dan jadikan prioritas pertama di combo. `gc/…` cukup jadi cadangan selama pengembangan |
-| Laravel AI SDK driver `openai` tidak cocok dengan 9Router (misalnya memakai Responses API)                                                    | Agen tidak jalan lewat SDK                          | Spike hari pertama. Fallback ke HTTP client manual `/v1/chat/completions` di balik interface `LlmClient` yang sama                                      |
-| `payload.from` berisi LID (`…@lid`), bukan nomor                                                                                              | Pemilik tidak dikenali                              | Simpan `from_lid` saat verifikasi OTP, lalu cocokkan ke nomor maupun LID                                                                                |
-| Sesi GOWA logout atau nomor bot diblokir                                                                                                      | Saluran WA mati                                     | Nomor khusus bot, volume rendah, hanya membalas pemilik. Prosedur pairing ulang QR ditulis di README. Semua fitur WA juga tersedia di web               |
-| Latensi LLM tinggi                                                                                                                            | Pengalaman di WA lambat (K5)                        | Proses lewat antrean, timeout 10 detik, batas 3 putaran tool, daftar item dipangkas maks. 100, "1/2" tanpa LLM                                          |
-| Salah tafsir nama produk ("nasgor", "es teh manis")                                                                                           | Transaksi salah                                     | Field alias, kandidat terdekat, konfirmasi wajib                                                                                                        |
-| Kesalahan logika akuntansi                                                                                                                    | Neraca tidak seimbang, kredibilitas hilang          | Bagan akun tetap, satu service posting jurnal, property test sejak minggu 1                                                                             |
-| Beban kerja 1 developer                                                                                                                       | Fitur tidak selesai                                 | Garis potong jelas, v1.1 opsional, proposal dan video dikerjakan anggota tim lain secara paralel                                                        |
-| Biaya dan kapasitas VPS (Laravel + MySQL + GOWA + 9Router)                                                                                    | Server lambat saat demo                             | Minimal 2 vCPU / 4 GB, monitor memori, jangan pakai hosting serverless karena GOWA butuh proses yang selalu hidup                                       |
+| Risiko                                                                                                                                        | Dampak                                              | Mitigasi                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 9Router tidak meneruskan `tools` atau input gambar ke Gemini dengan benar                                                                     | Agen WA dan foto nota tidak jalan                   | Spike di awal. Fallback: prompt dengan output JSON + validasi skema, atau langsung ke Gemini API via endpoint OpenAI-compatible                                                                                    |
+| Kuota atau rate limit Gemini lewat 9Router habis, atau koneksinya putus saat penjurian                                                        | Bot tidak bisa membaca pesan                        | Combo fallback di 9Router, API key AI Studio cadangan, form web tetap berfungsi penuh tanpa AI, rekaman video sebagai bukti                                                                                        |
+| Model `gc/…` berasal dari koneksi OAuth Gemini CLI, yang ditujukan untuk tool coding pribadi, sedangkan kita memakainya untuk aplikasi publik | Akun bisa dibatasi, atau melanggar ketentuan Google | Tambahkan API key Gemini (AI Studio) sebagai provider di 9Router dan jadikan prioritas pertama di combo. `gc/…` cukup jadi cadangan selama pengembangan                                                            |
+| Laravel AI SDK driver `openai` tidak cocok dengan 9Router (misalnya memakai Responses API)                                                    | Agen tidak jalan lewat SDK                          | Spike hari pertama. Fallback ke HTTP client manual `/v1/chat/completions` di balik interface `LlmClient` yang sama                                                                                                 |
+| `payload.from` berisi LID (`…@lid`), bukan nomor                                                                                              | Pemilik tidak dikenali                              | Simpan `from_lid` saat verifikasi OTP, lalu cocokkan ke nomor maupun LID                                                                                                                                           |
+| Sesi GOWA logout atau nomor bot diblokir                                                                                                      | Saluran WA mati                                     | Bot sementara dipindah ke Telegram (`BOT_CHANNEL`). Kalau GOWA dipakai lagi: nomor khusus bot, volume rendah, hanya membalas pemilik, pairing ulang QR di `docs/WHATSAPP.md`. Semua fitur bot juga tersedia di web |
+| Latensi LLM tinggi                                                                                                                            | Pengalaman di WA lambat (K5)                        | Proses lewat antrean, timeout 10 detik, batas 3 putaran tool, daftar item dipangkas maks. 100, "1/2" tanpa LLM                                                                                                     |
+| Salah tafsir nama produk ("nasgor", "es teh manis")                                                                                           | Transaksi salah                                     | Field alias, kandidat terdekat, konfirmasi wajib                                                                                                                                                                   |
+| Kesalahan logika akuntansi                                                                                                                    | Neraca tidak seimbang, kredibilitas hilang          | Bagan akun tetap, satu service posting jurnal, property test sejak minggu 1                                                                                                                                        |
+| Beban kerja 1 developer                                                                                                                       | Fitur tidak selesai                                 | Garis potong jelas, v1.1 opsional, proposal dan video dikerjakan anggota tim lain secara paralel                                                                                                                   |
+| Biaya dan kapasitas VPS (Laravel + MySQL + GOWA + 9Router)                                                                                    | Server lambat saat demo                             | Minimal 2 vCPU / 4 GB, monitor memori, jangan pakai hosting serverless karena GOWA butuh proses yang selalu hidup                                                                                                  |
 
 ---
 

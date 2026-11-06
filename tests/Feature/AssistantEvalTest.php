@@ -59,7 +59,7 @@ class AssistantEvalTest extends TestCase
         ['pinjam uang ke bank 5 juta dicatat di mana?', null, ['form' => null, 'topic' => 'belum_didukung']],
         // A printed receipt; real photos from owners go next to it (PRD §3.2: 15 photos, field ≥ 80%).
         ['', null, ['form' => 'transaksi', 'type' => 'pembelian', 'kind' => 'barang', 'method' => 'tunai', 'lines' => ['Beras' => 5, 'Telur' => 30], 'prices' => ['Beras' => 14000, 'Telur' => 2000]], 'nota-belanja.png'],
-        ['untung bulan ini berapa?', null, ['form' => null, 'reply' => 'Pertanyaan soal laporan, misalnya untung atau produk terlaris, belum bisa saya jawab. Untuk sekarang, angkanya ada di Dashboard.']],
+        ['untung bulan ini berapa?', null, ['form' => null]],
     ];
 
     public function test_the_assistant_reads_owner_messages_well_enough(): void

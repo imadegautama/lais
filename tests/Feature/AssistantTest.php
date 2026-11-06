@@ -9,6 +9,7 @@ use App\Models\Business;
 use App\Models\Item;
 use App\Models\Transaction;
 use App\Services\Catalog;
+use App\Services\ReportAnswers;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\JsonResponse;
@@ -111,6 +112,21 @@ class AssistantTest extends TestCase
         $item = $this->item('Mie Goreng');
         $this->assertSame([14000, 2], [$item->price, $item->recipeLines()->count()]);
         $saved->assertJsonPath('saved', ['label' => 'Lihat produk', 'href' => "/produk/{$item->id}/ubah"]);
+    }
+
+    public function test_lines_written_as_nama_and_jumlah_are_read_like_the_schema_and_a_recipe_means_komposisi(): void
+    {
+        $this->model(
+            ['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['nama' => 'Air Mineral', 'jumlah' => 2, 'satuan' => 'botol']]]],
+            ['isi_produk', ['jenis' => 'produk', 'nama' => 'Mie Goreng', 'harga' => 14000, 'resep' => [['nama' => 'Telur', 'jumlah' => 2, 'satuan' => 'butir']]]],
+        );
+
+        $this->ask('jual 2 air mineral tunai', 'transaksi')->assertOk()
+            ->assertJsonPath('values.lines', [['item_id' => (string) $this->item('Air Mineral')->id, 'qty' => '2', 'price' => 4000]]);
+
+        $this->ask('tambah mie goreng 14rb pakai telur 2', 'produk')->assertOk()
+            ->assertJsonPath('values.kind', 'komposisi')
+            ->assertJsonPath('values.recipe', [['material_id' => (string) $this->item('Telur')->id, 'qty' => '2']]);
     }
 
     public function test_a_missing_ingredient_blocks_saving_and_is_named(): void
@@ -257,13 +273,14 @@ class AssistantTest extends TestCase
             ->assertJsonPath('link', null);
     }
 
-    public function test_report_questions_wait_for_the_next_sprint_and_point_to_the_dashboard(): void
+    public function test_report_questions_are_answered_from_the_journal(): void
     {
         $this->model(['jawab_singkat', ['jenis' => 'pertanyaan_laporan']]);
 
-        $this->ask('untung bulan ini berapa?', null)->assertOk()
-            ->assertJsonPath('reply', 'Pertanyaan soal laporan, misalnya untung atau produk terlaris, belum bisa saya jawab. Untuk sekarang, angkanya ada di Dashboard.')
-            ->assertJsonPath('link', ['label' => 'Buka Dashboard', 'href' => '/dashboard']);
+        // The opening stock was bought with the owner's money: profit 0, cash the same, nothing to explain.
+        $this->ask('untung bulan ini berapa ya', null)->assertOk()
+            ->assertJsonPath('reply', app(ReportAnswers::class)->profitVsCash($this->business))
+            ->assertJsonPath('link', ['label' => 'Buka Perubahan modal', 'href' => '/laporan/perubahan-modal']);
     }
 
     public function test_a_receipt_photo_is_copied_by_the_vision_model_then_recorded_like_a_message(): void
