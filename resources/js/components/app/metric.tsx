@@ -102,7 +102,7 @@ export function MetricFocus({ label, value, delta, hint }: MetricFocusProps) {
 }
 
 type MetricInlineProps = {
-    label: string;
+    label: ReactNode;
     value: ReactNode;
     detail?: ReactNode;
     delta?: ReactNode;

@@ -2,8 +2,12 @@ import { MarginLabel, THIN_MARGIN_PERCENT } from '@/components/app/badges';
 import { MetricInline } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
 import { SectionCard } from '@/components/app/section-card';
+import { Button } from '@/components/ui/button';
+import { formatRupiah } from '@/lib/format';
 import { ItemKind } from '@/types/enums';
-import { margin } from './cost';
+import { margin, suggestedPrice } from './cost';
+
+const TARGET_MARGINS = [30, 40, 50];
 
 function Missing({ children }: { children: string }) {
     return <span className="text-sm text-muted-foreground">{children}</span>;
@@ -15,11 +19,13 @@ export function CostPanel({
     unitCost,
     price,
     unit,
+    onUsePrice,
 }: {
     kind: ItemKind;
     unitCost: number | null;
     price: number | null;
     unit: string;
+    onUsePrice: (price: number) => void;
 }) {
     const result = margin(price, unitCost);
     const percent = result?.percent ?? null;
@@ -71,6 +77,29 @@ export function CostPanel({
                     }
                 />
             </div>
+            {unitCost !== null && unitCost > 0 && (
+                <div className="mt-3 border-t pt-3">
+                    <p className="text-sm font-medium">Saran harga jual</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {TARGET_MARGINS.map((target) => {
+                            const suggested = suggestedPrice(unitCost, target);
+
+                            return (
+                                <Button
+                                    key={target}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    aria-label={`Pakai harga ${formatRupiah(suggested)} untuk margin ${target}%`}
+                                    onClick={() => onUsePrice(suggested)}
+                                >
+                                    {target}%: {formatRupiah(suggested)}
+                                </Button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
             {percent !== null && percent < THIN_MARGIN_PERCENT && (
                 <p
                     role="status"

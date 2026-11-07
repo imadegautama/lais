@@ -101,15 +101,18 @@ final class TransactionDraft
             $lines = [];
 
             foreach ($args['baris'] as $row) {
-                $item = is_array($row) ? Names::match($pool, $row['item'] ?? null, fn (Item $item) => [$item->name, ...($item->aliases ?? [])]) : null;
+                // Some models write a line as nama/jumlah, like tulis_nota, whatever the schema says.
+                $name = is_array($row) ? ($row['item'] ?? $row['nama'] ?? null) : null;
+                $item = Names::match($pool, $name, fn (Item $item) => [$item->name, ...($item->aliases ?? [])]);
 
                 if ($item === null) {
-                    $notes[] = '"'.self::text(is_array($row) ? ($row['item'] ?? null) : null).'" tidak ada di daftar produk.';
+                    $notes[] = '"'.self::text($name).'" tidak ada di daftar produk.';
 
                     continue;
                 }
 
-                $qty = is_numeric($row['qty'] ?? null) && (float) $row['qty'] > 0 ? (float) $row['qty'] : 1;
+                $written = $row['qty'] ?? $row['jumlah'] ?? null;
+                $qty = is_numeric($written) && (float) $written > 0 ? (float) $written : 1;
                 // "beras 5 kg 70rb" names the line's total; the unit price is worked out here, not by the model.
                 $price = match (true) {
                     is_numeric($row['harga'] ?? null) && (int) $row['harga'] > 0 => (int) $row['harga'],

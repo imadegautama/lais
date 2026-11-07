@@ -26,6 +26,10 @@ class TransactionDetailResource extends TransactionResource
             // "Ubah" links: the record saved in place of this one, and the one this replaced (load replaces).
             'replacedById' => $this->replaced_by_id,
             'replacesId' => $this->whenLoaded('replaces', fn () => $this->replaces?->id),
+            // Set when an order made it; the order is where it is changed (load order).
+            'orderCode' => $this->whenLoaded('order', fn () => $this->order?->code),
+            // A route that checks the owner, never a public file URL.
+            'proofUrl' => $this->proof_path === null ? null : route('transactions.proof', $this->resource),
         ];
     }
 }

@@ -47,7 +47,8 @@ class Ledger
             throw new InvalidArgumentException("Unbalanced journal: debit {$debit}, credit {$credit}.");
         }
 
-        $accounts = Account::query()->whereIn('code', array_column($lines, 'account'))->pluck('id', 'code');
+        // Own accounts of two businesses can share a code, so never look past this one.
+        $accounts = Account::query()->visibleTo($business)->whereIn('accounts.code', array_column($lines, 'account'))->pluck('id', 'code');
 
         return DB::transaction(function () use ($business, $description, $lines, $source, $occurredAt, $accounts) {
             $entry = JournalEntry::query()->create([

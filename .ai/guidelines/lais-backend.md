@@ -21,7 +21,10 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - Saldo awal dicatat sebagai `TransactionType::SaldoAwal`, dengan kind `saldo_kas`, `saldo_peralatan`, `saldo_utang`, atau `saldo_piutang`. Modal Pemilik selalu jadi lawannya.
     - Cara bayarnya diturunkan otomatis (`TransactionKind::openingMethod()`), sama seperti Pindah dana, sehingga `TransactionType::methods()` kosong.
     - Ringkasan uang masuk/keluar tidak menghitung saldo awal.
-- Kode akun memakai konstanta `App\Models\Account` (`Account::INVENTORY`, `Account::COGS`, dan seterusnya). Bentuknya konstanta, bukan enum, karena dipakai sebagai key array di `Ledger::lines()`.
+- Kode akun sistem memakai konstanta `App\Models\Account` (`Account::INVENTORY`, `Account::COGS`, dan seterusnya). Bentuknya konstanta, bukan enum, karena dipakai sebagai key array di `Ledger::lines()`.
+    - Akun sistem punya `business_id` null dan terkunci. Usaha hanya bisa menambah akun Beban (mulai 6501) dan Pendapatan (mulai 4201), mengganti nama, dan mengarsipkan; tidak ada hapus.
+    - Kode akun usaha bisa sama di dua usaha, jadi pencarian akun wajib lewat `Account::visibleTo($business)`.
+    - Semua akun laba rugi berkode 4000 ke atas. `Reports::profit()` dan `profitAndLoss()` membaca rentang kode, jadi akun usaha otomatis ikut laba.
 - Validasi daftar nilai memakai `Rule::enum(...)`. Untuk subset (cara bayar per jenis), pakai `Rule::in(array_column($type->methods(), 'value'))`, karena `Rule::enum()->only([])` justru meloloskan semuanya.
 - Setelah enum ditambah atau diubah, jalankan `php artisan lais:enums` supaya `resources/js/types/enums.ts` ikut berubah. `VocabularyTest` gagal kalau lupa.
 
@@ -36,6 +39,23 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - Angka laporan (laba rugi per periode, prive, modal, cek kesehatan, stok menipis, piutang terbuka, penjualan per hari) dihitung di `App\Services\Reports`, selalu dari jurnal. Dashboard, halaman laporan, dan tool baca AI memakai method yang sama, jadi angkanya tidak pernah berbeda antarlayar.
     - Pembatalan tidak perlu disaring, karena jurnal cerminnya bertanggal sama sehingga nilainya nol dalam periode apa pun. Daftar yang memakai baris transaksi (umur piutang, pemakaian stok) menyaring `TransactionStatus::Posted`.
     - Modal awal sebuah periode dihitung dengan `Reports::openingEquity()`. Di periode saat pembukuan dibuka, nilainya adalah neraca pembukaan (`started_on` 00.00).
+    - Laporan memakai `Reports::profitAndLoss()`, `expensesByKind()`, `equityChanges()`, `balanceSheet()`, dan `cashReconciliation()`.
+    - Periode laporan selalu lewat `App\Support\ReportRange` (`?periode=` atau `?dari=&sampai=`), dan kesimpulan di puncak laporan dari `App\Services\ReportStory`, dihitung dari angka jurnal tanpa AI.
+        - Pergerakan sebuah periode dihitung mulai `started_on` + 1 detik kalau pembukuan dibuka di dalam periode itu (`periodStart()`). Dengan begitu saldo awal menjadi modal awal, bukan setoran.
+        - Setoran = −net 3101 di jendela itu: setor modal, belanja dengan uang pribadi, dan stok awal produk baru.
+        - Rekonsiliasi laba vs kas harus selalu bersisa Rp0. Akun baru di bagan akun wajib ditambahkan ke `Reports::CASH_STEPS`, karena `LedgerTest` akan gagal.
+- Acuan akuntansi adalah SAK EMKM. Lais hanya boleh menyebut "mengacu pada SAK EMKM", bukan "patuh", selama ada batasan yang ditulis di CALK (`resources/js/features/reports/vocabulary.ts`). Aturan baru yang mengubah kebijakan wajib memperbarui teks kebijakan di sana.
+- Penyusutan hanya lewat `App\Services\Depreciation`: garis lurus tanpa nilai residu, per bulan penuh mulai bulan perolehan, sisa pembulatan di bulan terakhir, bertanggal akhir bulan, idempoten lewat `depreciated_through`. Aset dengan `useful_life_months` null tidak dijurnal. Pembatalan pembelian membalik jurnal penyusutannya di tanggal aslinya.
+- Pesanan (M4) hanya bergerak lewat `App\Services\Orders`: `place`, `accept`, `reject`, `markReady`, `complete`, `cancel`, `recordPayment`.
+    - Harga selalu diambil dari katalog di server dan disimpan sebagai snapshot di `order_lines`. Browser hanya mengirim `item_id` dan `qty`.
+    - Uang tidak disimpan di pesanan. Pembayaran sebelum Selesai adalah transaksi `utang_piutang` kind `uang_muka` (Kas/2201), Selesai mencatat penjualan dengan `deposit` (2201 dipakai, sisanya piutang), dan pembayaran sesudahnya `terima_piutang`. Status bayar dihitung dari `Orders::paid()`, yang membaca sisa tagihan penjualannya dari `Debts`.
+    - Transaksi dengan `order_id` dikunci di halaman Transaksi; ubah atau batalkan dari pesanannya. Batal pesanan membatalkan uang mukanya lewat `TransactionService::cancel()`.
+    - `uang_muka` tidak ada di `TransactionType::kinds()`, jadi tidak bisa dipilih di form manual maupun oleh AI.
+    - Batas 5 pesanan per IP per 10 menit dihitung hanya dari pesanan yang berhasil (`ShopController::store`).
+- Sisa utang-piutang per tagihan hanya dihitung di `App\Services\Debts` (`books()`, `summary()`, `remaining()`). Aturannya: pembayaran yang punya `order_id` melunasi tagihan pesanan itu dulu, sisanya melunasi tagihan paling lama dulu. Halaman Utang-piutang, aksi piutang di dashboard, dan `Orders::paid()` memakai jalur ini, jadi status bayar pesanan ikut berubah walaupun dibayar dari halaman Utang-piutang. Saldo total per kontak tetap boleh dibaca dari `Ledger::contactBalances()`; keduanya sama.
+- Bot: salurannya dipilih `BOT_CHANNEL` lewat interface `App\Services\WhatsApp\BotChannel` (`Telegram` atau `Gowa`). Nama kelas, tabel, dan rute tetap memakai "WhatsApp" selama Telegram sementara. Hal yang berbeda per saluran masuk `BotChannel`, bukan `Inbox`. Semua pesan masuk lewat `App\Services\WhatsApp\Inbox` (dari job `ProcessWhatsAppMessage`), dan semua pesan keluar hanya lewat job `SendWhatsApp`. Perintah tetap (kode `LAIS`, perintah pesanan di `OrderCommands`, "1"/"2", pertanyaan laba vs kas) dibaca tanpa LLM. Selain itu memakai `FormAssistant::reply()` dengan sumber `BotChannel::source()`. Bot hanya membalas pemilik yang terhubung dan tidak pernah mengirim ke pelanggan; kabar ke pelanggan berupa link `wa.me` dari `App\Support\OrderMessages`.
+- Bukti transaksi lewat `App\Support\Proof::attach()`, dipanggil **setelah** transaksi tersimpan. Disimpan di disk `local` (privat) dan hanya dilayani `TransactionController::proof` dengan `Gate::authorize('manage')`. Jangan pernah membuat URL publik untuknya. File bukti tidak pernah dihapus; "Ubah" menyalin `proof_path` ke versi baru kecuali diganti atau dihapus. Aturan validasinya `Proof::RULES` dan `Proof::MESSAGES`.
+- Foto produk dan gambar QRIS disimpan di disk `public` (bukan disk privat), karena memang ditampilkan ke publik. URL-nya lewat `Item::photoUrl()` dan `Business::qrisUrl()` (`asset()`), supaya ikut host yang membuka halaman.
 - Transaksi yang sudah tercatat tidak pernah diedit atau dihapus. Batalkan lewat `TransactionService::cancel()` dan ubah lewat `replace()`. Keduanya membuat jurnal cermin bertanggal transaksi asli dan membalik setiap mutasi stoknya (`Inventory::reverse()`).
 
 ## AI
@@ -50,6 +70,10 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - AI tidak menghitung angka; misalnya harga satuan dari total baris dihitung server
 - Data yang kurang dinilai oleh `FormRequest` milik form itu (`rules()` dan `messages()`), bukan oleh AI. Lihat `FormAssistant::problems()`.
 - Balasan ke pemilik disusun dari template. Teks bebas dari model hanya dipakai untuk pertanyaan `tanya_balik` (maksimal 200 huruf). Sapaan, pertanyaan laporan, dan permintaan di luar urusan usaha memakai `jawab_singkat` dengan kalimat tetap.
+- Foto nota masuk sebagai data URI yang divalidasi `AssistantRequest::isPhoto()`: JPG, PNG, atau WebP sungguhan, maksimal 5 MB.
+    - Foto hanya dibaca dan tidak disimpan.
+    - Gambar hanya dikirim ke `FormAssistant::readReceipt()`, yang memakai prompt pendek dan satu tool `tulis_nota`. Gambar jangan pernah digabung dengan prompt katalog: model macet.
+    - Salinan nota lalu masuk ke alur teks biasa.
 - Saran pembukuan ("dicatat di mana?") hanya berasal dari `App\Enums\GuideTopic` (`explanation()`, `needs()`, `draft()`, `link()`). Model hanya memilih topik lewat tool `jelaskan`. Topik baru ditambahkan di enum itu, bukan di prompt.
 - Test memakai `Http::fake()` dengan `tool_calls` tiruan dan `Http::preventStrayRequests()`. Eval dengan model sungguhan memakai `#[Group('llm')]`, yang tidak ikut test biasa.
 
@@ -66,7 +90,7 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 
 - Jurnal dan mutasi stok tidak dicatat ke log aktivitas, karena keduanya sudah menjadi jejak audit uang.
 - Label field dan format tampilannya ada di `ActivityResource::FIELDS`. Field baru yang perlu terlihat di riwayat ditambahkan di sana.
-- Jalur tanpa sesi login, misalnya bot WhatsApp, memanggil `Activity::defaultCauser($business->user)` (facade `Spatie\Activitylog\Facades\Activity`) dan `Context::add('activity_source', 'wa')` di titik masuknya.
+- Jalur tanpa sesi login, misalnya bot, memanggil `Activity::defaultCauser($owner, $callback)` (facade `Spatie\Activitylog\Facades\Activity`) dan `Context::add('activity_source', …)` di titik masuknya, seperti `Inbox::handle()`.
 - Password, token, kode OTP/2FA, dan secret lain tidak pernah masuk `properties` atau `logOnly`.
 
 ## Test

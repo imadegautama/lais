@@ -7,6 +7,7 @@ use App\Enums\Period;
 use App\Http\Resources\ActivityResource;
 use App\Models\Activity;
 use App\Support\TableQuery;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -31,7 +32,8 @@ class ActivityController extends Controller
                 filters: [
                     'kategori' => ['log_name', ActivityCategory::values()],
                     'periode' => [
-                        fn (Builder $query, array $values) => $query->where('activity_log.created_at', '>=', Period::from($values[0])->start()),
+                        fn (Builder $query, array $values) => $query->where('activity_log.created_at', '>=', Period::from($values[0])->start())
+                            ->when(Period::from($values[0])->end(), fn (Builder $query, CarbonImmutable $end) => $query->where('activity_log.created_at', '<', $end)),
                         Period::values(),
                     ],
                 ],

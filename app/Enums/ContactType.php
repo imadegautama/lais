@@ -24,7 +24,7 @@ enum ContactType: string
      */
     public static function for(TransactionType $type, ?TransactionKind $kind): self
     {
-        return $type === TransactionType::Penjualan || in_array($kind, [TransactionKind::TerimaPiutang, TransactionKind::SaldoPiutang], true)
+        return $type === TransactionType::Penjualan || in_array($kind, [TransactionKind::TerimaPiutang, TransactionKind::SaldoPiutang, TransactionKind::UangMuka], true)
             ? self::Pelanggan
             : self::Supplier;
     }

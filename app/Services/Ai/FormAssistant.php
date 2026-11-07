@@ -6,7 +6,10 @@ use App\Enums\GuideTopic;
 use App\Enums\ItemKind;
 use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
+use App\Enums\Period;
+use App\Enums\ReportMetric;
 use App\Enums\TransactionKind;
+use App\Enums\TransactionSource;
 use App\Enums\TransactionType;
 use App\Http\Requests\ItemRequest;
 use App\Http\Requests\TransactionRequest;
@@ -16,8 +19,10 @@ use App\Models\Item;
 use App\Models\MoneyAccount;
 use App\Models\User;
 use App\Services\Catalog;
+use App\Services\ReportAnswers;
 use App\Services\TransactionService;
 use App\Support\Format;
+use App\Support\Proof;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Arr;
@@ -44,18 +49,67 @@ class FormAssistant
     /** The forms the assistant drafts. */
     public const FORMS = ['transaksi', 'produk'];
 
-    private const SCOPE = 'Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru. Ceritakan saja, misalnya "jual 3 nasi goreng tunai".';
+    private const SCOPE = 'Maaf, saya hanya bisa membantu mencatat transaksi, produk baru, dan menjawab angka usaha. Ceritakan saja, misalnya "jual 3 nasi goreng tunai" atau "untung bulan ini berapa?".';
 
     /** jawab_singkat replies; the model picks one, it never writes them. */
     private const REPLIES = [
-        'sapaan' => 'Halo! Saya bisa membantu mencatat transaksi dan produk baru. Ceritakan saja, misalnya "jual 3 nasi goreng tunai".',
+        'sapaan' => 'Halo! Saya bisa membantu mencatat transaksi dan produk baru, juga menjawab angka usaha. Coba "jual 3 nasi goreng tunai" atau "untung bulan ini berapa?".',
         'terima_kasih' => 'Sama-sama. Kalau ada yang mau dicatat lagi, tulis saja di sini.',
         'di_luar_tugas' => self::SCOPE,
-        // shortcut: report questions wait for US-14 (next sprint); until then the Dashboard has the numbers.
-        'pertanyaan_laporan' => 'Pertanyaan soal laporan, misalnya untung atau produk terlaris, belum bisa saya jawab. Untuk sekarang, angkanya ada di Dashboard.',
     ];
 
-    public function __construct(private LlmClient $llm, private TransactionService $transactions, private Catalog $catalog) {}
+    private const NOT_A_RECEIPT = 'Foto ini tidak terbaca sebagai nota belanja. Coba foto notanya lagi dengan lebih terang, atau ketik saja yang mau dicatat.';
+
+    public function __construct(private LlmClient $llm, private TransactionService $transactions, private Catalog $catalog, private ReportAnswers $answers) {}
+
+    /**
+     * Step one of a receipt photo: the vision model only copies what the
+     * receipt says, with a short prompt of its own. With the catalog and
+     * all the rules beside an image the model stalls (measured: over 90 s
+     * against 10 s), so mapping onto the catalog stays with the text step.
+     * Null when the photo is not a readable receipt.
+     */
+    private function readReceipt(string $photo): ?string
+    {
+        $call = $this->llm->toolCall(
+            'Salin isi foto nota belanja atau tagihan apa adanya, tanpa menghitung dan tanpa menebak. Tulis setiap baris barang dengan nama, jumlah, dan harga total baris seperti tertulis. Kalau foto bukan nota atau tidak terbaca, isi bukan_nota.',
+            [['role' => 'user', 'content' => [
+                ['type' => 'text', 'text' => 'Salin nota ini.'],
+                ['type' => 'image_url', 'image_url' => ['url' => $photo]],
+            ]]],
+            [[
+                'type' => 'function',
+                'function' => ['name' => 'tulis_nota', 'description' => 'Isi nota seperti tertulis.', 'parameters' => ['type' => 'object', 'properties' => [
+                    'bukan_nota' => ['type' => 'boolean'],
+                    'toko' => ['type' => 'string'],
+                    'tanggal' => ['type' => 'string', 'description' => 'YYYY-MM-DD HH:MM'],
+                    'cara_bayar' => ['type' => 'string', 'description' => 'Misalnya tunai, transfer, QRIS, atau belum dibayar.'],
+                    'baris' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [
+                        'nama' => ['type' => 'string'],
+                        'jumlah' => ['type' => 'number'],
+                        'total' => ['type' => 'integer'],
+                    ], 'required' => ['nama']]],
+                ], 'required' => ['bukan_nota']]],
+            ]],
+            vision: true,
+        );
+        $args = $call['arguments'];
+        $rows = is_array($args['baris'] ?? null) ? array_filter($args['baris'], 'is_array') : [];
+
+        if (($args['bukan_nota'] ?? false) === true || $rows === []) {
+            return null;
+        }
+
+        $lines = array_map(fn (array $row) => trim(mb_substr(self::text($row['nama'] ?? null), 0, 80)
+            .(is_numeric($row['jumlah'] ?? null) ? ' jumlah '.$row['jumlah'] : '')
+            .(is_numeric($row['total'] ?? null) ? ' total '.(int) $row['total'] : '')), $rows);
+
+        return 'Dari foto nota'
+            .(self::text($args['toko'] ?? null) === '' ? '' : ' '.mb_substr(self::text($args['toko']), 0, 80))
+            .(self::text($args['tanggal'] ?? null) === '' ? '' : ', tanggal '.mb_substr(self::text($args['tanggal']), 0, 20))
+            .(self::text($args['cara_bayar'] ?? null) === '' ? '' : ', dibayar '.mb_substr(self::text($args['cara_bayar']), 0, 30))
+            .': '.implode('; ', $lines).'.';
+    }
 
     /**
      * Whether the whole message only agrees ("iya", "oke gas", "simpan").
@@ -69,18 +123,35 @@ class FormAssistant
     /**
      * @param  list<array{role: string, text: string}>  $history  earlier turns, oldest first
      * @param  array<string, mixed>  $current  the open form's values
-     * @param  array{form: string, values: array<string, mixed>}|null  $draft  the draft the owner was last shown
+     * @param  array{form: string, values: array<string, mixed>, photo?: string|null}|null  $draft  the draft the owner was last shown, with the receipt it was read from
+     * @param  string|null  $photo  a receipt photo as a data URI (AssistantRequest::isPhoto); read, never stored
      * @return Reply
      */
-    public function reply(User $user, string $message, ?string $form, array $history, array $current, ?array $draft = null): array
+    public function reply(User $user, string $message, ?string $form, array $history, array $current, ?array $draft = null, ?string $photo = null, TransactionSource $source = TransactionSource::Web): array
     {
         $business = $user->currentBusiness();
         $items = $business->items()->orderBy('items.name')->limit(100)->get();
         $contacts = $business->contacts()->orderBy('contacts.name')->limit(100)->get();
         $moneyAccounts = $business->moneyAccounts()->orderBy('money_accounts.id')->get();
 
-        if ($draft !== null && self::confirms($message)) {
-            return $this->save($user, $draft, $items, $contacts, $moneyAccounts);
+        // A new photo is something new to read, even when it comes with "iya".
+        if ($draft !== null && $photo === null && self::confirms($message)) {
+            return $this->save($user, $draft, $items, $contacts, $moneyAccounts, $source);
+        }
+
+        // Demo scenario 4 must not wait on the model: "kenapa laba naik tapi kas turun?" is answered from the journal at once.
+        if ($photo === null && ReportAnswers::asksProfitVsCash($message)) {
+            return self::result(['reply' => $this->answers->profitVsCash($user->currentBusiness()), 'link' => ['label' => 'Buka Perubahan modal', 'href' => route('reports.equity', absolute: false)]]);
+        }
+
+        if ($photo !== null) {
+            $receipt = $this->readReceipt($photo);
+
+            if ($receipt === null) {
+                return self::result(['reply' => self::NOT_A_RECEIPT]);
+            }
+
+            $message = trim($receipt.' '.$message);
         }
 
         // A follow-up builds on the draft; without one, on what the open form holds.
@@ -104,10 +175,44 @@ class FormAssistant
                 'options' => self::options($args['pilihan'] ?? null),
             ]),
             'jelaskan' => $this->guide($user, $args, $items, $contacts, $moneyAccounts),
+            // The numbers come from the journal and the catalog, never from the model (ReportAnswers).
+            'tanya_angka' => $this->figure($business, $args),
+            'tanya_harga' => $this->price($args, $items),
             default => self::text($args['jenis'] ?? null) === 'pertanyaan_laporan'
-                ? self::result(['reply' => self::REPLIES['pertanyaan_laporan'], 'link' => ['label' => 'Buka Dashboard', 'href' => route('dashboard', absolute: false)]])
+                ? self::result(['reply' => 'Pertanyaan itu belum bisa dijawab di chat, tapi jawabannya ada di Laporan, termasuk produk terlaris.', 'link' => ['label' => 'Buka Laporan', 'href' => route('reports.index', absolute: false)]])
                 : self::result(['reply' => self::REPLIES[self::text($args['jenis'] ?? null)] ?? self::SCOPE]),
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $args
+     * @return Reply
+     */
+    private function figure(Business $business, array $args): array
+    {
+        $metric = ReportMetric::tryFrom(self::text($args['metrik'] ?? null));
+
+        return $metric === null
+            ? self::result(['reply' => 'Mau tahu angka apa? Misalnya penjualan, untung, biaya, kas, piutang, atau utang.'])
+            : self::result($this->answers->figure($business, $metric, Period::tryFrom(self::text($args['periode'] ?? null)) ?? Period::BulanIni));
+    }
+
+    /**
+     * @param  array<string, mixed>  $args
+     * @param  Collection<int, Item>  $items
+     * @return Reply
+     */
+    private function price(array $args, Collection $items): array
+    {
+        $item = Names::match($items, $args['produk'] ?? null, fn (Item $item) => [$item->name, ...($item->aliases ?? [])]);
+
+        if ($item === null) {
+            return self::result(['reply' => '"'.self::text($args['produk'] ?? null).'" tidak ada di daftar produk.']);
+        }
+
+        $margin = is_numeric($args['target_margin'] ?? null) ? (float) $args['target_margin'] : null;
+
+        return self::result($this->answers->price($item, $margin !== null && $margin > 0 && $margin < 100 ? $margin : null));
     }
 
     /**
@@ -207,13 +312,13 @@ class FormAssistant
      * browser, so it is laid over the form defaults and judged again by the
      * form's own request before the same service as Simpan records it.
      *
-     * @param  array{form: string, values: array<string, mixed>}  $draft
+     * @param  array{form: string, values: array<string, mixed>, photo?: string|null}  $draft
      * @param  Collection<int, Item>  $items
      * @param  Collection<int, Contact>  $contacts
      * @param  Collection<int, MoneyAccount>  $moneyAccounts
      * @return Reply
      */
-    private function save(User $user, array $draft, Collection $items, Collection $contacts, Collection $moneyAccounts): array
+    private function save(User $user, array $draft, Collection $items, Collection $contacts, Collection $moneyAccounts, TransactionSource $source): array
     {
         $business = $user->currentBusiness();
         $refused = 'Belum bisa disimpan. Lengkapi dulu yang kurang.';
@@ -243,12 +348,17 @@ class FormAssistant
         }
 
         try {
-            $transaction = $this->transactions->record($business, $checked['data']);
+            $transaction = $this->transactions->record($business, $checked['data'], $source);
         } catch (ValidationException $exception) {
             // Rules that need the books (stock, balances) are only known when recording.
             $filled['notes'] = array_values(Arr::flatten($exception->errors()));
 
             return $this->transaction($user, $filled, $items, $contacts, $moneyAccounts, $refused);
+        }
+
+        // A draft read from a receipt keeps the photo as its proof (PRD US-16).
+        if (! empty($draft['photo'])) {
+            Proof::attach($transaction, $draft['photo']);
         }
 
         return self::result([
@@ -331,7 +441,8 @@ class FormAssistant
         - Nama yang tidak ada di daftar tetap ditulis apa adanya; sistem yang memberi tahu pemilik. Jangan menawarkan untuk mendaftarkannya.
         - Panggil tanya_balik hanya kalau maksud pemilik ragu, misalnya satu nama cocok dengan beberapa produk di daftar, atau satuannya tidak sejenis. Pertanyaannya hanya soal isian catatan. Beri pilihan singkat.
         - Kalau pemilik bertanya cara atau tempat mencatat sesuatu ("dicatat di mana", "masuk apa", "gimana nyatatnya", "bingung"), panggil jelaskan dengan topik yang paling cocok, dan isi nominal, kontak, atau barang kalau disebut. Kalau pemilik menyuruh mencatat, tetap panggil isi_transaksi.
-        - Pertanyaan soal pencatatan usaha yang tidak cocok dengan topik mana pun memakai jelaskan dengan topik belum_didukung. Pertanyaan soal laporan (untung, omzet, produk terlaris) memakai jawab_singkat dengan jenis pertanyaan_laporan.
+        - Pertanyaan soal pencatatan usaha yang tidak cocok dengan topik mana pun memakai jelaskan dengan topik belum_didukung. Pertanyaan soal angka usaha (penjualan, omzet, untung, laba, HPP keseluruhan, biaya, kas, piutang, utang, jumlah transaksi) memakai tanya_angka; kalau periodenya tidak disebut, pakai bulan_ini. "Siapa yang belum bayar" adalah metrik piutang, dan "utang saya ke siapa" adalah metrik utang. Pertanyaan HPP, modal, atau harga jual satu produk memakai tanya_harga. Pertanyaan laporan lain, misalnya produk terlaris, memakai jawab_singkat dengan jenis pertanyaan_laporan.
+        - Pesan yang diawali "Dari foto nota" adalah isi nota belanja atau tagihan yang sudah disalin. Panggil isi_transaksi: jenis pembelian (jenis_biaya barang, atau peralatan kalau isinya alat) atau biaya untuk tagihan listrik, air, atau sewa. Satu baris per item dengan total baris seperti tertulis; total nota tidak dipakai. Ubah jumlah kemasan ke satuan di daftar kalau ukurannya tertulis (1 karung beras 5 kg = 5 kg). kontak = nama toko, tanggal dari nota, dan metode_bayar hanya kalau tertulis (transfer atau QRIS = non_tunai, belum dibayar = kredit). Petakan nama item ke nama di daftar kalau jelas barang yang sama; yang tidak ada di daftar ditulis apa adanya.
         - jawab_singkat dengan jenis di_luar_tugas hanya untuk yang bukan soal usaha, misalnya minta dibuatkan kode, resep masakan, tulisan, atau pertanyaan umum. Jangan menjawab isinya.
 
         Topik untuk jelaskan:
@@ -367,10 +478,10 @@ class FormAssistant
             'type' => 'function',
             'function' => ['name' => $name, 'description' => $description, 'parameters' => ['type' => 'object', 'properties' => $properties, 'required' => $required]],
         ];
-        $kinds = array_values(array_map(
+        $kinds = array_map(
             fn (TransactionKind $kind) => $kind->value,
-            array_filter(TransactionKind::cases(), fn (TransactionKind $kind) => in_array($kind->type(), TransactionDraft::TYPES, true)),
-        ));
+            array_merge(...array_map(fn (TransactionType $type) => $type->kinds(), TransactionDraft::TYPES)),
+        );
 
         return [
             $function('isi_transaksi', 'Isi form catat transaksi dari kalimat pemilik.', [
@@ -414,8 +525,17 @@ class FormAssistant
                 'kontak' => ['type' => 'string', 'description' => 'Nama pelanggan atau supplier kalau disebut.'],
                 'barang' => ['type' => 'string', 'description' => 'Nama barang atau peralatan kalau disebut.'],
             ], ['topik']),
+            $function('tanya_angka', 'Jawab angka usaha dari pembukuan. Sistem yang menghitung, kamu hanya memilih.', [
+                'metrik' => ['type' => 'string', 'enum' => ReportMetric::values()],
+                'periode' => ['type' => 'string', 'enum' => Period::values()],
+            ], ['metrik']),
+            $function('tanya_harga', 'Jawab HPP satu produk dan saran harga jualnya. Sistem yang menghitung, kamu hanya memilih.', [
+                'produk' => ['type' => 'string', 'description' => 'Nama produk seperti di daftar.'],
+                'target_margin' => ['type' => 'number', 'description' => 'Persen margin yang diinginkan, hanya kalau disebut.'],
+            ], ['produk']),
             $function('jawab_singkat', 'Balasan tetap untuk sapaan, ucapan terima kasih, pertanyaan laporan, atau permintaan di luar urusan usaha.', [
-                'jenis' => ['type' => 'string', 'enum' => array_keys(self::REPLIES)],
+                // Report questions are answered from the journal (ReportAnswers), not from REPLIES.
+                'jenis' => ['type' => 'string', 'enum' => [...array_keys(self::REPLIES), 'pertanyaan_laporan']],
             ], ['jenis']),
         ];
     }

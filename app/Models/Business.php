@@ -23,8 +23,12 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $started_on
  * @property array<string, mixed>|null $onboarding_draft
  * @property Carbon|null $onboarded_at
+ * @property bool $accepting_orders
+ * @property string|null $whatsapp
+ * @property string|null $qris_path
+ * @property bool $daily_summary
  */
-#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at'])]
+#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at', 'accepting_orders', 'whatsapp', 'qris_path', 'daily_summary'])]
 class Business extends Model
 {
     /** @use HasFactory<BusinessFactory> */
@@ -42,6 +46,8 @@ class Business extends Model
             'started_on' => 'date',
             'onboarding_draft' => 'array',
             'onboarded_at' => 'datetime',
+            'accepting_orders' => 'boolean',
+            'daily_summary' => 'boolean',
         ];
     }
 
@@ -61,6 +67,14 @@ class Business extends Model
     /**
      * Active rekening; archived ones are reached withTrashed().
      *
+     * @return HasMany<FixedAsset, $this>
+     */
+    public function fixedAssets(): HasMany
+    {
+        return $this->hasMany(FixedAsset::class);
+    }
+
+    /**
      * @return HasMany<MoneyAccount, $this>
      */
     public function moneyAccounts(): HasMany
@@ -82,6 +96,14 @@ class Business extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return HasMany<Order, $this>
+     */
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 
     /**
@@ -116,5 +138,13 @@ class Business extends Model
         $first = $this->transactions()->where('transactions.status', TransactionStatus::Posted)->min('transactions.occurred_at');
 
         return $first === null ? null : CarbonImmutable::parse($first);
+    }
+
+    /**
+     * The QRIS image customers pay to (public disk).
+     */
+    public function qrisUrl(): ?string
+    {
+        return $this->qris_path === null ? null : asset('storage/'.$this->qris_path);
     }
 }

@@ -13,6 +13,7 @@ enum TransactionSource: string
 
     case Web = 'web';
     case Wa = 'wa';
+    case Telegram = 'tg';
     case Toko = 'toko';
     case Ocr = 'ocr';
 
@@ -21,6 +22,7 @@ enum TransactionSource: string
         return match ($this) {
             self::Web => 'Web',
             self::Wa => 'WhatsApp',
+            self::Telegram => 'Telegram',
             self::Toko => 'Halaman toko',
             self::Ocr => 'Foto nota',
         };

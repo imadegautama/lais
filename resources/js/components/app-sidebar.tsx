@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     BookUser,
     ChartColumn,
@@ -27,14 +27,20 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import debts from '@/routes/debts';
 import activity from '@/routes/activity';
 import items from '@/routes/items';
 import moneyAccounts from '@/routes/money-accounts';
+import orders from '@/routes/orders';
+import reports from '@/routes/reports';
 import transactions from '@/routes/transactions';
 import { edit as editProfile } from '@/routes/profile';
 
 // Order follows how often an owner needs each page (UI-PAGES.md).
-const navGroups = (openAssistant: () => void): AppNavGroup[] => [
+const navGroups = (
+    openAssistant: () => void,
+    pendingOrders: number,
+): AppNavGroup[] => [
     {
         label: 'Utama',
         items: [
@@ -44,7 +50,12 @@ const navGroups = (openAssistant: () => void): AppNavGroup[] => [
                 href: transactions.index(),
                 icon: NotebookText,
             },
-            { title: 'Pesanan', icon: ShoppingBag, comingSoon: true },
+            {
+                title: 'Pesanan',
+                href: orders.index(),
+                icon: ShoppingBag,
+                count: pendingOrders,
+            },
         ],
     },
     {
@@ -56,14 +67,14 @@ const navGroups = (openAssistant: () => void): AppNavGroup[] => [
                 icon: Landmark,
             },
             { title: 'Produk & stok', href: items.index(), icon: Package },
-            { title: 'Utang-piutang', icon: NotebookPen, comingSoon: true },
+            { title: 'Utang-piutang', href: debts.index(), icon: NotebookPen },
             { title: 'Kontak', icon: BookUser, comingSoon: true },
         ],
     },
     {
         label: 'Analisis',
         items: [
-            { title: 'Laporan', icon: ChartColumn, comingSoon: true },
+            { title: 'Laporan', href: reports.index(), icon: ChartColumn },
             {
                 title: 'Tanya AI',
                 icon: MessageCircleQuestion,
@@ -87,11 +98,12 @@ const navGroups = (openAssistant: () => void): AppNavGroup[] => [
 export function AppSidebar() {
     const { setOpen } = useAssistant();
     const { setOpenMobile } = useSidebar();
+    const { pendingOrders } = usePage().props;
     const groups = navGroups(() => {
         // On phones the sidebar is a sheet; it makes way for the panel.
         setOpenMobile(false);
         setOpen(true);
-    });
+    }, pendingOrders);
 
     return (
         <Sidebar collapsible="icon" variant="sidebar">

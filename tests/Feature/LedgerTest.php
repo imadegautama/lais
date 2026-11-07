@@ -16,7 +16,9 @@ use App\Models\MoneyAccount;
 use App\Models\Transaction;
 use App\Services\Inventory;
 use App\Services\Ledger;
+use App\Services\Reports;
 use App\Services\TransactionService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -278,6 +280,17 @@ class LedgerTest extends TestCase
         $this->assertSame($balance('1101'), $byKind(MoneyAccountKind::Tunai));
         $this->assertSame($balance('1102'), $byKind(MoneyAccountKind::NonTunai));
         $this->assertSame(0, JournalLine::query()->whereNull('money_account_id')->whereHas('account', fn ($query) => $query->whereIn('code', ['1101', '1102']))->count());
+
+        // The reports read the same books (PRD K3): the balance sheet balances, laba vs kas leaves Rp0,
+        // the equity statement adds up, and the expense breakdown covers every expense.
+        $reports = app(Reports::class);
+        $all = CarbonImmutable::parse('2000-01-01');
+        $changes = $reports->equityChanges($business, $all);
+        $this->assertTrue($reports->balanceSheet($business, now())['balanced']);
+        $this->assertSame(0, $reports->cashReconciliation($business, $all)['difference']);
+        $this->assertSame($changes['closing'], $changes['opening'] + $changes['deposits'] + $changes['netProfit'] - $changes['drawings']);
+        $this->assertSame($reports->profitAndLoss($business, $all)['expenses'], array_sum($reports->expensesByKind($business, $all)));
+
         $this->assertGreaterThan(5, Transaction::query()->where('type', 'pindah_dana')->count());
         $this->assertGreaterThan(5, Transaction::query()->where('type', 'saldo_awal')->count());
 

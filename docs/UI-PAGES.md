@@ -138,6 +138,8 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik.
 - **Tombol Kirim pesanan** dengan state loading. Field honeypot tersembunyi.
 - **Error:** pesan per field dan pesan rate limit ("Terlalu banyak pesanan, coba lagi 10 menit lagi").
 
+> **Catatan implementasi (4 Nov):** A2 dan A3 dibuat sebagai satu halaman `/t/{slug}` dengan dua langkah (katalog, lalu form), dan form dikirim ke `POST /t/{slug}/pesan`. Keranjang disimpan per toko di `sessionStorage`. Batas 5 pesanan per IP dihitung dari pesanan yang berhasil saja.
+
 ### A4. Status pesanan & nota `/p/{token}`
 
 - **Header:** kode pesanan (A012), tanggal, nama toko.
@@ -226,7 +228,7 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 - **Status pembuatan (slice 5):** semua angka sudah dihitung dari jurnal lewat `App\Services\Reports`.
     - Baris 4 kartu ringkasan (`MetricTile`, 2×2 di HP) mengikuti pemilih periode. Setiap kartu berisi angka, naik/turun, dan satu baris penjelasan:
         - **Penjualan:** membuka `/transaksi` dengan saringan penjualan dan periode yang sama
-        - **Untung bersih:** belum bisa diketuk, menunggu halaman Laporan
+        - **Untung bersih:** membuka Laba rugi (C14) dengan periode yang sama
         - **Uang usaha:** saldo saat ini, membuka Kas & rekening
         - **Diambil untuk pribadi:** membuka transaksi modal
     - Kartu "Ringkasan" terpisah tidak dipakai lagi. Di sampingnya kini ada Kesehatan usaha.
@@ -298,7 +300,7 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 - **Kartu "Pesan asli dari WA"** (jika sumbernya WA): bubble chat berisi pesan pemilik, untuk transparansi bahwa AI hanya membaca dan pemilik yang mengonfirmasi.
 - **Rincian:** tabel baris item (qty, harga, subtotal, HPP).
 - **Mutasi stok:** item, perubahan, saldo setelah.
-- **Bukti:** thumbnail foto yang bisa diperbesar.
+- **Bukti:** thumbnail foto yang bisa diperbesar. _(Sudah dibuat 4 Nov: kartu Bukti dengan dialog perbesar dan "Buka ukuran asli"; kolom "Bukti (opsional)" ada di semua jenis form C3, juga di dialog bayar Pesanan dan Utang-piutang saat Transfer/QRIS.)_
 - **"Lihat jurnal"** (collapsible, tertutup secara default): tabel akun dengan debit/kredit dan total yang seimbang. Bagian ini untuk menunjukkan kualitas teknis ke juri tanpa membingungkan pengguna awam.
 - **Aksi:**
     - **Batalkan**: dialog konfirmasi + alasan (opsional), lalu membuat jurnal dan mutasi stok pembalik. Tidak ada baris transaksi pembalik.
@@ -371,6 +373,8 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - tombol **QR toko** (dialog berisi QR link toko yang bisa diunduh untuk dicetak dan ditempel di meja)
 - Filter tanggal + pencarian nama/kode.
 
+> **Catatan implementasi (4 Nov):** daftar per tab berupa tabel di desktop dan daftar bertumpuk di HP, dengan pencarian (kode, nama, nomor WA), urut (masuk, waktu ambil/antar, total), dan 20 pesanan per halaman. Tab antrean (Menunggu, Diproses, Siap) menampilkan yang paling lama di atas; Selesai dan Ditolak yang terbaru di atas. Toko online menjadi bar ringkas di atas tab; nomor WA penjual dan QRIS ada di dialog "Pengaturan". Kanban, filter tanggal, dan aksi massal tidak dibuat. Daftar memuat ulang setiap 30 detik.
+
 ### C10. Detail pesanan `/pesanan/{kode}`
 
 - **Header:** kode, tanggal masuk, badge status + status bayar.
@@ -385,6 +389,8 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 - **Link nota:** salin / buka A4.
 - **Riwayat:** log perubahan status dengan waktu dan asal (web / WA).
 
+> **Catatan implementasi (4 Nov):** Riwayat status belum dibuat; waktu tiap langkah tampil di stepper. Kartu Bayar di nota baru mengajak membayar setelah pesanan diterima. Jenis pembayaran (DP atau pelunasan) tidak dipilih: sebelum Selesai otomatis uang muka, sesudahnya pelunasan.
+
 ### C11. Utang-piutang `/utang-piutang`
 
 - **Tab:** **Piutang** (pelanggan berutang ke saya) · **Utang** (saya berutang ke supplier).
@@ -396,6 +402,8 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - tombol **Catat pembayaran**
     - tombol **Ingatkan** (`wa.me` berisi pesan pengingat; v1.1, P2)
 - Klik baris untuk membuka rincian tagihan per kontak.
+
+> **Catatan implementasi (4 Nov):** tab berupa `?jenis=utang`. Tombol bayar berlabel "Terima bayaran" (piutang) atau "Bayar utang" (utang) dan langsung tercatat tanpa pindah halaman. Ingatkan hanya muncul untuk pelanggan yang nomor WA-nya diketahui; teksnya bisa diubah sebelum WhatsApp dibuka. Rincian per kontak ada di `/utang-piutang/{kontak}`: tagihan satu per satu (belum lunas di atas) dan daftar pembayaran.
 
 ### C12. Kontak `/kontak`, `/kontak/{id}`
 
@@ -411,8 +419,22 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 
 ### C13. Pusat laporan `/laporan`
 
+**Status pembuatan (slice 8):**
+
+- C13 sampai C18 sudah jadi. Neraca tampil sebagai **Laporan Posisi Keuangan (Neraca)**, dan Laba rugi serta Posisi keuangan memakai kolom pembanding periode sebelumnya (di HP, angkanya di bawah angka utama).
+- Tambahan 7 Nov: `/laporan/catatan` (CALK otomatis), `/laporan/coa` (Daftar akun dengan Tambah akun, Ganti nama, Arsipkan), `/laporan/buku-besar/{kode}`, `/laporan/neraca-saldo`, `/laporan/aset-tetap`.
+- Form produk menampilkan saran harga jual untuk margin 30, 40, dan 50 persen; tombolnya mengisi Harga jual. Form peralatan punya field Umur pakai (tahun). Form Biaya menampilkan pilihan akun kalau usaha punya akun beban sendiri.
+- Bar aksi untuk sementara hanya berisi pemilih periode (Neraca: tanggal) dan **Cetak / simpan PDF**. Kirim ke WA dan Tanya AI tentang laporan menunggu fiturnya.
+- Tambahan 7 Nov, perombakan tampilan: semua laporan dibuka dengan kesimpulan satu kalimat (`ReportLead`, dihitung `App\Services\ReportStory` dari jurnal tanpa AI), lalu grafik yang menjawab satu pertanyaan, lalu laporan resmi. Baris laporan menuju Buku besar, dan rentang tanggal ikut terbawa.
+- Filter **Pilih tanggal** (`?dari=&sampai=`, `App\Support\ReportRange`) tersedia di semua laporan berperiode. Pembandingnya periode sepanjang rentang yang sama tepat sebelumnya. Tanggal rusak, terbalik, atau di masa depan jatuh ke Bulan ini.
+- Rincian biaya di C14 bisa dibuka-tutup di layar, tetapi selalu ikut tercetak.
+- Baris bernilai nol di dua periode disembunyikan. Catatan tanpa saldo digabung menjadi satu kalimat di Dasar penyusunan.
+- Buku kas, Buku besar, dan Neraca saldo memakai `AppDataTable` (Buku kas dan Buku besar 20 baris per halaman). Cetak selalu memuat semua baris lewat `usePrinting`.
+- C13 berisi tiga daftar laporan (Kesehatan usaha, Uang dan produk, Pembukuan), bukan kartu seragam. Tiap baris berisi nama, satu kalimat, dan angka kunci.
+- Grafik waterfall di C17 belum dibuat. Jembatan laba ke kas memakai `BreakdownBars`.
+
 - **Pemilih periode global**, yang terbawa ke semua sub-laporan.
-- **Grid kartu laporan:** setiap kartu berisi nama, angka kunci, dan satu kalimat penjelasan.
+- **Daftar laporan per kelompok:** setiap baris berisi nama, angka kunci, dan satu kalimat penjelasan.
     - Laba Rugi ("laba bersih Rp3,8 jt")
     - Neraca ("Seimbang ✓")
     - Buku Kas
@@ -486,6 +508,11 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - tombol draf ("Catat setor modal Rp200.000"), yang langsung menampilkan kartu draf tanpa menunggu AI, atau tombol halaman ("Buka Produk & stok", "Buka form Pindah dana", "Catat saldo awal")
 - Pertanyaan laporan ("untung bulan ini berapa?") diarahkan ke Dashboard sampai tanya-jawab laporan dibuat.
 - Permintaan di luar urusan usaha dijawab dengan kalimat tetap: "Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru…".
+- **Foto nota:** tombol ikon foto di samping Kirim membuka kamera atau galeri (JPG, PNG, WebP).
+    - Pratinjau kecil muncul di atas input, dengan tombol "Hapus foto". Foto bisa dikirim tanpa teks.
+    - Status memuat: "AI sedang membaca nota…". Hasilnya kartu draf Belanja yang dikonfirmasi seperti biasa.
+    - Foto yang bukan nota dijawab dengan kalimat tetap. File yang tidak bisa dibuka menampilkan "Foto tidak bisa dibaca. Coba foto lain."
+    - Foto tidak disimpan.
 - **State:**
     - kosong: contoh kalimat sesuai form yang dibuka; mengetuknya hanya mengisi input
     - memuat: "AI sedang membaca…"
@@ -516,6 +543,11 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - toggle ringkasan mingguan / peringatan stok / cek kesehatan
     - ambang peringatan stok (hari)
     - **riwayat 20 pesan terakhir** dengan bot (P2, berguna saat demo dan debugging)
+
+> **Catatan implementasi (6 Nov):** tab ini sekarang bernama **Bot** (`/settings/bot`) dan mengikuti saluran di `BOT_CHANNEL`. Di Telegram, tombolnya "Buka Telegram": link `t.me/<bot>?start=<kode>` yang menghubungkan akun setelah pemilik menekan Mulai. Catatan 4 Nov di bawah tetap berlaku untuk isi halamannya.
+
+> **Catatan implementasi (4 Nov):** tab **WhatsApp** di Pengaturan (`/settings/whatsapp`) berisi status terhubung, langkah "Buat kode" → "Kirim lewat WhatsApp" (pemilik mengirim `LAIS ######` ke bot; halaman memeriksa setiap 5 detik), tombol Putuskan, dan saklar ringkasan harian 21.00. Jam ringkasan, ringkasan mingguan, peringatan stok terpisah, contekan perintah, dan riwayat pesan belum dibuat; contekan ada di `docs/WHATSAPP.md`.
+
 - **Tampilan:** light / dark / sistem (sudah ada di starter kit).
 - **Keamanan:** di bawah pengaturan password dan 2FA ada **Aktivitas akun**, berisi 10 aktivitas terbaru (masuk, gagal masuk dengan email yang dicoba dan IP, ganti password), dengan tautan ke C21.
 
@@ -590,9 +622,9 @@ Warna ini dipakai konsisten di badge, grafik, dan ikon.
 
 ## Temuan Saat Menyusun UI (belum ada di PRD, perlu diputuskan)
 
-1. **Pesanan manual oleh pemilik.** Saat ini hanya pelanggan yang bisa membuat pesanan. Pre-order lewat telepon atau chat pribadi juga umum. Usulan: tombol "+ Pesanan" di C9 yang memakai form A3. Usahanya kecil.
-2. **Toggle buka/tutup toko.** Belum ada di PRD. Usulan: cukup satu toggle, tanpa jadwal jam buka.
-3. **QR link toko untuk dicetak.** Usahanya kecil dan berguna untuk UMKM offline.
+1. **(Sudah dibuat, 4 Nov)** **Pesanan manual oleh pemilik.** Saat ini hanya pelanggan yang bisa membuat pesanan. Pre-order lewat telepon atau chat pribadi juga umum. Usulan: tombol "+ Pesanan" di C9 yang memakai form A3. Usahanya kecil.
+2. **(Sudah dibuat)** **Toggle buka/tutup toko.** Belum ada di PRD. Usulan: cukup satu toggle, tanpa jadwal jam buka.
+3. **(Sudah dibuat)** **QR link toko untuk dicetak.** Usahanya kecil dan berguna untuk UMKM offline.
 4. **Landing page (A1).** Belum ada di PRD, padahal juri pertama kali membuka URL utama.
 5. **Halaman Kontak (C12).** Tersirat di PRD (hapus data, piutang per kontak) tapi belum eksplisit.
 6. **Kartu "Laba vs Kas" (C17).** Tool `rekonsiliasi_laba_kas` sudah ada di PRD, tetapi tampilannya belum. Kartu ini memperkuat skenario demo 4.

@@ -66,6 +66,9 @@ class ItemRequest extends FormRequest
             'min_stock' => ['nullable', 'numeric', 'min:0'],
             'show_in_store' => ['boolean'],
             'available' => ['boolean'],
+            // Shown on the shop page; resized in the browser first (lib/image.ts).
+            'photo' => $kind?->isSold() ? ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'] : ['prohibited'],
+            'remove_photo' => ['boolean'],
             'opening_stock' => $creating && $kind !== ItemKind::Komposisi ? ['nullable', 'numeric', 'min:0'] : ['prohibited'],
             'opening_cost' => $creating && $kind !== ItemKind::Komposisi
                 ? [Rule::requiredIf(fn () => (float) $this->input('opening_stock') > 0), 'nullable', 'integer', 'min:0']
@@ -90,6 +93,9 @@ class ItemRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'photo.image' => 'Foto harus berupa gambar JPG, PNG, atau WebP.',
+            'photo.mimes' => 'Foto harus berupa gambar JPG, PNG, atau WebP.',
+            'photo.max' => 'Ukuran foto maksimal 5 MB.',
             'name.required' => 'Nama wajib diisi.',
             'name.unique' => 'Nama ini sudah dipakai produk lain.',
             'unit.required' => 'Satuan wajib diisi, misalnya porsi atau kg.',

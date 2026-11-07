@@ -30,6 +30,7 @@ import {
 import { KindPicker } from '@/features/items/kind-picker';
 import { OpeningStockPanel } from '@/features/items/opening-stock-panel';
 import { RecipeBuilder } from '@/features/items/recipe-builder';
+import { PhotoField } from '@/features/items/photo-field';
 import { StockAdjustDialog } from '@/features/items/stock-adjust-dialog';
 import { itemKindCopy, unitOptions } from '@/features/items/vocabulary';
 import { formatQty } from '@/lib/format';
@@ -77,11 +78,24 @@ export default function ItemForm({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        form.transform((values) => toItemPayload(values, editing));
-        form.submit(editing ? update(item.id) : store(), {
-            preserveScroll: true,
-            onError: focusFirstError,
-        });
+        // A photo goes up as multipart, which PUT cannot carry: it is sent as POST with _method.
+        const upload = data.photo !== null;
+        form.transform((values) => ({
+            ...toItemPayload(values, editing),
+            ...(upload && editing ? { _method: 'put' } : {}),
+        }));
+        form.submit(
+            upload && editing
+                ? { url: update.url(item.id), method: 'post' }
+                : editing
+                  ? update(item.id)
+                  : store(),
+            {
+                preserveScroll: true,
+                forceFormData: upload,
+                onError: focusFirstError,
+            },
+        );
     };
 
     const title = editing ? `Ubah ${item.name}` : 'Tambah produk';
@@ -152,7 +166,7 @@ export default function ItemForm({
                                             errors.aliases ??
                                             errors['aliases.0']
                                         }
-                                        hint="Pisahkan dengan koma. Bot WhatsApp jadi paham kalau ditulis begini."
+                                        hint="Pisahkan dengan koma. Bot Lais jadi paham kalau ditulis begini."
                                         className="md:col-span-2"
                                     >
                                         <Input
@@ -250,7 +264,7 @@ export default function ItemForm({
                                         <SwitchRow
                                             id="item-show-in-store"
                                             label="Tampil di halaman toko"
-                                            hint="Halaman toko untuk pelanggan dibuka di tahap berikutnya. Pilihan ini sudah tersimpan."
+                                            hint="Pelanggan bisa memesan produk ini dari link toko."
                                             checked={data.show_in_store}
                                             onChange={(value) =>
                                                 setField('show_in_store', value)
@@ -271,6 +285,26 @@ export default function ItemForm({
                                     </div>
                                 )}
                             </SectionCard>
+
+                            {sold && (
+                                <PhotoField
+                                    current={
+                                        data.remove_photo
+                                            ? null
+                                            : (item?.photoUrl ?? null)
+                                    }
+                                    file={data.photo}
+                                    error={errors.photo}
+                                    onFile={(file) => {
+                                        setField('photo', file);
+                                        form.setData('remove_photo', false);
+                                    }}
+                                    onRemove={() => {
+                                        setField('photo', null);
+                                        form.setData('remove_photo', true);
+                                    }}
+                                />
+                            )}
 
                             {!editing && stocked && (
                                 <SectionCard
@@ -340,6 +374,9 @@ export default function ItemForm({
                                     unitCost={unitCost}
                                     price={data.price}
                                     unit={data.unit}
+                                    onUsePrice={(price) =>
+                                        setField('price', price)
+                                    }
                                 />
                             )}
 

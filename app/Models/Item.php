@@ -24,6 +24,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property ItemKind $kind
  * @property string $name
  * @property list<string>|null $aliases
+ * @property string|null $photo_path
  * @property string $unit
  * @property int|null $price
  * @property string $stock
@@ -32,7 +33,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property bool $show_in_store
  * @property bool $available
  */
-#[Fillable(['kind', 'name', 'aliases', 'unit', 'price', 'min_stock', 'show_in_store', 'available'])]
+#[Fillable(['kind', 'name', 'aliases', 'unit', 'price', 'min_stock', 'show_in_store', 'available', 'photo_path'])]
 class Item extends Model
 {
     /** @use HasFactory<ItemFactory> */
@@ -239,5 +240,23 @@ class Item extends Model
         }
 
         return round(($this->price - $this->unitCost()) / $this->price * 100, 1);
+    }
+
+    /**
+     * The lowest price, rounded up to Rp500, that keeps $percent of it as
+     * margin. Same rule as suggestedPrice in features/items/cost.ts.
+     */
+    public static function priceForMargin(int $unitCost, float $percent): int
+    {
+        // Rounded first: 7200 / 0.6 can land a hair above 12000 and cost a whole Rp500 step.
+        return (int) ceil(round($unitCost / (1 - $percent / 100) / 500, 6)) * 500;
+    }
+
+    /**
+     * The shop photo (public disk); asset() follows the host the page was opened on.
+     */
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path === null ? null : asset('storage/'.$this->photo_path);
     }
 }

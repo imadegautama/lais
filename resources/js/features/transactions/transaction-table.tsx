@@ -209,7 +209,7 @@ export function TransactionTable({
                     <EmptyState
                         icon={ReceiptText}
                         title="Belum ada transaksi"
-                        description="Catat penjualan pertama lewat tombol Catat atau kirim pesan ke bot WhatsApp."
+                        description="Catat penjualan pertama lewat tombol Catat atau kirim pesan ke bot Lais."
                     />
                 )
             }

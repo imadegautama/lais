@@ -1,0 +1,27 @@
+# GOWA, the bot's WhatsApp (docs/WHATSAPP.md). Secrets come from the app's .env:
+#   docker compose --env-file .env -f docker/gowa/compose.yaml up -d
+services:
+    gowa:
+        image: aldinokemal2104/go-whatsapp-web-multidevice
+        container_name: lais-gowa
+        restart: unless-stopped
+        command: rest
+        # Only this machine reaches GOWA; it is never open to the internet.
+        ports:
+            - '127.0.0.1:3000:3000'
+        volumes:
+            - gowa_storages:/app/storages
+            - gowa_statics:/app/statics
+        environment:
+            APP_BASIC_AUTH: ${GOWA_BASIC_AUTH:?Isi GOWA_BASIC_AUTH di .env}
+            APP_OS: Lais
+            WHATSAPP_WEBHOOK: ${GOWA_WEBHOOK_URL:-http://host.docker.internal:8002/webhooks/gowa}
+            WHATSAPP_WEBHOOK_SECRET: ${GOWA_WEBHOOK_SECRET:?Isi GOWA_WEBHOOK_SECRET di .env}
+            WHATSAPP_WEBHOOK_EVENTS: message
+            WHATSAPP_WEBHOOK_IGNORE_JIDS: '@g.us'
+        extra_hosts:
+            - 'host.docker.internal:host-gateway'
+
+volumes:
+    gowa_storages:
+    gowa_statics:

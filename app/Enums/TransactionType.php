@@ -15,6 +15,7 @@ enum TransactionType: string
     case Penjualan = 'penjualan';
     case Pembelian = 'pembelian';
     case Biaya = 'biaya';
+    case PemasukanLain = 'pemasukan_lain';
     case UtangPiutang = 'utang_piutang';
     case Modal = 'modal';
     case PindahDana = 'pindah_dana';
@@ -26,6 +27,7 @@ enum TransactionType: string
             self::Penjualan => 'Penjualan',
             self::Pembelian => 'Belanja',
             self::Biaya => 'Biaya',
+            self::PemasukanLain => 'Pemasukan lain',
             self::UtangPiutang => 'Utang-piutang',
             self::Modal => 'Modal',
             self::PindahDana => 'Pindah dana',
@@ -42,6 +44,7 @@ enum TransactionType: string
             self::Penjualan => 'Penjualan tersimpan.',
             self::Pembelian => 'Belanja tersimpan.',
             self::Biaya => 'Biaya tersimpan.',
+            self::PemasukanLain => 'Pemasukan tersimpan.',
             self::UtangPiutang => 'Pembayaran tersimpan.',
             self::Modal => 'Catatan modal tersimpan.',
             self::PindahDana => 'Pindah dana tersimpan.',
@@ -60,19 +63,20 @@ enum TransactionType: string
         return match ($this) {
             self::Penjualan => [PaymentMethod::Tunai, PaymentMethod::NonTunai, PaymentMethod::Kredit],
             self::Pembelian, self::Biaya => PaymentMethod::cases(),
-            self::UtangPiutang, self::Modal => [PaymentMethod::Tunai, PaymentMethod::NonTunai],
+            self::UtangPiutang, self::Modal, self::PemasukanLain => [PaymentMethod::Tunai, PaymentMethod::NonTunai],
             // Never chosen: a transfer is paid the way its source rekening holds money, an opening balance by its kind.
             self::PindahDana, self::SaldoAwal => [],
         };
     }
 
     /**
-     * Sub-kinds of this type; a sale has none.
+     * Sub-kinds the owner chooses for this type; a sale has none. Uang muka
+     * is left out: it is recorded from its order only (Orders::recordPayment).
      *
      * @return list<TransactionKind>
      */
     public function kinds(): array
     {
-        return array_values(array_filter(TransactionKind::cases(), fn (TransactionKind $kind) => $kind->type() === $this));
+        return array_values(array_filter(TransactionKind::cases(), fn (TransactionKind $kind) => $kind->type() === $this && $kind !== TransactionKind::UangMuka));
     }
 }

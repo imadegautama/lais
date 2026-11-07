@@ -58,7 +58,9 @@ type AssistantReplyTurn = {
     failed?: boolean;
 };
 
-export type AssistantTurn = { role: 'user'; text: string } | AssistantReplyTurn;
+export type AssistantTurn =
+    /** `photo`: a receipt photo as a data URI (lib/image.ts), shown as a thumbnail. */
+    { role: 'user'; text: string; photo?: string } | AssistantReplyTurn;
 
 /** AssistantController@store. `values` is the form's data shape, filled in. */
 type AssistantReply = {
@@ -82,12 +84,14 @@ type Draft = {
     target: string;
     /** Index of the turn that shows it. */
     turn: number;
+    /** The receipt it was read from; saved as the record's proof. */
+    photo?: string;
 };
 
 type Registration = {
     form: AssistantFormName;
     values: () => object;
-    apply: (values: object) => void;
+    apply: (values: object, photo?: string) => void;
 };
 
 type AssistantContextValue = {
@@ -99,7 +103,7 @@ type AssistantContextValue = {
     form: AssistantFormName | null;
     /** Which turn shows the live draft, or null. */
     draftTurn: number | null;
-    send: (message: string) => void;
+    send: (message: string, photo?: string) => void;
     retry: () => void;
     reset: () => void;
     openInForm: () => void;
@@ -162,9 +166,11 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     const [draft, setDraft] = useState<Draft | null>(null);
     const [form, setForm] = useState<AssistantFormName | null>(null);
     const registration = useRef<Registration | null>(null);
-    const pending = useRef<{ form: AssistantFormName; values: object } | null>(
-        null,
-    );
+    const pending = useRef<{
+        form: AssistantFormName;
+        values: object;
+        photo?: string;
+    } | null>(null);
     // Each send builds its whole body in transform(); the hook only carries it.
     const http = useHttp<{ message: string }, AssistantReply>({ message: '' });
 
@@ -173,7 +179,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         setForm(next.form);
 
         if (pending.current?.form === next.form) {
-            next.apply(pending.current.values);
+            next.apply(pending.current.values, pending.current.photo);
             pending.current = null;
         }
 
@@ -186,25 +192,39 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const send = useCallback(
-        async (message: string, base: AssistantTurn[], shown: Draft | null) => {
+        async (
+            message: string,
+            photo: string | undefined,
+            base: AssistantTurn[],
+            shown: Draft | null,
+        ) => {
             const text = message.trim();
 
-            if (text === '') {
+            if (text === '' && !photo) {
                 return;
             }
 
             const current = registration.current;
             let failure = UNAVAILABLE;
-            setTurns([...base, { role: 'user', text }]);
+            setTurns([...base, { role: 'user', text, photo }]);
             http.transform(() => ({
                 message: text,
+                photo: photo ?? null,
                 form: current?.form ?? null,
                 history: base
                     .filter((turn) => !('failed' in turn && turn.failed))
-                    .map((turn) => ({ role: turn.role, text: turn.text }))
+                    // The photo is read once; later turns only need to know there was one.
+                    .map((turn) => ({
+                        role: turn.role,
+                        text: turn.text || 'Foto nota',
+                    }))
                     .slice(-12),
                 current: current?.values() ?? {},
-                draft: shown && { form: shown.form, values: shown.values },
+                draft: shown && {
+                    form: shown.form,
+                    values: shown.values,
+                    photo: shown.photo ?? null,
+                },
             }));
 
             const reply = await http
@@ -258,6 +278,14 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
                     values: reply.values,
                     target: reply.target,
                     turn: base.length + 1,
+                    // A follow-up on a receipt's draft keeps the receipt; products take no proof.
+                    photo:
+                        reply.form === 'transaksi'
+                            ? (photo ??
+                              (shown?.form === reply.form
+                                  ? shown.photo
+                                  : undefined))
+                            : undefined,
                 });
             }
         },
@@ -272,13 +300,13 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             sending: http.processing,
             form,
             draftTurn: draft?.turn ?? null,
-            send: (message) => void send(message, turns, draft),
+            send: (message, photo) => void send(message, photo, turns, draft),
             // The failed reply and the message before it make way for the new try.
             retry: () => {
                 const last = turns.at(-2);
 
                 if (last?.role === 'user') {
-                    void send(last.text, turns.slice(0, -2), draft);
+                    void send(last.text, last.photo, turns.slice(0, -2), draft);
                 }
             },
             reset: () => {
@@ -291,11 +319,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
                 }
 
                 if (registration.current?.form === draft.form) {
-                    registration.current.apply(draft.values);
+                    registration.current.apply(draft.values, draft.photo);
                 } else {
                     pending.current = {
                         form: draft.form,
                         values: draft.values,
+                        photo: draft.photo,
                     };
                     router.visit(draft.target);
                 }
@@ -364,7 +393,7 @@ export function useAssistant(): AssistantContextValue {
 export function useAssistantForm<T extends object>(
     form: AssistantFormName,
     values: T,
-    apply: (values: T) => void,
+    apply: (values: T, photo?: string) => void,
     enabled = true,
 ): number {
     const register = useContext(AssistantContext)?.register;
@@ -383,8 +412,8 @@ export function useAssistantForm<T extends object>(
         return register({
             form,
             values: () => latest.current.values,
-            apply: (next) => {
-                latest.current.apply(next as T);
+            apply: (next, photo) => {
+                latest.current.apply(next as T, photo);
                 setFilled((count) => count + 1);
             },
         });

@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { useState } from 'react';
 import AlertError from '@/components/alert-error';
 import { AssistantFilledNote } from '@/components/app/assistant/assistant-panel';
 import { useAssistantForm } from '@/components/app/assistant/assistant-provider';
@@ -6,6 +7,7 @@ import { CategoryBadge } from '@/components/app/badges';
 import { ChoiceGroup } from '@/components/app/choice-group';
 import { Field } from '@/components/app/field';
 import { FormActionBar } from '@/components/app/form-action-bar';
+import { ImagePicker } from '@/components/app/image-picker';
 import { MoneyInput } from '@/components/app/money-input';
 import { PageHeader } from '@/components/app/page-header';
 import { SectionCard } from '@/components/app/section-card';
@@ -13,6 +15,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ImpactPanel } from '@/features/transactions/impact-panel';
+import { AccountField } from '@/features/transactions/account-field';
 import { ItemLines } from '@/features/transactions/item-lines';
 import { PaymentFields } from '@/features/transactions/payment-fields';
 import {
@@ -27,6 +30,7 @@ import {
 import { TypeTabs } from '@/features/transactions/type-tabs';
 import { recordCopy } from '@/features/transactions/vocabulary';
 import { fieldSetter, focusFirstError, formErrors } from '@/lib/form';
+import { dataUrlToFile } from '@/lib/image';
 import { index, show, store, update } from '@/routes/transactions';
 import type { TransactionCreateProps } from '@/types/domain';
 import {
@@ -44,6 +48,7 @@ export default function TransactionCreate({
     items,
     contacts,
     moneyAccounts,
+    ownAccounts,
     editing,
     initial,
 }: TransactionCreateProps) {
@@ -51,6 +56,8 @@ export default function TransactionCreate({
         initial ?? {
             type: initialType,
             kind: DEFAULT_KIND[initialType],
+            account_id: '',
+            useful_life_years: '4',
             method: PaymentMethod.Tunai,
             occurred_at: now,
             lines: [emptyLine()],
@@ -72,12 +79,19 @@ export default function TransactionCreate({
     const total = recordTotal(data);
     const contactIds = new Set(contacts.map((contact) => String(contact.id)));
     // Edits and the saldo awal stay by hand; from there the assistant opens a new form.
+    const [proof, setProof] = useState<File | null>(null);
+    const [removeProof, setRemoveProof] = useState(false);
     const filledByAssistant = useAssistantForm(
         'transaksi',
         data,
-        (values) => {
+        (values, photo) => {
             form.setData(values);
             form.clearErrors();
+
+            // A draft read from a receipt brings the photo along as its proof.
+            if (photo) {
+                void dataUrlToFile(photo, 'nota.jpg').then(setProof);
+            }
         },
         !editing && initialType !== TransactionType.SaldoAwal,
     );
@@ -85,13 +99,27 @@ export default function TransactionCreate({
     const submit =
         (again: boolean) => (event?: { preventDefault: () => void }) => {
             event?.preventDefault();
-            form.transform((values) => toPayload(values, again, contactIds));
-            form.submit(editing ? update(editing.id) : store(), {
-                preserveScroll: true,
-                // Keep what was typed on errors; start fresh after "Simpan & catat lagi".
-                preserveState: 'errors',
-                onError: focusFirstError,
-            });
+            form.transform((values) => ({
+                ...toPayload(values, again, contactIds),
+                ...(proof ? { proof } : {}),
+                ...(removeProof ? { remove_proof: true } : {}),
+                // A file goes up as multipart, which PUT cannot carry: it is sent as POST with _method.
+                ...(proof && editing ? { _method: 'put' } : {}),
+            }));
+            form.submit(
+                proof && editing
+                    ? { url: update.url(editing.id), method: 'post' }
+                    : editing
+                      ? update(editing.id)
+                      : store(),
+                {
+                    forceFormData: proof !== null,
+                    preserveScroll: true,
+                    // Keep what was typed on errors; start fresh after "Simpan & catat lagi".
+                    preserveState: 'errors',
+                    onError: focusFirstError,
+                },
+            );
         };
 
     return (
@@ -210,29 +238,65 @@ export default function TransactionCreate({
                                         </div>
                                     )}
 
+                                    <AccountField
+                                        type={type}
+                                        value={data.account_id ?? ''}
+                                        accounts={ownAccounts}
+                                        error={errors.account_id}
+                                        onChange={(id) =>
+                                            setField('account_id', id)
+                                        }
+                                    />
+
                                     {isEquipment && (
-                                        <Field
-                                            label="Nama peralatan"
-                                            htmlFor="tx-note"
-                                            error={errors.note}
-                                        >
-                                            <Input
-                                                id="tx-note"
-                                                value={data.note}
-                                                onChange={(e) =>
-                                                    setField(
-                                                        'note',
-                                                        e.target.value,
-                                                    )
+                                        <>
+                                            <Field
+                                                label="Nama peralatan"
+                                                htmlFor="tx-note"
+                                                error={errors.note}
+                                            >
+                                                <Input
+                                                    id="tx-note"
+                                                    value={data.note}
+                                                    onChange={(e) =>
+                                                        setField(
+                                                            'note',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Kompor dua tungku"
+                                                    aria-invalid={
+                                                        Boolean(errors.note) ||
+                                                        undefined
+                                                    }
+                                                    autoComplete="off"
+                                                />
+                                            </Field>
+                                            <Field
+                                                label="Umur pakai (tahun)"
+                                                htmlFor="tx-life"
+                                                hint="Harga peralatan dibagi rata selama umur ini sebagai biaya penyusutan."
+                                                error={
+                                                    errors.useful_life_months
                                                 }
-                                                placeholder="Kompor dua tungku"
-                                                aria-invalid={
-                                                    Boolean(errors.note) ||
-                                                    undefined
-                                                }
-                                                autoComplete="off"
-                                            />
-                                        </Field>
+                                            >
+                                                <Input
+                                                    id="tx-life"
+                                                    inputMode="decimal"
+                                                    value={
+                                                        data.useful_life_years ??
+                                                        ''
+                                                    }
+                                                    onChange={(e) =>
+                                                        setField(
+                                                            'useful_life_years',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="w-28"
+                                                />
+                                            </Field>
+                                        </>
                                     )}
                                 </div>
                             </SectionCard>
@@ -245,6 +309,36 @@ export default function TransactionCreate({
                                     contacts={contacts}
                                     moneyAccounts={moneyAccounts}
                                     now={now}
+                                />
+                            </SectionCard>
+
+                            <SectionCard
+                                title="Bukti (opsional)"
+                                description="Foto nota, struk, atau tangkapan layar transfer/QRIS. Hanya bisa dilihat pemilik."
+                            >
+                                <ImagePicker
+                                    current={
+                                        removeProof
+                                            ? null
+                                            : (editing?.proofUrl ?? null)
+                                    }
+                                    file={proof}
+                                    error={errors.proof}
+                                    onFile={(file) => {
+                                        setProof(file);
+                                        setRemoveProof(false);
+                                        form.clearErrors('proof' as never);
+                                    }}
+                                    onRemove={() => {
+                                        setProof(null);
+                                        setRemoveProof(
+                                            Boolean(editing?.proofUrl),
+                                        );
+                                    }}
+                                    maxSide={1600}
+                                    alt="Pratinjau bukti transaksi"
+                                    fit="contain"
+                                    noun="bukti"
                                 />
                             </SectionCard>
                         </div>

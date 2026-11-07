@@ -18,6 +18,7 @@ use App\Http\Resources\TransactionDetailResource;
 use App\Http\Resources\TransactionFormResource;
 use App\Http\Resources\TransactionLineResource;
 use App\Http\Resources\TransactionResource;
+use App\Models\Account;
 use App\Models\Activity;
 use App\Models\Business;
 use App\Models\Contact;
@@ -27,13 +28,18 @@ use App\Models\StockMovement;
 use App\Models\Transaction;
 use App\Services\Ledger;
 use App\Services\TransactionService;
+use App\Support\Proof;
 use App\Support\TableQuery;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionController extends Controller
 {
@@ -53,7 +59,8 @@ class TransactionController extends Controller
                 defaultSort: '-waktu',
                 filters: [
                     'periode' => [
-                        fn (Builder $query, array $values) => $query->where('transactions.occurred_at', '>=', Period::from($values[0])->start()),
+                        fn (Builder $query, array $values) => $query->where('transactions.occurred_at', '>=', Period::from($values[0])->start())
+                            ->when(Period::from($values[0])->end(), fn (Builder $query, CarbonImmutable $end) => $query->where('transactions.occurred_at', '<', $end)),
                         Period::values(),
                     ],
                     'jenis' => ['type', TransactionType::values()],
@@ -98,12 +105,14 @@ class TransactionController extends Controller
             ->merge([$transaction->moneyAccount, $transaction->toMoneyAccount])
             ->filter(fn (mixed $model): bool => ($model instanceof Item || $model instanceof MoneyAccount) && $model->trashed())->pluck('name')->unique();
 
-        if ($transaction->isVoid() || $archived->isNotEmpty()) {
+        if ($transaction->isVoid() || $archived->isNotEmpty() || $transaction->order_id !== null) {
             Inertia::flash('toast', [
                 'type' => 'error',
-                'message' => $transaction->isVoid()
-                    ? 'Catatan ini sudah dibatalkan.'
-                    : "{$archived->join(', ', ' dan ')} sudah diarsipkan, jadi catatan ini tidak bisa diubah.",
+                'message' => match (true) {
+                    $transaction->isVoid() => 'Catatan ini sudah dibatalkan.',
+                    $archived->isNotEmpty() => "{$archived->join(', ', ' dan ')} sudah diarsipkan, jadi catatan ini tidak bisa diubah.",
+                    default => self::managedByOrder($transaction),
+                },
             ]);
 
             return to_route('transactions.show', $transaction);
@@ -111,7 +120,12 @@ class TransactionController extends Controller
 
         return Inertia::render('transactions/create', [
             'initialType' => $transaction->type,
-            'editing' => ['id' => $transaction->id, 'description' => $transaction->description],
+            'editing' => [
+                'id' => $transaction->id,
+                'description' => $transaction->description,
+                // Carried over to the new version unless replaced or removed (update()).
+                'proofUrl' => $transaction->proof_path === null ? null : route('transactions.proof', $transaction),
+            ],
             'initial' => TransactionFormResource::make($transaction)->resolve(),
             ...$this->formOptions($request->user()->currentBusiness(), $ledger, $transaction),
         ]);
@@ -120,6 +134,10 @@ class TransactionController extends Controller
     public function store(TransactionRequest $request, TransactionService $service): RedirectResponse
     {
         $transaction = $service->record($request->user()->currentBusiness(), $request->validated());
+
+        if ($request->hasFile('proof')) {
+            Proof::attach($transaction, $request->file('proof'));
+        }
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -136,8 +154,16 @@ class TransactionController extends Controller
     public function update(TransactionRequest $request, Transaction $transaction, TransactionService $service): RedirectResponse
     {
         Gate::authorize('manage', $transaction);
+        $this->assertNotFromOrder($transaction);
 
         $replacement = $service->replace($transaction, $request->validated());
+
+        // The proof moves to the new version unless it was replaced or removed; the old file stays with the old one.
+        if ($request->hasFile('proof')) {
+            Proof::attach($replacement, $request->file('proof'));
+        } elseif (! $request->boolean('remove_proof') && $transaction->proof_path !== null) {
+            $replacement->forceFill(['proof_path' => $transaction->proof_path])->save();
+        }
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -151,6 +177,7 @@ class TransactionController extends Controller
     public function cancel(Request $request, Transaction $transaction, TransactionService $service): RedirectResponse
     {
         Gate::authorize('manage', $transaction);
+        $this->assertNotFromOrder($transaction);
 
         $validated = $request->validate(
             ['reason' => ['nullable', 'string', 'max:200']],
@@ -175,7 +202,7 @@ class TransactionController extends Controller
     {
         Gate::authorize('manage', $transaction);
 
-        $transaction->load(['contact', 'moneyAccount', 'toMoneyAccount', 'replaces:id,replaced_by_id', 'lines.item', 'stockMovements.item', 'journalEntries.lines.account', 'journalEntries.lines.moneyAccount']);
+        $transaction->load(['order:id,code', 'contact', 'moneyAccount', 'toMoneyAccount', 'replaces:id,replaced_by_id', 'lines.item', 'stockMovements.item', 'journalEntries.lines.account', 'journalEntries.lines.moneyAccount']);
 
         return Inertia::render('transactions/show', [
             'transaction' => TransactionDetailResource::make($transaction)->resolve(),
@@ -213,9 +240,39 @@ class TransactionController extends Controller
             'contacts' => $business->contacts()->orderBy('contacts.name')->get()
                 ->map(fn (Contact $contact) => (new ContactResource($contact, $balances[$contact->id] ?? 0))->resolve())
                 ->values()->all(),
+            'ownAccounts' => Account::query()->where('accounts.business_id', $business->id)->whereNull('accounts.archived_at')->orderBy('accounts.code')
+                ->get(['accounts.id', 'accounts.name', 'accounts.type'])->all(),
             'moneyAccounts' => $business->moneyAccounts()->orderBy('money_accounts.id')->get()
                 ->map(fn (MoneyAccount $moneyAccount) => (new MoneyAccountResource($moneyAccount, $moneyBalances[$moneyAccount->id] ?? 0))->resolve())
                 ->values()->all(),
         ];
+    }
+
+    /**
+     * Uang muka, the sale, and payments of an order move with the order
+     * (Orders), so its status and payments never disagree with the books.
+     */
+    private function assertNotFromOrder(Transaction $transaction): void
+    {
+        if ($transaction->order_id !== null) {
+            throw ValidationException::withMessages(['transaction' => self::managedByOrder($transaction)]);
+        }
+    }
+
+    private static function managedByOrder(Transaction $transaction): string
+    {
+        return "Catatan ini dikelola dari pesanan {$transaction->order?->code}. Ubah atau batalkan dari halaman pesanannya.";
+    }
+
+    /**
+     * The proof photo, only to the owner (PRD M2). Never a public URL: it
+     * shows account numbers.
+     */
+    public function proof(Transaction $transaction): StreamedResponse
+    {
+        Gate::authorize('manage', $transaction);
+        abort_if($transaction->proof_path === null || ! Storage::disk('local')->exists($transaction->proof_path), 404);
+
+        return Storage::disk('local')->response($transaction->proof_path, headers: ['Cache-Control' => 'private, max-age=86400']);
     }
 }

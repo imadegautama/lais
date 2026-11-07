@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property int $business_id
  * @property TransactionType $type
  * @property TransactionKind|null $kind
+ * @property int|null $account_id A business's own account, when the record names one
  * @property PaymentMethod $method
  * @property int|null $money_account_id
  * @property int|null $to_money_account_id
@@ -37,8 +38,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $voided_at
  * @property string|null $void_reason
  * @property int|null $replaced_by_id
+ * @property int|null $order_id
  */
-#[Fillable(['type', 'kind', 'method', 'money_account_id', 'to_money_account_id', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source'])]
+#[Fillable(['type', 'kind', 'account_id', 'method', 'money_account_id', 'to_money_account_id', 'occurred_at', 'total', 'paid_amount', 'cash_flow', 'description', 'note', 'contact_id', 'source', 'order_id'])]
 class Transaction extends Model
 {
     /**
@@ -46,6 +48,16 @@ class Transaction extends Model
      *
      * @return array<string, string>
      */
+    /**
+     * The asset a peralatan purchase or opening balance created.
+     *
+     * @return HasOne<FixedAsset, $this>
+     */
+    public function fixedAsset(): HasOne
+    {
+        return $this->hasOne(FixedAsset::class);
+    }
+
     protected function casts(): array
     {
         return [
@@ -81,6 +93,14 @@ class Transaction extends Model
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
+    }
+
+    /**
+     * @return BelongsTo<Order, $this>
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
     }
 
     /**

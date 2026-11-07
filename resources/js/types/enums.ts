@@ -18,6 +18,7 @@ export const TransactionType = {
     Penjualan: 'penjualan',
     Pembelian: 'pembelian',
     Biaya: 'biaya',
+    PemasukanLain: 'pemasukan_lain',
     UtangPiutang: 'utang_piutang',
     Modal: 'modal',
     PindahDana: 'pindah_dana',
@@ -30,6 +31,7 @@ export const transactionTypeLabels: Record<TransactionType, string> = {
     penjualan: 'Penjualan',
     pembelian: 'Belanja',
     biaya: 'Biaya',
+    pemasukan_lain: 'Pemasukan lain',
     utang_piutang: 'Utang-piutang',
     modal: 'Modal',
     pindah_dana: 'Pindah dana',
@@ -48,6 +50,7 @@ export const TransactionKind = {
     Lain: 'lain',
     TerimaPiutang: 'terima_piutang',
     BayarUtang: 'bayar_utang',
+    UangMuka: 'uang_muka',
     Setor: 'setor',
     Prive: 'prive',
     SaldoKas: 'saldo_kas',
@@ -70,6 +73,7 @@ export const transactionKindLabels: Record<TransactionKind, string> = {
     lain: 'Lain-lain',
     terima_piutang: 'Terima bayaran dari pelanggan',
     bayar_utang: 'Bayar utang ke supplier',
+    uang_muka: 'Uang muka pesanan',
     setor: 'Setor modal',
     prive: 'Ambil untuk pribadi',
     saldo_kas: 'Kas & rekening',
@@ -97,6 +101,7 @@ export const paymentMethodLabels: Record<PaymentMethod, string> = {
 export const TransactionSource = {
     Web: 'web',
     Wa: 'wa',
+    Telegram: 'tg',
     Toko: 'toko',
     Ocr: 'ocr',
 } as const;
@@ -106,6 +111,7 @@ export type TransactionSource = (typeof TransactionSource)[keyof typeof Transact
 export const transactionSourceLabels: Record<TransactionSource, string> = {
     web: 'Web',
     wa: 'WhatsApp',
+    tg: 'Telegram',
     toko: 'Halaman toko',
     ocr: 'Foto nota',
 };
@@ -151,6 +157,7 @@ export const Period = {
     HariIni: 'hari_ini',
     MingguIni: 'minggu_ini',
     BulanIni: 'bulan_ini',
+    BulanLalu: 'bulan_lalu',
 } as const;
 
 export type Period = (typeof Period)[keyof typeof Period];
@@ -159,14 +166,16 @@ export const periodLabels: Record<Period, string> = {
     hari_ini: 'Hari ini',
     minggu_ini: 'Minggu ini',
     bulan_ini: 'Bulan ini',
+    bulan_lalu: 'Bulan lalu',
 };
 
 export const ActivityCategory = {
     Transaksi: 'transaksi',
     Produk: 'produk',
     Kontak: 'kontak',
-    Rekening: 'rekening',
     Akun: 'akun',
+    BaganAkun: 'bagan_akun',
+    Rekening: 'rekening',
 } as const;
 
 export type ActivityCategory = (typeof ActivityCategory)[keyof typeof ActivityCategory];
@@ -175,8 +184,9 @@ export const activityCategoryLabels: Record<ActivityCategory, string> = {
     transaksi: 'Transaksi',
     produk: 'Produk',
     kontak: 'Kontak',
-    rekening: 'Rekening',
     akun: 'Akun',
+    bagan_akun: 'Bagan akun',
+    rekening: 'Rekening',
 };
 
 export const MoneyAccountKind = {
@@ -209,6 +219,68 @@ export const businessCategoryLabels: Record<BusinessCategory, string> = {
     lainnya: 'Lainnya',
 };
 
+export const OrderStatus = {
+    Menunggu: 'menunggu',
+    Diproses: 'diproses',
+    Siap: 'siap',
+    Selesai: 'selesai',
+    Ditolak: 'ditolak',
+} as const;
+
+export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
+
+export const orderStatusLabels: Record<OrderStatus, string> = {
+    menunggu: 'Menunggu konfirmasi',
+    diproses: 'Diproses',
+    siap: 'Siap / diantar',
+    selesai: 'Selesai',
+    ditolak: 'Ditolak',
+};
+
+export const OrderFulfillment = {
+    Ambil: 'ambil',
+    Antar: 'antar',
+} as const;
+
+export type OrderFulfillment = (typeof OrderFulfillment)[keyof typeof OrderFulfillment];
+
+export const orderFulfillmentLabels: Record<OrderFulfillment, string> = {
+    ambil: 'Ambil sendiri',
+    antar: 'Diantar',
+};
+
+export const PaymentStatus = {
+    Belum: 'belum',
+    Dp: 'dp',
+    Lunas: 'lunas',
+} as const;
+
+export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+
+export const paymentStatusLabels: Record<PaymentStatus, string> = {
+    belum: 'Belum bayar',
+    dp: 'DP',
+    lunas: 'Lunas',
+};
+
+export const AccountType = {
+    Aset: 'aset',
+    Kewajiban: 'kewajiban',
+    Ekuitas: 'ekuitas',
+    Pendapatan: 'pendapatan',
+    Beban: 'beban',
+} as const;
+
+export type AccountType = (typeof AccountType)[keyof typeof AccountType];
+
+export const accountTypeLabels: Record<AccountType, string> = {
+    aset: 'Aset',
+    kewajiban: 'Kewajiban',
+    ekuitas: 'Modal',
+    pendapatan: 'Pendapatan',
+    beban: 'Beban',
+};
+
 export const soldItemKinds: readonly ItemKind[] = ['produk', 'komposisi'];
 
 export const stockedItemKinds: readonly ItemKind[] = ['produk', 'bahan'];
@@ -217,6 +289,7 @@ export const transactionTypeMethods: Record<TransactionType, readonly PaymentMet
     penjualan: ['tunai', 'non_tunai', 'kredit'],
     pembelian: ['tunai', 'non_tunai', 'kredit', 'pribadi'],
     biaya: ['tunai', 'non_tunai', 'kredit', 'pribadi'],
+    pemasukan_lain: ['tunai', 'non_tunai'],
     utang_piutang: ['tunai', 'non_tunai'],
     modal: ['tunai', 'non_tunai'],
     pindah_dana: [],
@@ -227,6 +300,7 @@ export const transactionTypeKinds: Record<TransactionType, readonly TransactionK
     penjualan: [],
     pembelian: ['barang', 'peralatan'],
     biaya: ['listrik_air', 'gas_bbm', 'sewa', 'upah', 'transport', 'pemasaran', 'lain'],
+    pemasukan_lain: [],
     utang_piutang: ['terima_piutang', 'bayar_utang'],
     modal: ['setor', 'prive'],
     pindah_dana: [],

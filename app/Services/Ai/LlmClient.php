@@ -14,13 +14,15 @@ use Illuminate\Support\Facades\Http;
 class LlmClient
 {
     /**
-     * One model turn that must end in a tool call.
+     * One model turn that must end in a tool call. With $vision a message
+     * may carry an image part, and the vision model and timeout are used;
+     * keep that prompt short (FormAssistant::readReceipt).
      *
-     * @param  list<array{role: string, content: string}>  $messages
+     * @param  list<array{role: string, content: string|list<array<string, mixed>>}>  $messages
      * @param  list<array<string, mixed>>  $tools  OpenAI function tools
      * @return array{name: string, arguments: array<string, mixed>}
      */
-    public function toolCall(string $system, array $messages, array $tools): array
+    public function toolCall(string $system, array $messages, array $tools, bool $vision = false): array
     {
         $config = config('services.llm');
 
@@ -28,9 +30,9 @@ class LlmClient
             $response = Http::baseUrl((string) $config['url'])
                 ->withToken((string) $config['key'])
                 ->acceptJson()
-                ->timeout((int) $config['timeout'])
+                ->timeout((int) $config[$vision ? 'vision_timeout' : 'timeout'])
                 ->post('chat/completions', [
-                    'model' => $config['model'],
+                    'model' => $config[$vision ? 'vision_model' : 'model'],
                     // 9Router streams unless told not to.
                     'stream' => false,
                     'temperature' => 0,

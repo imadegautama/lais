@@ -2,8 +2,10 @@ import { Link } from '@inertiajs/react';
 import {
     CircleAlert,
     CircleCheck,
+    ImagePlus,
     MessageCircleQuestion,
     SendHorizontal,
+    X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
@@ -33,11 +35,15 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatQty, formatRupiah } from '@/lib/format';
+import { photoToDataUrl } from '@/lib/image';
 import { cn } from '@/lib/utils';
 
 const title = 'Tanya AI';
 const description =
     'Ceritakan yang mau dicatat. AI menyiapkan catatannya, kamu yang memeriksa lalu menyimpan.';
+
+const SLOW =
+    'Masih memproses. Kalimat dengan resep atau foto nota butuh waktu lebih lama, biasanya kurang dari setengah menit.';
 
 // Owners adapt these to their own menu; picking one only fills the input.
 const examples: Record<AssistantFormName | 'none', string[]> = {
@@ -121,9 +127,20 @@ function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
 
     if (turn.role === 'user') {
         return (
-            <p className="ml-8 self-end rounded-lg bg-secondary px-3 py-2 text-sm whitespace-pre-wrap">
-                {turn.text}
-            </p>
+            <div className="ml-8 flex flex-col items-end gap-1.5 self-end">
+                {turn.photo && (
+                    <img
+                        src={turn.photo}
+                        alt="Foto nota"
+                        className="max-h-48 max-w-full rounded-lg border object-contain"
+                    />
+                )}
+                {turn.text && (
+                    <p className="rounded-lg bg-secondary px-3 py-2 text-sm whitespace-pre-wrap">
+                        {turn.text}
+                    </p>
+                )}
+            </div>
         );
     }
 
@@ -264,23 +281,54 @@ function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
 function Conversation() {
     const { turns, sending, form, send, reset } = useAssistant();
     const [text, setText] = useState('');
+    const [photo, setPhoto] = useState<string | null>(null);
+    const [photoError, setPhotoError] = useState<string | null>(null);
+    const [slow, setSlow] = useState(false);
     const input = useRef<HTMLTextAreaElement>(null);
+    const fileInput = useRef<HTMLInputElement>(null);
     const end = useRef<HTMLDivElement>(null);
     const last = turns.at(-1);
 
     useEffect(() => {
         end.current?.scrollIntoView({ block: 'end' });
-    }, [turns, sending]);
+    }, [turns, sending, slow]);
+
+    // 9Router sometimes needs half a minute for a recipe or a receipt; say so before it looks stuck.
+    useEffect(() => {
+        if (!sending) {
+            return;
+        }
+
+        const timer = setTimeout(() => setSlow(true), 10_000);
+
+        return () => {
+            clearTimeout(timer);
+            setSlow(false);
+        };
+    }, [sending]);
 
     const submit = (event?: FormEvent) => {
         event?.preventDefault();
 
-        if (text.trim() === '' || sending) {
+        if ((text.trim() === '' && !photo) || sending) {
             return;
         }
 
-        send(text);
+        send(text, photo ?? undefined);
         setText('');
+        setPhoto(null);
+    };
+
+    const attach = (file: File | undefined) => {
+        setPhotoError(null);
+
+        if (file) {
+            photoToDataUrl(file)
+                .then(setPhoto)
+                .catch(() =>
+                    setPhotoError('Foto tidak bisa dibaca. Coba foto lain.'),
+                );
+        }
     };
 
     return (
@@ -304,6 +352,9 @@ function Conversation() {
                                 {example}
                             </button>
                         ))}
+                        <p className="text-sm text-muted-foreground">
+                            Bisa juga kirim foto nota belanja lewat tombol foto.
+                        </p>
                     </div>
                 ) : (
                     turns.map((turn, index) => (
@@ -311,17 +362,24 @@ function Conversation() {
                     ))
                 )}
                 {sending && (
-                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Spinner aria-hidden role={undefined} />
-                        AI sedang membaca…
-                    </p>
+                    <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                        <p className="flex items-center gap-2">
+                            <Spinner aria-hidden role={undefined} />
+                            {last?.role === 'user' && last.photo
+                                ? 'AI sedang membaca nota…'
+                                : 'AI sedang membaca…'}
+                        </p>
+                        {slow && <p className="pl-6">{SLOW}</p>}
+                    </div>
                 )}
                 <div ref={end} />
             </div>
 
             <p className="sr-only" aria-live="polite">
                 {sending
-                    ? 'AI sedang membaca pesanmu.'
+                    ? slow
+                        ? SLOW
+                        : 'AI sedang membaca pesanmu.'
                     : last?.role === 'assistant'
                       ? last.text
                       : ''}
@@ -331,6 +389,29 @@ function Conversation() {
                 onSubmit={submit}
                 className="flex flex-col gap-2 border-t px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
             >
+                {photo && (
+                    <div className="flex items-center gap-2">
+                        <img
+                            src={photo}
+                            alt="Foto nota yang akan dikirim"
+                            className="size-14 rounded-md border object-cover"
+                        />
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPhoto(null)}
+                        >
+                            <X aria-hidden />
+                            Hapus foto
+                        </Button>
+                    </div>
+                )}
+                {photoError && (
+                    <p role="alert" className="text-sm text-destructive">
+                        {photoError}
+                    </p>
+                )}
                 <Label htmlFor="assistant-message" className="sr-only">
                     Pesan untuk AI
                 </Label>
@@ -367,10 +448,33 @@ function Conversation() {
                             Mulai baru
                         </Button>
                     )}
+                    <input
+                        ref={fileInput}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        tabIndex={-1}
+                        aria-hidden
+                        onChange={(event) => {
+                            attach(event.target.files?.[0]);
+                            // The same photo can be picked again after removing it.
+                            event.target.value = '';
+                        }}
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="ml-auto"
+                        disabled={sending}
+                        aria-label="Lampirkan foto nota"
+                        onClick={() => fileInput.current?.click()}
+                    >
+                        <ImagePlus aria-hidden />
+                    </Button>
                     <Button
                         type="submit"
-                        className="ml-auto"
-                        disabled={sending || text.trim() === ''}
+                        disabled={sending || (text.trim() === '' && !photo)}
                     >
                         <SendHorizontal aria-hidden />
                         Kirim
@@ -433,7 +537,7 @@ export function AssistantButton() {
             type="button"
             variant="outline"
             onClick={() => setOpen(true)}
-            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 bg-card pr-4 pl-3.5 shadow-toast lg:right-6"
+            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 bg-card pr-4 pl-3.5 shadow-toast lg:right-6 print:hidden"
         >
             <MessageCircleQuestion
                 className="size-5 text-brand-strong"

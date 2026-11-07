@@ -210,6 +210,18 @@
     }
 }
 
+/* Reports print from the browser (PRD M6): the page content only, on white.
+   The sidebar's spacer sits in its wrapper, so the wrapper goes. */
+@media print {
+    [data-slot='sidebar'] {
+        display: none !important;
+    }
+
+    body {
+        background: var(--background);
+    }
+}
+
 /* A form's sticky action bar already holds the bottom edge: the button
    rises above it and the content needs only the bottom nav's room. */
 :root:has([data-slot='form-action-bar']) {

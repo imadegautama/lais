@@ -12,6 +12,8 @@ declare module '@inertiajs/core' {
             name: string;
             auth: Auth;
             sidebarOpen: boolean;
+            /** Orders from the shop waiting for Terima or Tolak. */
+            pendingOrders: number;
             [key: string]: unknown;
         };
     }

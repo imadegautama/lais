@@ -184,7 +184,7 @@ export function AppDataTable<TData extends RowData>({
                     server?.isLoading && 'opacity-60',
                 )}
             >
-                <div className="hidden md:block">
+                <div className="hidden md:block print:block">
                     <Table>
                         <caption className="sr-only">{caption}</caption>
                         <TableHeader>
@@ -232,18 +232,18 @@ export function AppDataTable<TData extends RowData>({
                                                         />
                                                         {sorted === 'asc' ? (
                                                             <ArrowUp
-                                                                className="size-3.5"
+                                                                className="size-3.5 print:hidden"
                                                                 aria-hidden
                                                             />
                                                         ) : sorted ===
                                                           'desc' ? (
                                                             <ArrowDown
-                                                                className="size-3.5"
+                                                                className="size-3.5 print:hidden"
                                                                 aria-hidden
                                                             />
                                                         ) : (
                                                             <ArrowUpDown
-                                                                className="size-3.5 opacity-60"
+                                                                className="size-3.5 opacity-60 print:hidden"
                                                                 aria-hidden
                                                             />
                                                         )}
@@ -283,7 +283,10 @@ export function AppDataTable<TData extends RowData>({
                     </Table>
                 </div>
 
-                <ul className="flex flex-col md:hidden" aria-label={caption}>
+                <ul
+                    className="flex flex-col md:hidden print:hidden"
+                    aria-label={caption}
+                >
                     {rows.map((row, index) => {
                         const group = mobileGroupBy?.(row.original);
                         const previous =
@@ -313,7 +316,7 @@ export function AppDataTable<TData extends RowData>({
             {pageCount > 1 && (
                 <nav
                     aria-label={`Halaman ${caption}`}
-                    className="flex flex-wrap items-center justify-between gap-2 border-t pt-3"
+                    className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 print:hidden"
                 >
                     <p
                         className="text-xs text-muted-foreground"

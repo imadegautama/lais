@@ -124,6 +124,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Sistem membuat jurnal saldo awal. Modal awal = total aset awal − utang awal, dan neraca hari pertama langsung seimbang.
 - Pemilik baru bisa menyelesaikan onboarding dengan 5 produk dalam ≤ 10 menit (uji ke 3 orang).
 - Reset password memakai OTP WA, jadi tidak perlu SMTP.
+- **Penyesuaian (4 Nov 2026):** login tetap memakai email dari starter kit. Nomor WA dihubungkan di Pengaturan > WhatsApp dengan cara **pemilik mengirim kode `LAIS ######` ke bot** dari WA-nya sendiri. Ini membuktikan kepemilikan nomor seperti OTP, sekaligus menyimpan LID pengirim (risiko `…@lid` di §Risiko). Daftar, login, dan reset password lewat nomor WA belum dibuat.
 
 #### M1. Produk & Stok
 
@@ -163,6 +164,8 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Setiap transaksi yang disimpan menghasilkan jurnal sesuai tabel §4.4, dalam satu transaksi database (atomic).
 - Transaksi tidak pernah dihapus. "Batalkan" membuat jurnal pembalik dan mutasi stok pembalik. "Ubah" berarti batalkan lalu buat ulang. Riwayatnya tetap terlihat.
 - Bukti transaksi (foto) bisa dilampirkan: jpg/png/webp, maksimal 5 MB.
+    - Status (4 Nov 2026): sudah ada di form Catat transaksi (semua jenis), di dialog bayar Pesanan dan Utang-piutang (saat Transfer/QRIS), dan foto nota dari Tanya AI ikut tersimpan saat drafnya disimpan.
+    - Satu foto per transaksi, disimpan di disk privat dan hanya dibuka lewat rute yang mewajibkan login pemilik (lebih ketat dari signed route di §Keamanan, karena link bertanda tangan bisa diteruskan ke orang lain). File tidak pernah dihapus; "Ubah" membawa bukti ke versi baru.
 
 **US-06.** Sebagai pemilik, saya ingin mencatat lewat chat WA dengan bahasa sehari-hari, supaya pencatatan tidak menyita waktu.
 
@@ -175,6 +178,8 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Draf kedaluwarsa setelah 15 menit. Satu pemilik hanya punya satu draf aktif. Pesan transaksi baru menggantikan draf lama, dan bot memberi tahu bahwa draf lama dibatalkan.
 - Setelah tersimpan, bot menyebut efek pentingnya, misalnya stok yang jatuh di bawah minimum.
 - Pesan dari nomor tidak terdaftar dibalas sekali per 24 jam dengan link pendaftaran. Pesan grup diabaikan.
+- **Status (4 Nov 2026):** sudah jalan lewat GOWA (`App\Services\WhatsApp\Inbox`), memakai `FormAssistant` yang sama dengan Tanya AI web, termasuk foto nota. "1"/"2" tanpa LLM, draf 15 menit di cache, riwayat hanya 15 menit terakhir. Sumber transaksi `wa`. Cara memasang: `docs/WHATSAPP.md`.
+- **Keputusan sementara (6 Nov 2026):** bot berjalan di Telegram (Bot API resmi) karena nomor bot lewat GOWA berisiko diblokir. Perilaku bot tetap sama dan semua kata "WhatsApp" di alur bot berlaku juga untuk Telegram. Sumber transaksinya `tg`. Saklarnya `BOT_CHANNEL`, dan GOWA tetap bisa dipakai lagi. Kabar ke pelanggan tetap link `wa.me` dari WA pemilik. Cara memasang: `docs/TELEGRAM.md`.
 
 #### M3. Dua Dompet (Uang Usaha vs Pribadi)
 
@@ -207,6 +212,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Status pesanan: Menunggu konfirmasi → Diproses → Siap/Diantar → Selesai, atau Ditolak.
 - Status bayar: Belum bayar → DP → Lunas. DP dan pelunasan dicatat dengan nominal dan metode.
 - Setiap perubahan status, bot mengirim link `wa.me` dengan pesan yang sudah terisi (termasuk link nota) untuk diteruskan pemilik dari WA-nya sendiri. Bot tidak pernah mengirim pesan langsung ke pelanggan.
+- **Status (4 Nov 2026):** notifikasi pesanan baru dan perintah `terima`, `tolak`, `siap`, `selesai`, `batal`, `dp <nominal> [qris]`, dan `lunas [qris]` sudah jalan tanpa LLM. Teks kabar ke pelanggan satu sumber di `App\Support\OrderMessages`, dipakai web dan bot.
 
 **US-10.** Sebagai pelanggan, saya ingin melihat nota dan status pesanan, supaya tahu apa yang harus dibayar dan kapan pesanan siap.
 
@@ -217,6 +223,13 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 - DP sebelum pesanan selesai dicatat sebagai Uang Muka Pesanan (kewajiban).
 - Saat pesanan Selesai, penjualan diakui dan stok berkurang. Uang muka dipindahkan ke penjualan, dan sisa yang belum dibayar menjadi piutang.
+- Pembayaran setelah Selesai dicatat sebagai terima piutang, paling banyak sebesar sisanya.
+- Pesanan yang sudah diterima tidak ditolak, tetapi **dibatalkan** (status akhir tetap Ditolak, dengan alasan). Uang mukanya dibatalkan lewat jurnal cermin, artinya uang dikembalikan ke pelanggan.
+- Transaksi yang dibuat pesanan hanya bisa diubah atau dibatalkan dari halaman pesanannya.
+
+**Status pengerjaan (web, 4 Nov 2026):** halaman toko, checkout, nota, daftar dan detail pesanan, pesanan manual oleh pemilik, upload QRIS, foto produk, dan QR toko untuk dicetak sudah jadi. Notifikasi dan perintah lewat WA (US-09) menunggu GOWA; sementara pesanan baru tampil sebagai angka di menu Pesanan dan aksi di dashboard, dan kabar ke pelanggan dikirim dari tombol `wa.me` di detail pesanan.
+
+**Penyimpangan dari §Keamanan:** foto produk dan QRIS disimpan di disk publik, bukan disk privat dengan signed route, karena keduanya memang untuk dilihat pelanggan tanpa login.
 
 #### M5. Utang-Piutang
 
@@ -226,6 +239,9 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Daftar berisi kontak, nominal, sisa, tanggal, dan umur (hari).
 - Pembayaran sebagian didukung. Lunas otomatis jika sisa = 0.
 - Lewat WA: "bu sari bayar 50rb" tercatat sebagai penerimaan piutang setelah konfirmasi.
+- Pembayaran melunasi tagihan paling lama lebih dulu. Pembayaran yang dicatat dari halaman pesanan melunasi pesanan itu dulu. Jadi status bayar pesanan tetap benar dari mana pun pembayarannya dicatat.
+
+**Status pengerjaan (web, 4 Nov 2026):** halaman Utang-piutang (tab Piutang/Utang, ringkasan, umur tagihan, catat pembayaran, tombol Ingatkan lewat `wa.me`) dan rincian per kontak sudah jadi. Pencatatan lewat WA menunggu GOWA.
 
 #### M6. Laporan & Dashboard
 
@@ -239,6 +255,20 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Filter periode: hari ini, minggu ini, bulan ini, bulan lalu, atau rentang tanggal.
 - Ekspor PDF untuk Laba Rugi, Neraca, Buku Kas, Perubahan Modal, dan Utang-Piutang. Header PDF berisi nama usaha, periode, dan tanggal cetak.
 - Laporan untuk data 1 tahun (±10.000 transaksi) tampil dalam ≤ 1 detik di server.
+- **Status slice 8 (3 Nov 2026):**
+    - Sudah jadi: Pusat laporan, Laba rugi (biaya per jenis), Perubahan modal dengan kartu **Laba vs Kas** (rekonsiliasi untuk skenario demo 4), dan Neraca per tanggal dengan badge Seimbang.
+    - Semua angka dihitung di `App\Services\Reports` dari jurnal. Uji acak `LedgerTest` memeriksa bahwa neraca seimbang, laba vs kas selisih Rp0, dan perubahan modal cocok (K3).
+    - Filter periode bertambah **Bulan lalu**. Rentang tanggal menyusul di slice 11.
+    - PDF untuk sementara lewat **cetak dari browser** ("Cetak / simpan PDF"), dengan header nama usaha, periode, dan tanggal cetak. PDF dari server (dompdf) menyusul untuk "kirim laporan pdf" lewat WA.
+    - Buku kas dan Produk terlaris masih "Segera".
+- **Status slice 11 (7 Nov 2026):**
+    - Filter **rentang tanggal** sudah ada di semua laporan berperiode, dan tiap laporan dibuka dengan kesimpulan yang dihitung server dari jurnal, tanpa AI.
+    - Acuan akuntansi: SAK EMKM. Sumber yang dibaca adalah draf eksposur IAI; IAI menyatakan SAK EMKM disahkan 24 Oktober 2016 dan belum direvisi. Nomor paragraf perlu dicocokkan dengan teks final sebelum dikutip di proposal.
+    - Laporan minimum SAK EMKM (par. 3.9) sudah lengkap: Laporan Posisi Keuangan, Laba Rugi, dan Catatan atas Laporan Keuangan otomatis di `/laporan/catatan`. Keduanya memakai kolom pembanding periode sebelumnya (par. 3.8).
+    - Lais hanya boleh menyebut "mengacu pada SAK EMKM", bukan "patuh" (par. 3.4), karena ongkir pembelian belum masuk biaya perolehan persediaan (par. 9.3) dan utang bank belum didukung.
+    - Penyusutan peralatan dibuat: garis lurus tanpa nilai residu, per bulan penuh mulai bulan perolehan, akun 1402 dan 6301, jurnal lewat `lais:penyusutan`. Peralatan lama menunggu pemilik mengisi umur pakainya, jadi pembukuan lama tidak berubah sendiri.
+    - Baru: Daftar akun (COA), Buku besar, Neraca saldo, Aset tetap, Buku kas, Produk terlaris dan margin (termasuk barang jarang laku).
+    - Pemilik bisa menambah akun Beban dan Pendapatan sendiri. Akun sistem dan kategori terkunci. Jenis transaksi baru: Pemasukan lain.
 
 **US-13.** Sebagai pemilik, saya ingin dashboard yang langsung menunjukkan kondisi hari ini.
 
@@ -297,11 +327,23 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
     4. Prive bulan berjalan ≤ laba bersih bulan berjalan, artinya modal tidak tergerus (kasus Pak Darto). Kalau tidak ada yang diambil, aturan ini lulus walaupun bulan itu rugi; kerugiannya sudah tertangkap di aturan 1.
 - Setiap aturan ditampilkan lulus/tidak di dashboard dan disebut di ringkasan jika tidak lulus.
 - Jika LLM gagal atau timeout 10 detik, ringkasan tetap terkirim dalam versi template tanpa insight.
+- **Status (4 Nov 2026):** ringkasan harian 21.00 WIB versi template (`php artisan lais:ringkasan`, dijadwalkan di `routes/console.php`) dengan saklar di Pengaturan > WhatsApp. Insight AI, ringkasan mingguan, dan peringatan stok 07.00 belum dibuat; stok yang habis ≤ 3 hari dan aturan kesehatan yang gagal sudah masuk ringkasan harian. Pertanyaan "kenapa laba naik tapi kas turun" dijawab dari `Reports::cashReconciliation` (`App\Services\ReportAnswers`) tanpa menunggu LLM.
 - Pemilik bisa mematikan setiap jenis pesan terjadwal.
 
 #### v1.1 (dikerjakan minggu 3 jika MVP selesai, urut prioritas)
 
 **US-16. Foto nota belanja.** Pemilik mengirim foto nota ke bot → AI vision membaca item, qty, dan harga → draf pembelian → konfirmasi → stok bertambah dan foto tersimpan sebagai bukti transaksi.
+
+- **Status (28 Okt 2026): bagian web sudah jadi** di panel Tanya AI.
+    - Foto diperkecil di browser (sisi terpanjang 1.600 px, JPEG), lalu dibaca dalam dua langkah:
+        1. Model vision dengan prompt pendek hanya menyalin isi nota (`tulis_nota`: toko, tanggal, cara bayar, baris dengan jumlah dan total).
+        2. Salinannya masuk ke alur teks biasa untuk dicocokkan ke katalog, lalu menjadi kartu draf yang dikonfirmasi seperti biasa.
+    - Prompt penuh (katalog dan aturan) yang digabung dengan gambar membuat model macet lebih dari 90 detik, sementara prompt pendek hanya sekitar 10 detik. Karena itu pembacaan dipisah.
+    - Foto yang bukan nota dijawab dengan kalimat tetap.
+- **Menyusul:**
+    - foto disimpan sebagai bukti transaksi (migration, rute privat, thumbnail di detail)
+    - jalur WhatsApp
+    - eval 15 foto nota asli
 
 **US-17. Pengingat piutang & pelanggan lama.** Ringkasan menyertakan piutang berumur > 7 hari dan pelanggan yang > 14 hari tidak memesan. Masing-masing dilengkapi link `wa.me` dengan pesan terisi.
 
@@ -309,21 +351,20 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 ### 2.4 Non-Goals
 
-| Tidak dibuat                                                | Alasan                                                                   |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Invoice formal B2B                                          | Target B2C. Nota digital sudah cukup                                     |
-| Gaji owner                                                  | Pencatatan prive sudah menjawab masalah uang tercampur                   |
-| Estimasi PPh 0,5%                                           | Usaha perorangan beromzet ≤ Rp500 jt/tahun tidak terutang                |
-| Pengingat izin usaha                                        | Di luar operasional harian                                               |
-| Multi-outlet, multi-user, payroll                           | Persona pemilik tunggal dengan ±2 pekerja                                |
-| Payment gateway / QRIS dinamis                              | UMKM sudah punya QRIS statis. Konfirmasi bayar manual                    |
-| Integrasi marketplace                                       | Di luar masalah inti                                                     |
-| Bot yang chat langsung ke pelanggan                         | Risiko blokir nomor. Pakai link `wa.me` dari WA pemilik                  |
-| UMKM jasa (laundry, salon)                                  | Operasionalnya berbasis booking, model datanya berbeda                   |
-| Produksi batch / barang setengah jadi                       | Produk berkomposisi dianggap dibuat saat dijual                          |
-| Penyusutan aset tetap                                       | Peralatan dicatat sebesar nilai perolehan. Dijelaskan di catatan laporan |
-| Konversi satuan, mode offline, aplikasi mobile native       | Di luar 3 minggu. Konversi satuan masuk v1.1                             |
-| Asisten konten promosi, voice note, nomor pencatat tambahan | Bab Rencana Pengembangan (v2.0)                                          |
+| Tidak dibuat                                                | Alasan                                                    |
+| ----------------------------------------------------------- | --------------------------------------------------------- |
+| Invoice formal B2B                                          | Target B2C. Nota digital sudah cukup                      |
+| Gaji owner                                                  | Pencatatan prive sudah menjawab masalah uang tercampur    |
+| Estimasi PPh 0,5%                                           | Usaha perorangan beromzet ≤ Rp500 jt/tahun tidak terutang |
+| Pengingat izin usaha                                        | Di luar operasional harian                                |
+| Multi-outlet, multi-user, payroll                           | Persona pemilik tunggal dengan ±2 pekerja                 |
+| Payment gateway / QRIS dinamis                              | UMKM sudah punya QRIS statis. Konfirmasi bayar manual     |
+| Integrasi marketplace                                       | Di luar masalah inti                                      |
+| Bot yang chat langsung ke pelanggan                         | Risiko blokir nomor. Pakai link `wa.me` dari WA pemilik   |
+| UMKM jasa (laundry, salon)                                  | Operasionalnya berbasis booking, model datanya berbeda    |
+| Produksi batch / barang setengah jadi                       | Produk berkomposisi dianggap dibuat saat dijual           |
+| Konversi satuan, mode offline, aplikasi mobile native       | Di luar 3 minggu. Konversi satuan masuk v1.1              |
+| Asisten konten promosi, voice note, nomor pencatat tambahan | Bab Rencana Pengembangan (v2.0)                           |
 
 ### 2.5 Kebutuhan UX
 
@@ -363,8 +404,9 @@ Base URL, API key, dan ID model disimpan di `.env`, jadi penyedia bisa diganti t
 LLM_BASE_URL=http://9router:20128/v1           # 9Router, OpenAI-compatible
 LLM_API_KEY=<key dari dashboard 9Router>
 LLM_MODEL_TEXT=ag/gemini-3.8-flash-low         # hasil spike: 2–7 detik per pesan
-LLM_MODEL_VISION=…                             # ditentukan saat pembaca nota (v1.1)
-LLM_TIMEOUT=20
+LLM_MODEL_VISION=ag/gemini-3.8-flash-low       # baca foto nota: 8–10 detik per foto lewat 9Router
+LLM_TIMEOUT=40                                 # kalimat resep 15–35 detik, penjualan 5–10 detik (diukur 28 Okt)
+LLM_TIMEOUT_VISION=45                          # foto nota butuh sekitar dua kali lipat waktu pesan teks
 ```
 
 Varian `flash-high` dan `flash-medium` diuji dengan kalimat yang sama: ketepatannya sama, tetapi waktunya 25–60 detik dan kadang melewati batas waktu. Model tetap bisa diganti lewat `.env`.
@@ -456,6 +498,7 @@ Varian `flash-high` dan `flash-medium` diuji dengan kalimat yang sama: ketepatan
 | Antrean          | Laravel Queue (driver database)                                                                                                     | Memproses webhook WA dan panggilan LLM secara asinkron |
 | Penjadwal        | Laravel Scheduler (cron `schedule:run` tiap menit)                                                                                  | Ringkasan, peringatan stok, kedaluwarsa draf/OTP       |
 | WhatsApp         | GOWA (go-whatsapp-web-multidevice) di Docker                                                                                        | Kirim/terima pesan, unduh media                        |
+| Bot (sementara)  | Telegram Bot API, long polling lewat `php artisan lais:telegram`, dipilih dengan `BOT_CHANNEL`                                      | Menggantikan GOWA untuk bot sampai ada keputusan baru  |
 | Gateway LLM      | 9Router → Gemini                                                                                                                    | Endpoint LLM OpenAI-compatible                         |
 | PDF              | Kandidat: `barryvdh/laravel-dompdf`                                                                                                 | Ekspor laporan                                         |
 | Grafik           | Kandidat: Recharts                                                                                                                  | Grafik dashboard                                       |
@@ -482,11 +525,13 @@ flowchart TB
 **Alur pesan WA masuk:**
 
 1. GOWA mengirim POST ke `/webhooks/gowa`.
-2. Aplikasi memverifikasi HMAC, menyimpan pesan ke `wa_messages` (idempotent berdasarkan `payload.id`), lalu langsung membalas 200.
+2. Aplikasi memverifikasi HMAC, menyimpan pesan ke `wa_messages` (idempotent berdasarkan `payload.id`), lalu langsung membalas 204. Rute ini dikecualikan dari CSRF di `bootstrap/app.php`.
 3. Pesan dengan `is_from_me: true` dan chat grup (`@g.us`) diabaikan.
 4. Job antrean mencari pemilik dari nomor pengirim (`payload.from`, format `628…@s.whatsapp.net`, dinormalisasi ke `628…`).
 5. Jika balasannya "1" atau "2", aplikasi memproses draf tanpa LLM. Selain itu, pesan dikirim ke agen LLM.
-6. Draf atau jawaban dikirim balik lewat GOWA `/send/message`.
+6. Draf atau jawaban dikirim balik lewat GOWA `/send/message` oleh job `SendWhatsApp` (3 percobaan). Versi GOWA terbaru **mewajibkan** header `X-Device-Id` (`GOWA_DEVICE_ID`).
+
+Di Telegram, langkah 1 sampai 3 digantikan `lais:telegram` (`getUpdates`, hanya chat pribadi, idempotent berdasarkan `update_id`), dan langkah 6 memakai `sendMessage`. Langkah lainnya sama.
 
 ### 4.2 Model Data (garis besar)
 
@@ -530,7 +575,7 @@ Aturan data:
 
 ### 4.4 Aturan Jurnal Otomatis
 
-Bagan akun tetap: 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 Persediaan, 1401 Peralatan, 2101 Utang Usaha, 2201 Uang Muka Pesanan, 3101 Modal Pemilik, 3201 Prive, 4101 Penjualan, 5101 HPP, 6101 Beban Operasional, 6201 Selisih Persediaan.
+Bagan akun sistem (terkunci): 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 Persediaan, 1401 Peralatan, 1402 Akumulasi Penyusutan, 2101 Utang Usaha, 2201 Uang Muka Pesanan, 3101 Modal Pemilik, 3201 Prive, 4101 Penjualan, 5101 HPP, 6101 Beban Operasional, 6201 Selisih Persediaan, 6301 Beban Penyusutan. Usaha bisa menambah akun Beban dan Pendapatan sendiri (mulai 6501 dan 4201).
 
 | Transaksi                    | Debit                                                | Kredit                                                    |
 | ---------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
@@ -547,6 +592,9 @@ Bagan akun tetap: 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 P
 | Setor modal                  | Kas                                                  | Modal Pemilik                                             |
 | Ambil pribadi                | Prive                                                | Kas                                                       |
 | Koreksi stok kurang / lebih  | Selisih Persediaan / Persediaan                      | Persediaan / Selisih Persediaan                           |
+| Penyusutan bulanan           | Beban Penyusutan                                     | Akumulasi Penyusutan                                      |
+| Biaya pada akun usaha        | Akun beban usaha (mulai 6501)                        | Kas / Utang Usaha / Modal Pemilik                         |
+| Pemasukan lain               | Kas                                                  | Akun pendapatan usaha (mulai 4201)                        |
 | Saldo awal kas & rekening    | Kas (rekening itu)                                   | Modal Pemilik                                             |
 | Saldo awal peralatan         | Peralatan                                            | Modal Pemilik                                             |
 | Saldo awal piutang           | Piutang                                              | Modal Pemilik                                             |
@@ -603,19 +651,19 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 
 ### 5.2 Technical Risks
 
-| Risiko                                                                                                                                        | Dampak                                              | Mitigasi                                                                                                                                                |
-| --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 9Router tidak meneruskan `tools` atau input gambar ke Gemini dengan benar                                                                     | Agen WA dan foto nota tidak jalan                   | Spike di awal. Fallback: prompt dengan output JSON + validasi skema, atau langsung ke Gemini API via endpoint OpenAI-compatible                         |
-| Kuota atau rate limit Gemini lewat 9Router habis, atau koneksinya putus saat penjurian                                                        | Bot tidak bisa membaca pesan                        | Combo fallback di 9Router, API key AI Studio cadangan, form web tetap berfungsi penuh tanpa AI, rekaman video sebagai bukti                             |
-| Model `gc/…` berasal dari koneksi OAuth Gemini CLI, yang ditujukan untuk tool coding pribadi, sedangkan kita memakainya untuk aplikasi publik | Akun bisa dibatasi, atau melanggar ketentuan Google | Tambahkan API key Gemini (AI Studio) sebagai provider di 9Router dan jadikan prioritas pertama di combo. `gc/…` cukup jadi cadangan selama pengembangan |
-| Laravel AI SDK driver `openai` tidak cocok dengan 9Router (misalnya memakai Responses API)                                                    | Agen tidak jalan lewat SDK                          | Spike hari pertama. Fallback ke HTTP client manual `/v1/chat/completions` di balik interface `LlmClient` yang sama                                      |
-| `payload.from` berisi LID (`…@lid`), bukan nomor                                                                                              | Pemilik tidak dikenali                              | Simpan `from_lid` saat verifikasi OTP, lalu cocokkan ke nomor maupun LID                                                                                |
-| Sesi GOWA logout atau nomor bot diblokir                                                                                                      | Saluran WA mati                                     | Nomor khusus bot, volume rendah, hanya membalas pemilik. Prosedur pairing ulang QR ditulis di README. Semua fitur WA juga tersedia di web               |
-| Latensi LLM tinggi                                                                                                                            | Pengalaman di WA lambat (K5)                        | Proses lewat antrean, timeout 10 detik, batas 3 putaran tool, daftar item dipangkas maks. 100, "1/2" tanpa LLM                                          |
-| Salah tafsir nama produk ("nasgor", "es teh manis")                                                                                           | Transaksi salah                                     | Field alias, kandidat terdekat, konfirmasi wajib                                                                                                        |
-| Kesalahan logika akuntansi                                                                                                                    | Neraca tidak seimbang, kredibilitas hilang          | Bagan akun tetap, satu service posting jurnal, property test sejak minggu 1                                                                             |
-| Beban kerja 1 developer                                                                                                                       | Fitur tidak selesai                                 | Garis potong jelas, v1.1 opsional, proposal dan video dikerjakan anggota tim lain secara paralel                                                        |
-| Biaya dan kapasitas VPS (Laravel + MySQL + GOWA + 9Router)                                                                                    | Server lambat saat demo                             | Minimal 2 vCPU / 4 GB, monitor memori, jangan pakai hosting serverless karena GOWA butuh proses yang selalu hidup                                       |
+| Risiko                                                                                                                                        | Dampak                                              | Mitigasi                                                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 9Router tidak meneruskan `tools` atau input gambar ke Gemini dengan benar                                                                     | Agen WA dan foto nota tidak jalan                   | Spike di awal. Fallback: prompt dengan output JSON + validasi skema, atau langsung ke Gemini API via endpoint OpenAI-compatible                                                                                    |
+| Kuota atau rate limit Gemini lewat 9Router habis, atau koneksinya putus saat penjurian                                                        | Bot tidak bisa membaca pesan                        | Combo fallback di 9Router, API key AI Studio cadangan, form web tetap berfungsi penuh tanpa AI, rekaman video sebagai bukti                                                                                        |
+| Model `gc/…` berasal dari koneksi OAuth Gemini CLI, yang ditujukan untuk tool coding pribadi, sedangkan kita memakainya untuk aplikasi publik | Akun bisa dibatasi, atau melanggar ketentuan Google | Tambahkan API key Gemini (AI Studio) sebagai provider di 9Router dan jadikan prioritas pertama di combo. `gc/…` cukup jadi cadangan selama pengembangan                                                            |
+| Laravel AI SDK driver `openai` tidak cocok dengan 9Router (misalnya memakai Responses API)                                                    | Agen tidak jalan lewat SDK                          | Spike hari pertama. Fallback ke HTTP client manual `/v1/chat/completions` di balik interface `LlmClient` yang sama                                                                                                 |
+| `payload.from` berisi LID (`…@lid`), bukan nomor                                                                                              | Pemilik tidak dikenali                              | Simpan `from_lid` saat verifikasi OTP, lalu cocokkan ke nomor maupun LID                                                                                                                                           |
+| Sesi GOWA logout atau nomor bot diblokir                                                                                                      | Saluran WA mati                                     | Bot sementara dipindah ke Telegram (`BOT_CHANNEL`). Kalau GOWA dipakai lagi: nomor khusus bot, volume rendah, hanya membalas pemilik, pairing ulang QR di `docs/WHATSAPP.md`. Semua fitur bot juga tersedia di web |
+| Latensi LLM tinggi                                                                                                                            | Pengalaman di WA lambat (K5)                        | Proses lewat antrean, timeout 10 detik, batas 3 putaran tool, daftar item dipangkas maks. 100, "1/2" tanpa LLM                                                                                                     |
+| Salah tafsir nama produk ("nasgor", "es teh manis")                                                                                           | Transaksi salah                                     | Field alias, kandidat terdekat, konfirmasi wajib                                                                                                                                                                   |
+| Kesalahan logika akuntansi                                                                                                                    | Neraca tidak seimbang, kredibilitas hilang          | Bagan akun tetap, satu service posting jurnal, property test sejak minggu 1                                                                                                                                        |
+| Beban kerja 1 developer                                                                                                                       | Fitur tidak selesai                                 | Garis potong jelas, v1.1 opsional, proposal dan video dikerjakan anggota tim lain secara paralel                                                                                                                   |
+| Biaya dan kapasitas VPS (Laravel + MySQL + GOWA + 9Router)                                                                                    | Server lambat saat demo                             | Minimal 2 vCPU / 4 GB, monitor memori, jangan pakai hosting serverless karena GOWA butuh proses yang selalu hidup                                                                                                  |
 
 ---
 

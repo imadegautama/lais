@@ -15,8 +15,9 @@ enum ActivityCategory: string
     case Transaksi = 'transaksi';
     case Produk = 'produk';
     case Kontak = 'kontak';
-    case Rekening = 'rekening';
     case Akun = 'akun';
+    case BaganAkun = 'bagan_akun';
+    case Rekening = 'rekening';
 
     public function label(): string
     {
@@ -24,8 +25,9 @@ enum ActivityCategory: string
             self::Transaksi => 'Transaksi',
             self::Produk => 'Produk',
             self::Kontak => 'Kontak',
-            self::Rekening => 'Rekening',
             self::Akun => 'Akun',
+            self::BaganAkun => 'Bagan akun',
+            self::Rekening => 'Rekening',
         };
     }
 }

@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ContactType;
+use App\Enums\OrderStatus;
 use App\Enums\Period;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Http\Resources\TransactionResource;
 use App\Models\Account;
+use App\Models\Business;
 use App\Models\Contact;
+use App\Models\Order;
+use App\Services\Debts;
 use App\Services\Ledger;
 use App\Services\Reports;
 use App\Support\Format;
@@ -21,17 +26,18 @@ class DashboardController extends Controller
     /**
      * Dashboard (UI-PAGES C1): how the business stands now, from the journal.
      */
-    public function __invoke(Request $request, Reports $reports, Ledger $ledger): Response
+    public function __invoke(Request $request, Reports $reports, Ledger $ledger, Debts $debts): Response
     {
         $business = $request->user()->currentBusiness();
         $period = Period::tryFrom((string) $request->query('periode')) ?? Period::HariIni;
         $from = $period->start();
+        $before = $period->end();
         [$previousFrom, $previousBefore] = $period->previous();
         // Compared only once the books reach back into the period before.
         $compare = ($business->firstRecordAt() ?? CarbonImmutable::now()) < $previousBefore;
         $monthStart = now()->startOfMonth();
 
-        $profit = $reports->profitAndLoss($business, $from);
+        $profit = $reports->profitAndLoss($business, $from, $before);
         $previous = $compare ? $reports->profitAndLoss($business, $previousFrom, $previousBefore) : null;
         $onHand = $ledger->balance($business, Account::CASH);
         $nonCash = $ledger->balance($business, Account::NON_CASH);
@@ -49,14 +55,14 @@ class DashboardController extends Controller
             'periods' => array_map(fn (Period $option) => ['key' => $option, 'label' => $option->label()], Period::cases()),
             'summary' => [
                 'netProfit' => ['value' => $profit['netProfit'], 'previous' => $previous['netProfit'] ?? null],
-                'sales' => ['value' => $profit['sales'], 'previous' => $previous['sales'] ?? null, 'count' => $reports->salesCount($business, $from)],
+                'sales' => ['value' => $profit['sales'], 'previous' => $previous['sales'] ?? null, 'count' => $reports->salesCount($business, $from, $before)],
                 'cash' => ['total' => $onHand + $nonCash, 'onHand' => $onHand, 'nonCash' => $nonCash],
                 'personalDraw' => [
-                    'value' => $reports->drawings($business, $from),
+                    'value' => $reports->drawings($business, $from, $before),
                     'previous' => $compare ? $reports->drawings($business, $previousFrom, $previousBefore) : null,
                 ],
             ],
-            'actions' => [...$this->stockActions($stockAlerts), ...$this->receivableActions($reports->openReceivables($business))],
+            'actions' => [...$this->orderActions($business), ...$this->stockActions($stockAlerts), ...$this->receivableActions($debts->summary($business, ContactType::Pelanggan))],
             'wallets' => [
                 'businessCash' => $onHand + $nonCash,
                 'drawnThisMonth' => $reports->drawings($business, $monthStart),
@@ -71,6 +77,24 @@ class DashboardController extends Controller
                 $business->transactions()->with(['contact', 'moneyAccount', 'toMoneyAccount'])->latest('occurred_at')->latest('id')->limit(8)->get(),
             )->resolve(),
         ]);
+    }
+
+    /**
+     * New orders from the shop, oldest first: they wait for Terima or Tolak.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function orderActions(Business $business): array
+    {
+        return array_values($business->orders()->where('orders.status', OrderStatus::Menunggu)->oldest('orders.id')->limit(3)->get()
+            ->map(fn (Order $order) => [
+                'id' => "pesanan-{$order->id}",
+                'kind' => 'pesanan',
+                'title' => "Pesanan {$order->code} dari {$order->customer_name}",
+                'detail' => Format::rupiah($order->total).', masuk '.Format::date($order->created_at).' '.$order->created_at->format('H:i'),
+                'actionLabel' => 'Lihat pesanan',
+                'target' => ['href' => route('orders.show', $order->code)],
+            ])->all());
     }
 
     /**
@@ -98,7 +122,7 @@ class DashboardController extends Controller
     /**
      * Customers more than 7 days behind, the three oldest.
      *
-     * @param  list<array{contact: Contact, balance: int, since: CarbonImmutable}>  $receivables
+     * @param  list<array{contact: Contact, balance: int, since: CarbonImmutable, open: int}>  $receivables
      * @return list<array<string, mixed>>
      */
     private function receivableActions(array $receivables): array
@@ -110,8 +134,8 @@ class DashboardController extends Controller
             'kind' => 'piutang',
             'title' => "{$row['contact']->name} belum bayar ".Format::rupiah($row['balance']),
             'detail' => 'Belum lunas sejak '.Format::date($row['since']).', sudah '.(int) $row['since']->diffInDays(now()).' hari',
-            'actionLabel' => 'Catat bayaran',
-            'target' => ['href' => route('transactions.create', ['jenis' => TransactionType::UtangPiutang->value])],
+            'actionLabel' => 'Lihat tagihan',
+            'target' => ['href' => route('debts.show', $row['contact'])],
         ], array_slice(array_values($overdue), 0, 3));
     }
 }

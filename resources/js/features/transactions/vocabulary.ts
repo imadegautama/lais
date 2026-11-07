@@ -30,6 +30,12 @@ export const recordCopy: Record<
         paymentTitle: 'Pembayaran',
         notePlaceholder: 'Token bulan Oktober',
     },
+    pemasukan_lain: {
+        save: 'Simpan pemasukan',
+        kindTitle: '',
+        paymentTitle: 'Uang masuk ke',
+        notePlaceholder: 'Hibah dari dinas koperasi',
+    },
     utang_piutang: {
         save: 'Simpan pembayaran',
         kindTitle: 'Jenis pembayaran',

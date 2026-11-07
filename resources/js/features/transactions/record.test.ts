@@ -33,6 +33,8 @@ const byId = (...items: RecordItem[]) =>
 const form = (patch: Partial<RecordFormData>): RecordFormData => ({
     type: 'penjualan',
     kind: '',
+    account_id: '',
+    useful_life_years: '4',
     method: 'tunai',
     occurred_at: '',
     lines: [],
