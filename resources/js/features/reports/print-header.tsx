@@ -1,6 +1,6 @@
 import { formatDate } from '@/lib/format';
 
-/** On paper only: whose report, which one, for when, and when it was printed (PRD M6). */
+/** On paper only: whose report, which one, for when, in what money, and when it was printed (PRD M6, SAK EMKM par. 3.11). */
 export function PrintHeader({
     business,
     title,
@@ -18,7 +18,7 @@ export function PrintHeader({
                 {title} · {scope}
             </h1>
             <p className="text-xs text-muted-foreground">
-                Dicetak {formatDate(new Date(), 'datetime')}
+                Dalam Rupiah penuh. Dicetak {formatDate(new Date(), 'datetime')}
             </p>
         </header>
     );

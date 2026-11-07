@@ -15,6 +15,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ImpactPanel } from '@/features/transactions/impact-panel';
+import { AccountField } from '@/features/transactions/account-field';
 import { ItemLines } from '@/features/transactions/item-lines';
 import { PaymentFields } from '@/features/transactions/payment-fields';
 import {
@@ -47,6 +48,7 @@ export default function TransactionCreate({
     items,
     contacts,
     moneyAccounts,
+    ownAccounts,
     editing,
     initial,
 }: TransactionCreateProps) {
@@ -54,6 +56,8 @@ export default function TransactionCreate({
         initial ?? {
             type: initialType,
             kind: DEFAULT_KIND[initialType],
+            account_id: '',
+            useful_life_years: '4',
             method: PaymentMethod.Tunai,
             occurred_at: now,
             lines: [emptyLine()],
@@ -234,29 +238,65 @@ export default function TransactionCreate({
                                         </div>
                                     )}
 
+                                    <AccountField
+                                        type={type}
+                                        value={data.account_id ?? ''}
+                                        accounts={ownAccounts}
+                                        error={errors.account_id}
+                                        onChange={(id) =>
+                                            setField('account_id', id)
+                                        }
+                                    />
+
                                     {isEquipment && (
-                                        <Field
-                                            label="Nama peralatan"
-                                            htmlFor="tx-note"
-                                            error={errors.note}
-                                        >
-                                            <Input
-                                                id="tx-note"
-                                                value={data.note}
-                                                onChange={(e) =>
-                                                    setField(
-                                                        'note',
-                                                        e.target.value,
-                                                    )
+                                        <>
+                                            <Field
+                                                label="Nama peralatan"
+                                                htmlFor="tx-note"
+                                                error={errors.note}
+                                            >
+                                                <Input
+                                                    id="tx-note"
+                                                    value={data.note}
+                                                    onChange={(e) =>
+                                                        setField(
+                                                            'note',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Kompor dua tungku"
+                                                    aria-invalid={
+                                                        Boolean(errors.note) ||
+                                                        undefined
+                                                    }
+                                                    autoComplete="off"
+                                                />
+                                            </Field>
+                                            <Field
+                                                label="Umur pakai (tahun)"
+                                                htmlFor="tx-life"
+                                                hint="Harga peralatan dibagi rata selama umur ini sebagai biaya penyusutan."
+                                                error={
+                                                    errors.useful_life_months
                                                 }
-                                                placeholder="Kompor dua tungku"
-                                                aria-invalid={
-                                                    Boolean(errors.note) ||
-                                                    undefined
-                                                }
-                                                autoComplete="off"
-                                            />
-                                        </Field>
+                                            >
+                                                <Input
+                                                    id="tx-life"
+                                                    inputMode="decimal"
+                                                    value={
+                                                        data.useful_life_years ??
+                                                        ''
+                                                    }
+                                                    onChange={(e) =>
+                                                        setField(
+                                                            'useful_life_years',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="w-28"
+                                                />
+                                            </Field>
+                                        </>
                                     )}
                                 </div>
                             </SectionCard>

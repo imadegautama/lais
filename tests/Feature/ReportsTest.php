@@ -44,13 +44,93 @@ class ReportsTest extends TestCase
         $sell('2026-11-02 10:00', 1);
     }
 
+    public function test_each_statement_shows_the_period_before_it(): void
+    {
+        $this->actingAs($this->business->user);
+
+        // This month beside the whole of October, not October up to today's date.
+        $this->get(route('reports.profit-loss'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('reports/profit-and-loss')
+            ->where('report.sales', 4000)
+            ->where('previous.sales', 60000)
+            ->where('previous.expensesByKind.listrik_air', 50000)
+            ->where('previousLabel', 'Bulan lalu'));
+        $this->get(route('reports.profit-loss', ['periode' => 'bulan_lalu']))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('report.sales', 60000)
+            ->where('previous.sales', 0)
+            ->where('previousLabel', 'Bulan sebelumnya'));
+
+        $this->get(route('reports.balance-sheet', ['tanggal' => '2026-11-18']))->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('reports/balance-sheet')
+            ->where('previousDate', '2026-10-31')
+            ->where('previous.balanced', true)
+            ->where('previous.assets.total', app(Reports::class)->balanceSheet($this->business, CarbonImmutable::parse('2026-10-31'))['assets']['total']));
+    }
+
+    public function test_the_notes_add_up_to_the_lines_of_the_position(): void
+    {
+        $this->actingAs($this->business->user)->get(route('reports.notes', ['periode' => 'bulan_lalu']))
+            ->assertInertia(function (AssertableInertia $page) {
+                $page->component('reports/notes');
+                $props = $page->toArray()['props'];
+                $sum = fn (string $list) => array_sum(array_column($props['details'][$list], 'amount'));
+
+                $this->assertSame($props['position']['assets']['cash'] + $props['position']['assets']['nonCash'], $sum('money'));
+                $this->assertSame($props['position']['assets']['inventory'], $sum('inventory'));
+                $this->assertSame($props['position']['assets']['receivables'], $sum('receivables'));
+                $this->assertSame($props['position']['liabilities']['payables'], $sum('payables'));
+                $this->assertEquals(['upah' => 100000, 'listrik_air' => 50000, 'gas_bbm' => 25000], $props['expensesByKind']);
+            });
+    }
+
+    public function test_the_cash_book_runs_from_the_opening_to_the_closing_balance(): void
+    {
+        $reports = app(Reports::class);
+        $from = CarbonImmutable::parse('2026-10-01');
+        $before = CarbonImmutable::parse('2026-11-01');
+        $book = $reports->cashBook($this->business, $from, $before);
+        $position = $reports->balanceSheet($this->business, CarbonImmutable::parse('2026-10-31'));
+
+        $this->assertSame($position['assets']['cash'] + $position['assets']['nonCash'], $book['closing']);
+        $this->assertSame($book['opening'] + $book['totalIn'] - $book['totalOut'], $book['closing']);
+        $this->assertSame($book['closing'], end($book['lines'])['balance']);
+
+        // One rekening alone, and a rekening of another business is ignored.
+        $this->actingAs($this->business->user);
+        $cash = $this->business->cashBox();
+        $this->get(route('reports.cash-book', ['periode' => 'bulan_lalu', 'rekening' => $cash->id]))->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('reports/cash-book')
+            ->where('moneyAccountId', $cash->id)
+            ->where('book.closing', $reports->cashBook($this->business, $from, $before, $cash->id)['closing']));
+        $other = Business::factory()->create()->cashBox();
+        $this->get(route('reports.cash-book', ['rekening' => $other->id]))->assertInertia(fn (AssertableInertia $page) => $page->where('moneyAccountId', null));
+    }
+
+    public function test_product_profit_adds_up_to_the_gross_profit_and_slow_stock_is_named(): void
+    {
+        $reports = app(Reports::class);
+        $from = CarbonImmutable::parse('2026-10-01');
+        $before = CarbonImmutable::parse('2026-11-01');
+        $products = $reports->productPerformance($this->business, $from, $before);
+
+        $this->assertSame(['Air Mineral', 15.0, 60000, 22500], [$products[0]['name'], $products[0]['qty'], $products[0]['sales'], $products[0]['profit']]);
+        $this->assertSame($reports->profitAndLoss($this->business, $from, $before)['grossProfit'], array_sum(array_column($products, 'profit')));
+
+        // Sold on 2 November, so not slow on the 18th; a month later it is.
+        $this->assertSame([], $reports->slowStock($this->business));
+        $this->travelTo(CarbonImmutable::parse('2026-12-20 10:00'));
+        $this->assertSame('Air Mineral', $reports->slowStock($this->business)[0]['name']);
+
+        $this->actingAs($this->business->user)->get(route('reports.products', ['periode' => 'bulan_lalu']))->assertInertia(fn (AssertableInertia $page) => $page->component('reports/products'));
+    }
+
     public function test_profit_and_loss_lists_each_expense_kind_from_the_journal(): void
     {
         [$from, $before] = $this->october();
         $reports = app(Reports::class);
 
         // 15 bottles sold at 4.000 with a cost of 2.500; the cancelled rent nets out.
-        $this->assertSame(['sales' => 60000, 'cogs' => 37500, 'grossProfit' => 22500, 'expenses' => 175000, 'stockDifference' => 0, 'netProfit' => -152500], $reports->profitAndLoss($this->business, $from, $before));
+        $this->assertSame(['sales' => 60000, 'cogs' => 37500, 'grossProfit' => 22500, 'otherIncome' => 0, 'expenses' => 175000, 'depreciation' => 0, 'otherExpenses' => 0, 'stockDifference' => 0, 'netProfit' => -152500], $reports->profitAndLoss($this->business, $from, $before));
         $this->assertEqualsCanonicalizing(['listrik_air' => 50000, 'upah' => 100000, 'gas_bbm' => 25000], $reports->expensesByKind($this->business, $from, $before));
     }
 
@@ -77,7 +157,7 @@ class ReportsTest extends TestCase
         $reports = app(Reports::class);
 
         $this->assertSame([
-            'assets' => ['cash' => 735000, 'nonCash' => 900000, 'receivables' => 5000, 'inventory' => 262500, 'equipment' => 1500000, 'total' => 3402500],
+            'assets' => ['cash' => 735000, 'nonCash' => 900000, 'receivables' => 5000, 'inventory' => 262500, 'equipment' => 1500000, 'accumulatedDepreciation' => 0, 'total' => 3402500],
             'liabilities' => ['payables' => 350000, 'customerDeposits' => 0, 'total' => 350000],
             'equity' => ['capital' => 3275000, 'drawings' => -70000, 'profit' => -152500, 'total' => 3052500],
             'balanced' => true,

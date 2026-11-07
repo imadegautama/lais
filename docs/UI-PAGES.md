@@ -421,13 +421,20 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 
 **Status pembuatan (slice 8):**
 
-- C13, C14, C15, dan C17 sudah jadi. C16 dan C18 tampil sebagai kartu "Segera".
+- C13 sampai C18 sudah jadi. Neraca tampil sebagai **Laporan Posisi Keuangan (Neraca)**, dan Laba rugi serta Posisi keuangan memakai kolom pembanding periode sebelumnya (di HP, angkanya di bawah angka utama).
+- Tambahan 7 Nov: `/laporan/catatan` (CALK otomatis), `/laporan/coa` (Daftar akun dengan Tambah akun, Ganti nama, Arsipkan), `/laporan/buku-besar/{kode}`, `/laporan/neraca-saldo`, `/laporan/aset-tetap`.
+- Form produk menampilkan saran harga jual untuk margin 30, 40, dan 50 persen; tombolnya mengisi Harga jual. Form peralatan punya field Umur pakai (tahun). Form Biaya menampilkan pilihan akun kalau usaha punya akun beban sendiri.
 - Bar aksi untuk sementara hanya berisi pemilih periode (Neraca: tanggal) dan **Cetak / simpan PDF**. Kirim ke WA dan Tanya AI tentang laporan menunggu fiturnya.
-- Rincian biaya di C14 selalu tampil, tidak dibuka-tutup, supaya ikut tercetak.
-- Kolom pembanding di C14 dan grafik waterfall di C17 belum dibuat.
+- Tambahan 7 Nov, perombakan tampilan: semua laporan dibuka dengan kesimpulan satu kalimat (`ReportLead`, dihitung `App\Services\ReportStory` dari jurnal tanpa AI), lalu grafik yang menjawab satu pertanyaan, lalu laporan resmi. Baris laporan menuju Buku besar, dan rentang tanggal ikut terbawa.
+- Filter **Pilih tanggal** (`?dari=&sampai=`, `App\Support\ReportRange`) tersedia di semua laporan berperiode. Pembandingnya periode sepanjang rentang yang sama tepat sebelumnya. Tanggal rusak, terbalik, atau di masa depan jatuh ke Bulan ini.
+- Rincian biaya di C14 bisa dibuka-tutup di layar, tetapi selalu ikut tercetak.
+- Baris bernilai nol di dua periode disembunyikan. Catatan tanpa saldo digabung menjadi satu kalimat di Dasar penyusunan.
+- Buku kas, Buku besar, dan Neraca saldo memakai `AppDataTable` (Buku kas dan Buku besar 20 baris per halaman). Cetak selalu memuat semua baris lewat `usePrinting`.
+- C13 berisi tiga daftar laporan (Kesehatan usaha, Uang dan produk, Pembukuan), bukan kartu seragam. Tiap baris berisi nama, satu kalimat, dan angka kunci.
+- Grafik waterfall di C17 belum dibuat. Jembatan laba ke kas memakai `BreakdownBars`.
 
 - **Pemilih periode global**, yang terbawa ke semua sub-laporan.
-- **Grid kartu laporan:** setiap kartu berisi nama, angka kunci, dan satu kalimat penjelasan.
+- **Daftar laporan per kelompok:** setiap baris berisi nama, angka kunci, dan satu kalimat penjelasan.
     - Laba Rugi ("laba bersih Rp3,8 jt")
     - Neraca ("Seimbang ✓")
     - Buku Kas

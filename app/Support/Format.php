@@ -20,6 +20,23 @@ class Format
     }
 
     /**
+     * "Rp4,8 jt" from a million up, exact below. Same units as formatRupiahCompact.
+     */
+    public static function compact(int $amount): string
+    {
+        $size = abs($amount);
+
+        if ($size < 1_000_000) {
+            return self::rupiah($amount);
+        }
+
+        [$unit, $word] = $size >= 1_000_000_000 ? [1_000_000_000, 'M'] : [1_000_000, 'jt'];
+        $value = rtrim(rtrim(number_format($size / $unit, 1, ',', '.'), '0'), ',');
+
+        return ($amount < 0 ? '−' : '')."Rp{$value} {$word}";
+    }
+
+    /**
      * "17 Oktober 2026".
      */
     public static function date(CarbonInterface $date): string

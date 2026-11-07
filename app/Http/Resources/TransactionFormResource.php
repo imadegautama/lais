@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionType;
+use App\Models\FixedAsset;
 use App\Models\Transaction;
 use App\Models\TransactionLine;
 use App\Support\Format;
@@ -30,6 +31,8 @@ class TransactionFormResource extends JsonResource
         return [
             'type' => $this->type,
             'kind' => $this->kind ?? '',
+            'useful_life_years' => Format::decimalInput(($this->fixedAsset->useful_life_months ?? FixedAsset::DEFAULT_LIFE_MONTHS) / 12),
+            'account_id' => $this->account_id === null ? '' : (string) $this->account_id,
             'method' => $this->method,
             'occurred_at' => $this->occurred_at->format('Y-m-d\TH:i'),
             'lines' => $hasLines

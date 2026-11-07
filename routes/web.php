@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
+use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\GowaWebhookController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\MoneyAccountController;
@@ -71,6 +73,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('laporan/laba-rugi', [ReportController::class, 'profitAndLoss'])->name('reports.profit-loss');
     Route::get('laporan/perubahan-modal', [ReportController::class, 'equity'])->name('reports.equity');
     Route::get('laporan/neraca', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+    Route::get('laporan/catatan', [ReportController::class, 'notes'])->name('reports.notes');
+    Route::get('laporan/buku-kas', [ReportController::class, 'cashBook'])->name('reports.cash-book');
+    Route::get('laporan/produk', [ReportController::class, 'products'])->name('reports.products');
+    Route::get('laporan/coa', [ReportController::class, 'chart'])->name('reports.chart');
+    Route::get('laporan/neraca-saldo', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
+    Route::get('laporan/buku-besar/{code}', [ReportController::class, 'ledger'])->whereNumber('code')->name('reports.ledger');
+    Route::get('laporan/aset-tetap', [FixedAssetController::class, 'index'])->name('fixed-assets.index');
+    Route::patch('aset-tetap/{fixedAsset}', [FixedAssetController::class, 'update'])->name('fixed-assets.update');
+    Route::post('akun', [AccountController::class, 'store'])->name('accounts.store');
+    Route::put('akun/{account}', [AccountController::class, 'update'])->name('accounts.update');
+    Route::patch('akun/{account}/arsip', [AccountController::class, 'archive'])->name('accounts.archive');
 
     // Every turn is a paid model call, so a runaway client is cut off quickly.
     Route::post('asisten', [AssistantController::class, 'store'])->middleware('throttle:20,1')->name('assistant.store');

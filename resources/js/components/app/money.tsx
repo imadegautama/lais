@@ -48,7 +48,7 @@ export function Money({
             )}
         >
             {sign}
-            <span className="mr-px text-[0.72em] font-semibold">Rp</span>
+            <span className="mr-px text-[0.8em] font-semibold">Rp</span>
             {digits}
         </span>
     );

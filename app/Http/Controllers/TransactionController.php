@@ -18,6 +18,7 @@ use App\Http\Resources\TransactionDetailResource;
 use App\Http\Resources\TransactionFormResource;
 use App\Http\Resources\TransactionLineResource;
 use App\Http\Resources\TransactionResource;
+use App\Models\Account;
 use App\Models\Activity;
 use App\Models\Business;
 use App\Models\Contact;
@@ -239,6 +240,8 @@ class TransactionController extends Controller
             'contacts' => $business->contacts()->orderBy('contacts.name')->get()
                 ->map(fn (Contact $contact) => (new ContactResource($contact, $balances[$contact->id] ?? 0))->resolve())
                 ->values()->all(),
+            'ownAccounts' => Account::query()->where('accounts.business_id', $business->id)->whereNull('accounts.archived_at')->orderBy('accounts.code')
+                ->get(['accounts.id', 'accounts.name', 'accounts.type'])->all(),
             'moneyAccounts' => $business->moneyAccounts()->orderBy('money_accounts.id')->get()
                 ->map(fn (MoneyAccount $moneyAccount) => (new MoneyAccountResource($moneyAccount, $moneyBalances[$moneyAccount->id] ?? 0))->resolve())
                 ->values()->all(),

@@ -258,9 +258,17 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - **Status slice 8 (3 Nov 2026):**
     - Sudah jadi: Pusat laporan, Laba rugi (biaya per jenis), Perubahan modal dengan kartu **Laba vs Kas** (rekonsiliasi untuk skenario demo 4), dan Neraca per tanggal dengan badge Seimbang.
     - Semua angka dihitung di `App\Services\Reports` dari jurnal. Uji acak `LedgerTest` memeriksa bahwa neraca seimbang, laba vs kas selisih Rp0, dan perubahan modal cocok (K3).
-    - Filter periode bertambah **Bulan lalu**. Rentang tanggal belum dibuat.
+    - Filter periode bertambah **Bulan lalu**. Rentang tanggal menyusul di slice 11.
     - PDF untuk sementara lewat **cetak dari browser** ("Cetak / simpan PDF"), dengan header nama usaha, periode, dan tanggal cetak. PDF dari server (dompdf) menyusul untuk "kirim laporan pdf" lewat WA.
     - Buku kas dan Produk terlaris masih "Segera".
+- **Status slice 11 (7 Nov 2026):**
+    - Filter **rentang tanggal** sudah ada di semua laporan berperiode, dan tiap laporan dibuka dengan kesimpulan yang dihitung server dari jurnal, tanpa AI.
+    - Acuan akuntansi: SAK EMKM. Sumber yang dibaca adalah draf eksposur IAI; IAI menyatakan SAK EMKM disahkan 24 Oktober 2016 dan belum direvisi. Nomor paragraf perlu dicocokkan dengan teks final sebelum dikutip di proposal.
+    - Laporan minimum SAK EMKM (par. 3.9) sudah lengkap: Laporan Posisi Keuangan, Laba Rugi, dan Catatan atas Laporan Keuangan otomatis di `/laporan/catatan`. Keduanya memakai kolom pembanding periode sebelumnya (par. 3.8).
+    - Lais hanya boleh menyebut "mengacu pada SAK EMKM", bukan "patuh" (par. 3.4), karena ongkir pembelian belum masuk biaya perolehan persediaan (par. 9.3) dan utang bank belum didukung.
+    - Penyusutan peralatan dibuat: garis lurus tanpa nilai residu, per bulan penuh mulai bulan perolehan, akun 1402 dan 6301, jurnal lewat `lais:penyusutan`. Peralatan lama menunggu pemilik mengisi umur pakainya, jadi pembukuan lama tidak berubah sendiri.
+    - Baru: Daftar akun (COA), Buku besar, Neraca saldo, Aset tetap, Buku kas, Produk terlaris dan margin (termasuk barang jarang laku).
+    - Pemilik bisa menambah akun Beban dan Pendapatan sendiri. Akun sistem dan kategori terkunci. Jenis transaksi baru: Pemasukan lain.
 
 **US-13.** Sebagai pemilik, saya ingin dashboard yang langsung menunjukkan kondisi hari ini.
 
@@ -343,21 +351,20 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 ### 2.4 Non-Goals
 
-| Tidak dibuat                                                | Alasan                                                                   |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Invoice formal B2B                                          | Target B2C. Nota digital sudah cukup                                     |
-| Gaji owner                                                  | Pencatatan prive sudah menjawab masalah uang tercampur                   |
-| Estimasi PPh 0,5%                                           | Usaha perorangan beromzet ≤ Rp500 jt/tahun tidak terutang                |
-| Pengingat izin usaha                                        | Di luar operasional harian                                               |
-| Multi-outlet, multi-user, payroll                           | Persona pemilik tunggal dengan ±2 pekerja                                |
-| Payment gateway / QRIS dinamis                              | UMKM sudah punya QRIS statis. Konfirmasi bayar manual                    |
-| Integrasi marketplace                                       | Di luar masalah inti                                                     |
-| Bot yang chat langsung ke pelanggan                         | Risiko blokir nomor. Pakai link `wa.me` dari WA pemilik                  |
-| UMKM jasa (laundry, salon)                                  | Operasionalnya berbasis booking, model datanya berbeda                   |
-| Produksi batch / barang setengah jadi                       | Produk berkomposisi dianggap dibuat saat dijual                          |
-| Penyusutan aset tetap                                       | Peralatan dicatat sebesar nilai perolehan. Dijelaskan di catatan laporan |
-| Konversi satuan, mode offline, aplikasi mobile native       | Di luar 3 minggu. Konversi satuan masuk v1.1                             |
-| Asisten konten promosi, voice note, nomor pencatat tambahan | Bab Rencana Pengembangan (v2.0)                                          |
+| Tidak dibuat                                                | Alasan                                                    |
+| ----------------------------------------------------------- | --------------------------------------------------------- |
+| Invoice formal B2B                                          | Target B2C. Nota digital sudah cukup                      |
+| Gaji owner                                                  | Pencatatan prive sudah menjawab masalah uang tercampur    |
+| Estimasi PPh 0,5%                                           | Usaha perorangan beromzet ≤ Rp500 jt/tahun tidak terutang |
+| Pengingat izin usaha                                        | Di luar operasional harian                                |
+| Multi-outlet, multi-user, payroll                           | Persona pemilik tunggal dengan ±2 pekerja                 |
+| Payment gateway / QRIS dinamis                              | UMKM sudah punya QRIS statis. Konfirmasi bayar manual     |
+| Integrasi marketplace                                       | Di luar masalah inti                                      |
+| Bot yang chat langsung ke pelanggan                         | Risiko blokir nomor. Pakai link `wa.me` dari WA pemilik   |
+| UMKM jasa (laundry, salon)                                  | Operasionalnya berbasis booking, model datanya berbeda    |
+| Produksi batch / barang setengah jadi                       | Produk berkomposisi dianggap dibuat saat dijual           |
+| Konversi satuan, mode offline, aplikasi mobile native       | Di luar 3 minggu. Konversi satuan masuk v1.1              |
+| Asisten konten promosi, voice note, nomor pencatat tambahan | Bab Rencana Pengembangan (v2.0)                           |
 
 ### 2.5 Kebutuhan UX
 
@@ -568,7 +575,7 @@ Aturan data:
 
 ### 4.4 Aturan Jurnal Otomatis
 
-Bagan akun tetap: 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 Persediaan, 1401 Peralatan, 2101 Utang Usaha, 2201 Uang Muka Pesanan, 3101 Modal Pemilik, 3201 Prive, 4101 Penjualan, 5101 HPP, 6101 Beban Operasional, 6201 Selisih Persediaan.
+Bagan akun sistem (terkunci): 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 Persediaan, 1401 Peralatan, 1402 Akumulasi Penyusutan, 2101 Utang Usaha, 2201 Uang Muka Pesanan, 3101 Modal Pemilik, 3201 Prive, 4101 Penjualan, 5101 HPP, 6101 Beban Operasional, 6201 Selisih Persediaan, 6301 Beban Penyusutan. Usaha bisa menambah akun Beban dan Pendapatan sendiri (mulai 6501 dan 4201).
 
 | Transaksi                    | Debit                                                | Kredit                                                    |
 | ---------------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
@@ -585,6 +592,9 @@ Bagan akun tetap: 1101 Kas Tunai, 1102 Kas Non-Tunai, 1201 Piutang Usaha, 1301 P
 | Setor modal                  | Kas                                                  | Modal Pemilik                                             |
 | Ambil pribadi                | Prive                                                | Kas                                                       |
 | Koreksi stok kurang / lebih  | Selisih Persediaan / Persediaan                      | Persediaan / Selisih Persediaan                           |
+| Penyusutan bulanan           | Beban Penyusutan                                     | Akumulasi Penyusutan                                      |
+| Biaya pada akun usaha        | Akun beban usaha (mulai 6501)                        | Kas / Utang Usaha / Modal Pemilik                         |
+| Pemasukan lain               | Kas                                                  | Akun pendapatan usaha (mulai 4201)                        |
 | Saldo awal kas & rekening    | Kas (rekening itu)                                   | Modal Pemilik                                             |
 | Saldo awal peralatan         | Peralatan                                            | Modal Pemilik                                             |
 | Saldo awal piutang           | Piutang                                              | Modal Pemilik                                             |

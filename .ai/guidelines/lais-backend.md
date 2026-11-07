@@ -21,7 +21,10 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - Saldo awal dicatat sebagai `TransactionType::SaldoAwal`, dengan kind `saldo_kas`, `saldo_peralatan`, `saldo_utang`, atau `saldo_piutang`. Modal Pemilik selalu jadi lawannya.
     - Cara bayarnya diturunkan otomatis (`TransactionKind::openingMethod()`), sama seperti Pindah dana, sehingga `TransactionType::methods()` kosong.
     - Ringkasan uang masuk/keluar tidak menghitung saldo awal.
-- Kode akun memakai konstanta `App\Models\Account` (`Account::INVENTORY`, `Account::COGS`, dan seterusnya). Bentuknya konstanta, bukan enum, karena dipakai sebagai key array di `Ledger::lines()`.
+- Kode akun sistem memakai konstanta `App\Models\Account` (`Account::INVENTORY`, `Account::COGS`, dan seterusnya). Bentuknya konstanta, bukan enum, karena dipakai sebagai key array di `Ledger::lines()`.
+    - Akun sistem punya `business_id` null dan terkunci. Usaha hanya bisa menambah akun Beban (mulai 6501) dan Pendapatan (mulai 4201), mengganti nama, dan mengarsipkan; tidak ada hapus.
+    - Kode akun usaha bisa sama di dua usaha, jadi pencarian akun wajib lewat `Account::visibleTo($business)`.
+    - Semua akun laba rugi berkode 4000 ke atas. `Reports::profit()` dan `profitAndLoss()` membaca rentang kode, jadi akun usaha otomatis ikut laba.
 - Validasi daftar nilai memakai `Rule::enum(...)`. Untuk subset (cara bayar per jenis), pakai `Rule::in(array_column($type->methods(), 'value'))`, karena `Rule::enum()->only([])` justru meloloskan semuanya.
 - Setelah enum ditambah atau diubah, jalankan `php artisan lais:enums` supaya `resources/js/types/enums.ts` ikut berubah. `VocabularyTest` gagal kalau lupa.
 
@@ -37,9 +40,12 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - Pembatalan tidak perlu disaring, karena jurnal cerminnya bertanggal sama sehingga nilainya nol dalam periode apa pun. Daftar yang memakai baris transaksi (umur piutang, pemakaian stok) menyaring `TransactionStatus::Posted`.
     - Modal awal sebuah periode dihitung dengan `Reports::openingEquity()`. Di periode saat pembukuan dibuka, nilainya adalah neraca pembukaan (`started_on` 00.00).
     - Laporan memakai `Reports::profitAndLoss()`, `expensesByKind()`, `equityChanges()`, `balanceSheet()`, dan `cashReconciliation()`.
+    - Periode laporan selalu lewat `App\Support\ReportRange` (`?periode=` atau `?dari=&sampai=`), dan kesimpulan di puncak laporan dari `App\Services\ReportStory`, dihitung dari angka jurnal tanpa AI.
         - Pergerakan sebuah periode dihitung mulai `started_on` + 1 detik kalau pembukuan dibuka di dalam periode itu (`periodStart()`). Dengan begitu saldo awal menjadi modal awal, bukan setoran.
         - Setoran = −net 3101 di jendela itu: setor modal, belanja dengan uang pribadi, dan stok awal produk baru.
         - Rekonsiliasi laba vs kas harus selalu bersisa Rp0. Akun baru di bagan akun wajib ditambahkan ke `Reports::CASH_STEPS`, karena `LedgerTest` akan gagal.
+- Acuan akuntansi adalah SAK EMKM. Lais hanya boleh menyebut "mengacu pada SAK EMKM", bukan "patuh", selama ada batasan yang ditulis di CALK (`resources/js/features/reports/vocabulary.ts`). Aturan baru yang mengubah kebijakan wajib memperbarui teks kebijakan di sana.
+- Penyusutan hanya lewat `App\Services\Depreciation`: garis lurus tanpa nilai residu, per bulan penuh mulai bulan perolehan, sisa pembulatan di bulan terakhir, bertanggal akhir bulan, idempoten lewat `depreciated_through`. Aset dengan `useful_life_months` null tidak dijurnal. Pembatalan pembelian membalik jurnal penyusutannya di tanggal aslinya.
 - Pesanan (M4) hanya bergerak lewat `App\Services\Orders`: `place`, `accept`, `reject`, `markReady`, `complete`, `cancel`, `recordPayment`.
     - Harga selalu diambil dari katalog di server dan disimpan sebagai snapshot di `order_lines`. Browser hanya mengirim `item_id` dan `qty`.
     - Uang tidak disimpan di pesanan. Pembayaran sebelum Selesai adalah transaksi `utang_piutang` kind `uang_muka` (Kas/2201), Selesai mencatat penjualan dengan `deposit` (2201 dipakai, sisanya piutang), dan pembayaran sesudahnya `terima_piutang`. Status bayar dihitung dari `Orders::paid()`, yang membaca sisa tagihan penjualannya dari `Debts`.

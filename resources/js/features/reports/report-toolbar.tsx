@@ -3,6 +3,7 @@ import { Printer } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { PeriodPicker } from '@/components/app/period-picker';
 import { Button } from '@/components/ui/button';
+import { DateRangeFilter } from '@/features/reports/date-range-filter';
 import type { ReportFrame } from '@/types/domain';
 import type { Period as PeriodKey } from '@/types/enums';
 
@@ -40,26 +41,44 @@ export function useReportQuery() {
 export function ReportToolbar({
     frame,
     printable = true,
+    extra = {},
+    report,
     children,
 }: {
     /** Omit to show `children` (the neraca's date) instead of the period. */
     frame?: ReportFrame;
     /** The overview has nothing worth printing. */
     printable?: boolean;
+    /** Other filters of the page, kept when the dates change. */
+    extra?: Record<string, string>;
+    /** The page's own useReportQuery, when it also reloads the report itself. */
+    report?: ReturnType<typeof useReportQuery>;
     children?: ReactNode;
 }) {
-    const { loading, failed, visit } = useReportQuery();
+    const own = useReportQuery();
+    const { loading, failed, visit } = report ?? own;
 
     return (
         <div className="flex flex-col items-start gap-2 md:items-end print:hidden">
             <div className="flex flex-wrap items-end gap-2">
                 {frame ? (
-                    <PeriodPicker
-                        periods={frame.periods}
-                        value={frame.period.key}
-                        onChange={(key: PeriodKey) => visit({ periode: key })}
-                        disabled={loading}
-                    />
+                    <>
+                        <PeriodPicker
+                            periods={frame.periods}
+                            value={frame.period.key ?? ''}
+                            onChange={(key: PeriodKey | '') =>
+                                key && visit({ ...extra, periode: key })
+                            }
+                            disabled={loading}
+                        />
+                        <DateRangeFilter
+                            frame={frame}
+                            disabled={loading}
+                            onApply={(dari, sampai) =>
+                                visit({ ...extra, dari, sampai })
+                            }
+                        />
+                    </>
                 ) : (
                     children
                 )}
@@ -74,6 +93,11 @@ export function ReportToolbar({
                     </Button>
                 )}
             </div>
+            {loading && (
+                <p role="status" className="text-sm text-muted-foreground">
+                    Memuat laporan…
+                </p>
+            )}
             {failed && (
                 <p role="alert" className="text-sm text-destructive">
                     Laporan gagal dimuat. Periksa internet, lalu pilih

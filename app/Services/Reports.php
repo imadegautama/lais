@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\AccountType;
+use App\Enums\ItemKind;
 use App\Enums\StockReason;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
@@ -31,6 +33,7 @@ class Reports
         'inventory' => Account::INVENTORY,
         'receivables' => Account::RECEIVABLE,
         'equipment' => Account::EQUIPMENT,
+        'depreciation' => Account::ACCUMULATED_DEPRECIATION,
         'payables' => Account::PAYABLE,
         'customerDeposits' => Account::CUSTOMER_DEPOSITS,
         'deposits' => Account::OWNER_CAPITAL,
@@ -55,10 +58,11 @@ class Reports
     }
 
     /**
-     * Laba rugi: sales − HPP = gross profit, − operating costs − stock
-     * differences = net profit.
+     * Laba rugi: sales − HPP = gross profit, then other income, operating
+     * costs, stock differences, and the accounts the business added, down to
+     * net profit. Reading by code range means an added account cannot be missed.
      *
-     * @return array{sales: int, cogs: int, grossProfit: int, expenses: int, stockDifference: int, netProfit: int}
+     * @return array{sales: int, cogs: int, grossProfit: int, otherIncome: int, expenses: int, depreciation: int, otherExpenses: int, stockDifference: int, netProfit: int}
      */
     public function profitAndLoss(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): array
     {
@@ -67,15 +71,251 @@ class Reports
         $cogs = $net[Account::COGS] ?? 0;
         $expenses = $net[Account::EXPENSES] ?? 0;
         $stockDifference = $net[Account::STOCK_DIFFERENCE] ?? 0;
+        $depreciation = $net[Account::DEPRECIATION] ?? 0;
+        $income = array_filter($net, fn (int $code) => $code >= 4000 && $code < 5000, ARRAY_FILTER_USE_KEY);
+        $costs = array_filter($net, fn (int $code) => $code >= 6000, ARRAY_FILTER_USE_KEY);
 
         return [
             'sales' => $sales,
             'cogs' => $cogs,
             'grossProfit' => $sales - $cogs,
+            'otherIncome' => -array_sum($income) - $sales,
             'expenses' => $expenses,
+            'depreciation' => $depreciation,
+            'otherExpenses' => array_sum($costs) - $expenses - $stockDifference - $depreciation,
             'stockDifference' => $stockDifference,
-            'netProfit' => $sales - $cogs - $expenses - $stockDifference,
+            'netProfit' => self::profit($net),
         ];
+    }
+
+    /**
+     * The accounts a business added that moved in a time range, for the lines
+     * of the laba rugi.
+     *
+     * @return list<array{code: string, name: string, type: AccountType, amount: int}>
+     */
+    public function ownAccounts(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): array
+    {
+        $net = $this->net($business, $from, $before);
+
+        return array_values(Account::query()->where('accounts.business_id', $business->id)->orderBy('accounts.code')->get()
+            ->filter(fn (Account $account) => ($net[(int) $account->code] ?? 0) !== 0)
+            ->map(fn (Account $account) => [
+                'code' => $account->code,
+                'name' => $account->name,
+                'type' => $account->type,
+                'amount' => abs($net[(int) $account->code]),
+            ])
+            ->all());
+    }
+
+    /**
+     * The chart of accounts with where each stands at the end of $date (now
+     * when null). Debit and credit are the trial balance's two columns;
+     * `balance` is on the account's own side, so a normal balance is positive.
+     *
+     * @return list<array{id: int, code: string, name: string, type: AccountType, system: bool, archived: bool, debit: int, credit: int, balance: int}>
+     */
+    public function chart(Business $business, ?CarbonInterface $date = null): array
+    {
+        $net = $this->net($business, before: $date === null ? null : CarbonImmutable::instance($date)->addDay()->startOfDay());
+
+        return array_values(Account::query()->visibleTo($business)->orderBy('accounts.code')->get()
+            ->map(function (Account $account) use ($net) {
+                $amount = $net[(int) $account->code] ?? 0;
+
+                return [
+                    'id' => $account->id,
+                    'code' => $account->code,
+                    'name' => $account->name,
+                    'type' => $account->type,
+                    'system' => $account->isSystem(),
+                    'archived' => $account->archived_at !== null,
+                    'debit' => max($amount, 0),
+                    'credit' => max(-$amount, 0),
+                    'balance' => $account->normal_balance === 'credit' ? -$amount : $amount,
+                ];
+            })
+            ->all());
+    }
+
+    /**
+     * Buku besar of one account: what it held when the period began, then
+     * each line with the running balance on the account's own side.
+     *
+     * @return array{opening: int, closing: int, lines: list<array{occurredAt: string, description: string, debit: int, credit: int, balance: int}>}
+     */
+    public function ledger(Business $business, Account $account, CarbonInterface $from, ?CarbonInterface $before = null): array
+    {
+        $sign = $account->normal_balance === 'credit' ? -1 : 1;
+        $balance = $sign * ($this->net($business, before: $from)[(int) $account->code] ?? 0);
+        $opening = $balance;
+        $lines = [];
+
+        $rows = $this->journal($business, $from, $before)
+            ->where('accounts.id', $account->id)
+            ->orderBy('journal_entries.occurred_at')
+            ->orderBy('journal_lines.id')
+            ->select('journal_entries.occurred_at', 'journal_entries.description', 'journal_lines.debit', 'journal_lines.credit')
+            ->get();
+
+        foreach ($rows as $row) {
+            $balance += $sign * ((int) $row->debit - (int) $row->credit);
+            $lines[] = [
+                'occurredAt' => CarbonImmutable::parse((string) $row->occurred_at)->toIso8601String(),
+                'description' => (string) $row->description,
+                'debit' => (int) $row->debit,
+                'credit' => (int) $row->credit,
+                'balance' => $balance,
+            ];
+        }
+
+        return ['opening' => $opening, 'closing' => $balance, 'lines' => $lines];
+    }
+
+    /**
+     * Buku kas: money in and out of one rekening, or all of them, with the
+     * running balance. A transfer between two rekening shows on both.
+     *
+     * @return array{opening: int, closing: int, totalIn: int, totalOut: int, lines: list<array{occurredAt: string, description: string, account: string, in: int, out: int, balance: int}>}
+     */
+    public function cashBook(Business $business, CarbonInterface $from, ?CarbonInterface $before = null, ?int $moneyAccountId = null): array
+    {
+        $cash = fn (Builder $query) => $query
+            ->whereNotNull('journal_lines.money_account_id')
+            ->when($moneyAccountId, fn (Builder $query, int $id) => $query->where('journal_lines.money_account_id', $id));
+        $row = $cash($this->journal($business, null, $from))
+            ->selectRaw('sum(journal_lines.debit) as debit, sum(journal_lines.credit) as credit')
+            ->first();
+        $opening = (int) ($row->debit ?? 0) - (int) ($row->credit ?? 0);
+        $balance = $opening;
+        $lines = [];
+
+        $rows = $cash($this->journal($business, $from, $before))
+            ->join('money_accounts', 'money_accounts.id', '=', 'journal_lines.money_account_id')
+            ->orderBy('journal_entries.occurred_at')
+            ->orderBy('journal_lines.id')
+            ->select('journal_entries.occurred_at', 'journal_entries.description', 'money_accounts.name', 'journal_lines.debit', 'journal_lines.credit')
+            ->get();
+
+        foreach ($rows as $line) {
+            $balance += (int) $line->debit - (int) $line->credit;
+            $lines[] = [
+                'occurredAt' => CarbonImmutable::parse((string) $line->occurred_at)->toIso8601String(),
+                'description' => (string) $line->description,
+                'account' => (string) $line->name,
+                'in' => (int) $line->debit,
+                'out' => (int) $line->credit,
+                'balance' => $balance,
+            ];
+        }
+
+        return [
+            'opening' => $opening,
+            'closing' => $balance,
+            'totalIn' => (int) array_sum(array_column($lines, 'in')),
+            'totalOut' => (int) array_sum(array_column($lines, 'out')),
+            'lines' => $lines,
+        ];
+    }
+
+    /**
+     * Each product sold in a time range: how much, for how much, and what it
+     * earned, from the cost kept on every sale line. Most profitable first.
+     *
+     * @return list<array{id: int, name: string, unit: string, qty: float, sales: int, cogs: int, profit: int, margin: float|null}>
+     */
+    public function productPerformance(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): array
+    {
+        return array_values(DB::table('transaction_lines')
+            ->join('transactions', 'transactions.id', '=', 'transaction_lines.transaction_id')
+            ->join('items', 'items.id', '=', 'transaction_lines.item_id')
+            ->where('transactions.business_id', $business->id)
+            ->where('transactions.type', TransactionType::Penjualan)
+            ->where('transactions.status', TransactionStatus::Posted)
+            ->where('transactions.occurred_at', '>=', $from)
+            ->when($before, fn (Builder $query) => $query->where('transactions.occurred_at', '<', $before))
+            ->groupBy('items.id', 'items.name', 'items.unit')
+            ->selectRaw('items.id, items.name, items.unit, sum(transaction_lines.qty) as qty, sum(transaction_lines.subtotal) as sales, sum(transaction_lines.hpp) as cogs')
+            ->get()
+            ->map(function (object $row) {
+                $sales = (int) $row->sales;
+                $profit = $sales - (int) $row->cogs;
+
+                return [
+                    'id' => (int) $row->id,
+                    'name' => (string) $row->name,
+                    'unit' => (string) $row->unit,
+                    'qty' => (float) $row->qty,
+                    'sales' => $sales,
+                    'cogs' => (int) $row->cogs,
+                    'profit' => $profit,
+                    'margin' => $sales > 0 ? round($profit / $sales * 100, 1) : null,
+                ];
+            })
+            ->sortByDesc('profit')
+            ->all());
+    }
+
+    /**
+     * Products with stock on the shelf that have not sold for $days days:
+     * money sitting still, oldest sale first.
+     *
+     * @return list<array{id: int, name: string, stock: float, unit: string, value: int, lastSoldAt: string|null}>
+     */
+    public function slowStock(Business $business, int $days = 30): array
+    {
+        $lastSold = DB::table('transaction_lines')
+            ->join('transactions', 'transactions.id', '=', 'transaction_lines.transaction_id')
+            ->where('transactions.business_id', $business->id)
+            ->where('transactions.type', TransactionType::Penjualan)
+            ->where('transactions.status', TransactionStatus::Posted)
+            ->groupBy('transaction_lines.item_id')
+            ->selectRaw('transaction_lines.item_id, max(transactions.occurred_at) as sold_at')
+            ->pluck('sold_at', 'item_id');
+        $since = now()->subDays($days);
+
+        return array_values($business->items()
+            ->where('items.kind', ItemKind::Produk)
+            ->where('items.stock', '>', 0)
+            ->orderBy('items.name')
+            ->get()
+            ->filter(fn (Item $item) => ! isset($lastSold[$item->id]) || CarbonImmutable::parse((string) $lastSold[$item->id]) < $since)
+            ->map(fn (Item $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'stock' => (float) $item->stock,
+                'unit' => $item->unit,
+                'value' => $item->stock_value,
+                'lastSoldAt' => isset($lastSold[$item->id]) ? CarbonImmutable::parse((string) $lastSold[$item->id])->toIso8601String() : null,
+            ])
+            ->sortBy(fn (array $row) => $row['lastSoldAt'] ?? '')
+            ->all());
+    }
+
+    /**
+     * Sales and profit of the last $months months, oldest first, this month
+     * so far included. Each is the same reading as the laba rugi of that month.
+     *
+     * @return list<array{month: string, label: string, sales: int, netProfit: int}>
+     */
+    public function monthlyTrend(Business $business, int $months = 6): array
+    {
+        $current = now()->toImmutable()->startOfMonth();
+        $trend = [];
+
+        for ($back = $months - 1; $back >= 0; $back--) {
+            $from = $current->subMonthsNoOverflow($back);
+            $report = $this->profitAndLoss($business, $from, $from->addMonthNoOverflow());
+            $trend[] = [
+                'month' => $from->format('Y-m'),
+                'label' => $from->translatedFormat('M'),
+                'sales' => $report['sales'],
+                'netProfit' => $report['netProfit'],
+            ];
+        }
+
+        return $trend;
     }
 
     /**
@@ -166,14 +406,14 @@ class Reports
      * owes, and the owner's part. It balances by construction (§4.4);
      * `balanced` is the proof shown on screen.
      *
-     * @return array{assets: array{cash: int, nonCash: int, receivables: int, inventory: int, equipment: int, total: int}, liabilities: array{payables: int, customerDeposits: int, total: int}, equity: array{capital: int, drawings: int, profit: int, total: int}, balanced: bool}
+     * @return array{assets: array{cash: int, nonCash: int, receivables: int, inventory: int, equipment: int, accumulatedDepreciation: int, total: int}, liabilities: array{payables: int, customerDeposits: int, total: int}, equity: array{capital: int, drawings: int, profit: int, total: int}, balanced: bool}
      */
     public function balanceSheet(Business $business, CarbonInterface $date): array
     {
         $net = $this->net($business, before: CarbonImmutable::instance($date)->addDay()->startOfDay());
         $at = fn (string $code) => $net[(int) $code] ?? 0;
 
-        $assets = ['cash' => $at(Account::CASH), 'nonCash' => $at(Account::NON_CASH), 'receivables' => $at(Account::RECEIVABLE), 'inventory' => $at(Account::INVENTORY), 'equipment' => $at(Account::EQUIPMENT)];
+        $assets = ['cash' => $at(Account::CASH), 'nonCash' => $at(Account::NON_CASH), 'receivables' => $at(Account::RECEIVABLE), 'inventory' => $at(Account::INVENTORY), 'equipment' => $at(Account::EQUIPMENT), 'accumulatedDepreciation' => $at(Account::ACCUMULATED_DEPRECIATION)];
         $liabilities = ['payables' => -$at(Account::PAYABLE), 'customerDeposits' => -$at(Account::CUSTOMER_DEPOSITS)];
         // Prive is shown as what it takes away from the owner's part.
         $equity = ['capital' => -$at(Account::OWNER_CAPITAL), 'drawings' => -$at(Account::DRAWINGS), 'profit' => self::profit($net)];
@@ -368,13 +608,14 @@ class Reports
     }
 
     /**
-     * Laba bersih from account nets: −(sales + HPP + biaya + selisih stok).
+     * Laba bersih from account nets: every income and expense account,
+     * including the ones a business added, is coded from 4000 up.
      *
      * @param  array<int, int>  $net
      */
     private static function profit(array $net): int
     {
-        return -array_sum(array_map(fn (string $code) => $net[(int) $code] ?? 0, [Account::SALES, Account::COGS, Account::EXPENSES, Account::STOCK_DIFFERENCE]));
+        return -array_sum(array_filter($net, fn (int $code) => $code >= 4000, ARRAY_FILTER_USE_KEY));
     }
 
     /**

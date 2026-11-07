@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\AccountType;
 use App\Enums\ContactType;
 use App\Enums\ItemKind;
 use App\Enums\MoneyAccountKind;
@@ -34,6 +35,12 @@ class TransactionRequest extends FormRequest
         $needsContact = $method === PaymentMethod::Kredit || $type === TransactionType::UtangPiutang;
         $isTransfer = $type === TransactionType::PindahDana;
         $isOpening = $type === TransactionType::SaldoAwal;
+        $isOtherIncome = $type === TransactionType::PemasukanLain;
+        // Only an account this business added and still uses; the fixed chart is chosen by the type itself.
+        $ownAccount = fn (AccountType $accountType) => Rule::exists('accounts', 'id')
+            ->where('business_id', $businessId)
+            ->where('type', $accountType->value)
+            ->whereNull('archived_at');
         $needsContact = $needsContact || in_array($kind, [TransactionKind::SaldoUtang, TransactionKind::SaldoPiutang], true);
         $activeMoneyAccount = fn (?MoneyAccountKind $kind = null) => Rule::exists('money_accounts', 'id')
             ->where('business_id', $businessId)
@@ -43,7 +50,7 @@ class TransactionRequest extends FormRequest
         return [
             'type' => ['required', Rule::enum(TransactionType::class)],
             // Without a known type nothing else can pass; the type error is the one shown.
-            'kind' => $type === TransactionType::Penjualan || $isTransfer
+            'kind' => $type === TransactionType::Penjualan || $isTransfer || $isOtherIncome
                 ? ['prohibited']
                 : ['required', Rule::in(array_column($type?->kinds() ?? [], 'value'))],
             // A transfer's method follows its source rekening (TransactionService).
@@ -56,6 +63,14 @@ class TransactionRequest extends FormRequest
                 default => ['prohibited'],
             },
             'to_money_account_id' => $isTransfer ? ['required', 'integer', 'different:money_account_id', $activeMoneyAccount()] : ['prohibited'],
+            'account_id' => match ($type) {
+                TransactionType::Biaya => ['nullable', 'integer', $ownAccount(AccountType::Beban)],
+                TransactionType::PemasukanLain => ['required', 'integer', $ownAccount(AccountType::Pendapatan)],
+                default => ['prohibited'],
+            },
+            'useful_life_months' => in_array($kind, [TransactionKind::Peralatan, TransactionKind::SaldoPeralatan], true)
+                ? ['nullable', 'integer', 'min:1', 'max:600']
+                : ['prohibited'],
             'occurred_at' => ['nullable', 'date', 'before_or_equal:now'],
             'note' => [in_array($kind, [TransactionKind::Peralatan, TransactionKind::SaldoPeralatan], true) ? 'required' : 'nullable', 'string', 'max:200'],
             'proof' => Proof::RULES,
@@ -73,7 +88,7 @@ class TransactionRequest extends FormRequest
             'lines.*.price' => ['required', 'integer', 'min:0', 'max:1000000000000'],
             'amount' => $hasLines ? ['prohibited'] : ['required', 'integer', 'min:1', 'max:1000000000000'],
             'paid_amount' => $type === TransactionType::Penjualan && $method === PaymentMethod::Kredit ? ['nullable', 'integer', 'min:0'] : ['prohibited'],
-            'contact_id' => $isTransfer ? ['prohibited'] : [
+            'contact_id' => $isTransfer || $isOtherIncome ? ['prohibited'] : [
                 Rule::requiredIf(fn () => $needsContact && trim((string) $this->input('contact_name')) === ''),
                 'nullable', 'integer',
                 Rule::exists('contacts', 'id')->where('business_id', $businessId)
@@ -108,6 +123,10 @@ class TransactionRequest extends FormRequest
                 default => 'Pilih setor modal atau ambil untuk pribadi.',
             },
             'kind.in' => 'Jenis ini tidak cocok dengan jenis catatannya.',
+            'useful_life_months.min' => 'Umur pakai paling sedikit 1 bulan.',
+            'useful_life_months.max' => 'Umur pakai paling lama 50 tahun.',
+            'account_id.required' => 'Pilih akun pendapatannya.',
+            'account_id.exists' => 'Akun ini tidak bisa dipakai.',
             'method.required' => 'Pilih cara bayarnya.',
             'method.in' => 'Cara bayar ini tidak bisa dipakai untuk jenis catatan ini.',
             'method.prohibited' => 'Cara bayarnya mengikuti rekening atau jenis catatan ini, jadi tidak perlu dipilih.',

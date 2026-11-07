@@ -29,6 +29,7 @@ const hints: Record<EverydayType, string> = {
     penjualan: 'Jualan tunai, QRIS, atau yang belum dibayar',
     pembelian: 'Bahan baku, barang dagangan, atau peralatan',
     biaya: 'Listrik, gas, sewa, upah karyawan',
+    pemasukan_lain: 'Hibah, bunga bank, atau uang masuk selain penjualan',
     utang_piutang: 'Terima bayaran pelanggan atau bayar supplier',
     modal: 'Setor modal atau ambil uang untuk rumah',
     pindah_dana: 'Setor tunai ke bank, tarik tunai, atau antar rekening',

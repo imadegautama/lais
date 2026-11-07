@@ -374,6 +374,9 @@ export default function ItemForm({
                                     unitCost={unitCost}
                                     price={data.price}
                                     unit={data.unit}
+                                    onUsePrice={(price) =>
+                                        setField('price', price)
+                                    }
                                 />
                             )}
 

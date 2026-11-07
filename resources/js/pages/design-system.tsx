@@ -51,6 +51,8 @@ import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { SearchSelect } from '@/components/app/search-select';
 import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
+import { BreakdownBars } from '@/features/reports/breakdown-bars';
+import { ReportLead } from '@/features/reports/report-lead';
 import { Statement } from '@/features/reports/statement';
 import { TransactionTable } from '@/features/transactions/transaction-table';
 import { Button } from '@/components/ui/button';
@@ -1262,8 +1264,44 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                 <Section
                     id="laporan"
                     title="Laporan"
-                    intro="Laporan bertingkat: label kiri, nominal kanan, pengurang dengan tanda −, subtotal bergaris tipis, total bergaris tebal. Istilah akuntansi diberi tombol ⓘ yang bisa diketuk. Saat dicetak, hanya isi laporan dan header cetak yang tampil."
+                    intro="Tiap laporan dibuka dengan kesimpulan satu kalimat, lalu grafik yang menjawab satu pertanyaan, lalu laporan resmi. Laporan bertingkat: label kiri, nominal kanan, pengurang dengan tanda −, subtotal bergaris tipis, total bergaris tebal. Baris bisa ditekan ke Buku besar dan dibuka rinciannya. Saat dicetak, kesimpulan dan grafik hilang, rincian selalu ikut."
                 >
+                    <div className="mb-4 flex flex-col gap-4">
+                        <ReportLead
+                            story={{
+                                tone: 'good',
+                                headline: 'Bulan lalu untung Rp4,8 jt.',
+                                detail: 'Bulan sebelumnya untung Rp61.600. Pendorong terbesar: penjualan naik Rp9,2 jt.',
+                            }}
+                        />
+                        <ReportLead
+                            story={{
+                                tone: 'warning',
+                                headline: 'Peralatan bernilai Rp3 jt sekarang.',
+                                detail: '1 peralatan belum punya umur pakai, jadi belum disusutkan.',
+                            }}
+                        />
+                        <ReportLead
+                            story={{
+                                tone: 'bad',
+                                headline: 'Bulan ini rugi Rp25.900.',
+                                detail: 'Bulan lalu untung Rp4,8 jt. Penyebab terbesar: penjualan turun 99%.',
+                            }}
+                        />
+                        <Panel className="max-w-xl">
+                            <BreakdownBars
+                                label="Contoh pembagian uang penjualan"
+                                rows={[
+                                    {
+                                        label: 'Modal barang (HPP)',
+                                        amount: 2627000,
+                                    },
+                                    { label: 'Biaya', amount: 1860000 },
+                                    { label: 'Sisa laba', amount: 4847000 },
+                                ]}
+                            />
+                        </Panel>
+                    </div>
                     <Panel className="max-w-xl">
                         <Statement
                             rows={[

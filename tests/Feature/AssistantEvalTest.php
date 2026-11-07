@@ -50,7 +50,7 @@ class AssistantEvalTest extends TestCase
         ['halo, selamat pagi', null, ['form' => null]],
         // A unit that does not fit the item's own unit is asked back, not converted.
         ['beli beras 4 kodi', 'transaksi', ['form' => null]],
-        ['buatkan saya kode python untuk menghitung beras yang saya beli 5 kg jadi berapa gram', null, ['form' => null, 'reply' => 'Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru. Ceritakan saja, misalnya "jual 3 nasi goreng tunai".']],
+        ['buatkan saya kode python untuk menghitung beras yang saya beli 5 kg jadi berapa gram', null, ['form' => null, 'reply_starts' => 'Maaf, saya hanya bisa membantu']],
         // "Dicatat di mana?" questions get a guide topic, not a draft or a refusal.
         ['saya punya 200.000 uang di kas pribadi saya, saya perlu catat kemana ya? dan data apa yang saya perlu', null, ['form' => null, 'topic' => 'uang_pribadi_masuk']],
         ['kalau saya bayar belanja warung pakai uang sendiri, dicatat gimana?', null, ['form' => null, 'topic' => 'bayar_pakai_uang_pribadi']],
@@ -59,7 +59,12 @@ class AssistantEvalTest extends TestCase
         ['pinjam uang ke bank 5 juta dicatat di mana?', null, ['form' => null, 'topic' => 'belum_didukung']],
         // A printed receipt; real photos from owners go next to it (PRD §3.2: 15 photos, field ≥ 80%).
         ['', null, ['form' => 'transaksi', 'type' => 'pembelian', 'kind' => 'barang', 'method' => 'tunai', 'lines' => ['Beras' => 5, 'Telur' => 30], 'prices' => ['Beras' => 14000, 'Telur' => 2000]], 'nota-belanja.png'],
-        ['untung bulan ini berapa?', null, ['form' => null]],
+        ['untung bulan ini berapa?', null, ['form' => null, 'reply_starts' => 'Laba bersih bulan ini']],
+        ['omzet minggu ini berapa ya', null, ['form' => null, 'reply_starts' => 'Penjualan minggu ini']],
+        ['uang saya ada berapa sekarang', null, ['form' => null, 'reply_starts' => 'Uang usaha sekarang']],
+        ['siapa aja yang belum bayar?', null, ['form' => null, 'reply_starts' => 'Tidak ada piutang']],
+        ['hpp nasi goreng berapa', null, ['form' => null, 'reply_starts' => 'HPP Nasi Goreng']],
+        ['kalau mau untung 40% nasgor dijual berapa?', null, ['form' => null, 'reply_starts' => 'HPP Nasi Goreng']],
     ];
 
     public function test_the_assistant_reads_owner_messages_well_enough(): void
@@ -95,7 +100,7 @@ class AssistantEvalTest extends TestCase
             }
 
             $observed = self::observed($reply, $items, $contacts);
-            $wrong = array_keys(array_filter($expected, fn (mixed $want, string $key) => ($observed[$key] ?? null) != $want, ARRAY_FILTER_USE_BOTH));
+            $wrong = array_keys(array_filter($expected, fn (mixed $want, string $key) => $key === 'reply_starts' ? ! str_starts_with((string) $observed[$key], (string) $want) : ($observed[$key] ?? null) != $want, ARRAY_FILTER_USE_BOTH));
 
             $rows[] = [
                 'message' => $file === null ? $message : "(foto {$file}) {$message}",
@@ -142,6 +147,7 @@ class AssistantEvalTest extends TestCase
             ...$values,
             'form' => $reply['form'],
             'reply' => $reply['reply'],
+            'reply_starts' => $reply['reply'],
             'topic' => $reply['guide']['topic'] ?? null,
             'contact' => $contacts->firstWhere('id', (int) ($values['contact'] ?? 0))->name ?? ($values['contact'] ?? null),
             'lines' => $rows('lines')->mapWithKeys(fn (array $line) => [$name($line['item_id']) => $number($line['qty'])])->all(),

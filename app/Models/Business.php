@@ -67,6 +67,14 @@ class Business extends Model
     /**
      * Active rekening; archived ones are reached withTrashed().
      *
+     * @return HasMany<FixedAsset, $this>
+     */
+    public function fixedAssets(): HasMany
+    {
+        return $this->hasMany(FixedAsset::class);
+    }
+
+    /**
      * @return HasMany<MoneyAccount, $this>
      */
     public function moneyAccounts(): HasMany

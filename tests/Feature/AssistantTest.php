@@ -10,6 +10,8 @@ use App\Models\Item;
 use App\Models\Transaction;
 use App\Services\Catalog;
 use App\Services\ReportAnswers;
+use App\Services\TransactionService;
+use App\Support\Format;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\JsonResponse;
@@ -215,7 +217,7 @@ class AssistantTest extends TestCase
         $this->model(['jawab_singkat', ['jenis' => 'di_luar_tugas', 'teks' => '```python print(5 * 1000) ```']]);
 
         $this->ask('buatkan saya kode python untuk menghitung beras', null)->assertOk()
-            ->assertJsonPath('reply', 'Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru. Ceritakan saja, misalnya "jual 3 nasi goreng tunai".')
+            ->assertJsonPath('reply', 'Maaf, saya hanya bisa membantu mencatat transaksi, produk baru, dan menjawab angka usaha. Ceritakan saja, misalnya "jual 3 nasi goreng tunai" atau "untung bulan ini berapa?".')
             ->assertJsonPath('values', null);
     }
 
@@ -273,14 +275,80 @@ class AssistantTest extends TestCase
             ->assertJsonPath('link', null);
     }
 
-    public function test_report_questions_are_answered_from_the_journal(): void
+    public function test_why_profit_and_cash_differ_skips_the_model(): void
     {
-        $this->model(['jawab_singkat', ['jenis' => 'pertanyaan_laporan']]);
-
         // The opening stock was bought with the owner's money: profit 0, cash the same, nothing to explain.
-        $this->ask('untung bulan ini berapa ya', null)->assertOk()
+        $this->ask('kenapa laba naik tapi kas turun?', null)->assertOk()
             ->assertJsonPath('reply', app(ReportAnswers::class)->profitVsCash($this->business))
             ->assertJsonPath('link', ['label' => 'Buka Perubahan modal', 'href' => '/laporan/perubahan-modal']);
+    }
+
+    public function test_numbers_are_read_from_the_books_and_the_model_only_picks_which(): void
+    {
+        $water = $this->item('Air Mineral');
+        $transactions = app(TransactionService::class);
+        $transactions->record($this->business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $water->id, 'qty' => 2, 'price' => 4000]]]);
+        $transactions->record($this->business, ['type' => 'penjualan', 'method' => 'kredit', 'contact_id' => $this->business->contacts()->sole()->id, 'lines' => [['item_id' => $water->id, 'qty' => 1, 'price' => 4000]]]);
+        $transactions->record($this->business, ['type' => 'biaya', 'kind' => 'listrik_air', 'method' => 'tunai', 'amount' => 1000]);
+        $this->model(
+            ['tanya_angka', ['metrik' => 'penjualan', 'periode' => 'hari_ini']],
+            ['tanya_angka', ['metrik' => 'laba']],
+            ['tanya_angka', ['metrik' => 'hpp', 'periode' => 'tahun_kabisat']],
+            ['tanya_angka', ['metrik' => 'biaya', 'periode' => 'bulan_ini']],
+            ['tanya_angka', ['metrik' => 'kas']],
+            ['tanya_angka', ['metrik' => 'piutang']],
+            ['tanya_angka', ['metrik' => 'utang']],
+            ['tanya_angka', ['metrik' => 'cuaca']],
+            ['jawab_singkat', ['jenis' => 'pertanyaan_laporan']],
+        );
+
+        $this->ask('penjualan hari ini berapa', null)->assertOk()
+            ->assertJsonPath('reply', 'Penjualan hari ini Rp12.000 dari 2 transaksi.')
+            ->assertJsonPath('link', ['label' => 'Buka Laba rugi', 'href' => '/laporan/laba-rugi?periode=hari_ini'])
+            ->assertJsonPath('values', null);
+        // 3 bottles at Rp2.500: 12.000 − 7.500 − 1.000.
+        $this->ask('untung berapa', null)->assertJsonPath('reply', "Laba bersih bulan ini Rp3.500.\nPenjualan Rp12.000, modal barang (HPP) Rp7.500, biaya Rp1.000.");
+        // A period the system does not know falls back to this month.
+        $this->ask('hpp berapa', null)->assertJsonPath('reply', 'HPP bulan ini Rp7.500 dari penjualan Rp12.000, jadi laba kotornya Rp4.500.');
+        $this->ask('biaya bulan ini', null)->assertJsonPath('reply', "Biaya bulan ini Rp1.000:\n• Listrik & air: Rp1.000");
+        $this->ask('kas ada berapa', null)->assertJsonPath('reply', "Uang usaha sekarang Rp7.000:\n• Kas tunai: Rp7.000\n• Rekening: Rp0")
+            ->assertJsonPath('link.href', '/rekening');
+        $this->ask('siapa yang belum bayar', null)->assertJsonPath('reply', "Piutang sekarang Rp4.000:\n• Bu Sari: Rp4.000");
+        $this->ask('utang saya berapa', null)->assertJsonPath('reply', 'Tidak ada utang yang belum dibayar.')
+            ->assertJsonPath('link.href', '/utang-piutang?jenis=utang');
+        $this->ask('berapa itu', null)->assertJsonPath('reply', 'Mau tahu angka apa? Misalnya penjualan, untung, biaya, kas, piutang, atau utang.');
+        $this->ask('produk terlaris apa', null)->assertJsonPath('link.href', '/laporan');
+    }
+
+    public function test_hpp_and_a_suggested_price_are_worked_out_from_the_catalog(): void
+    {
+        $this->model(
+            ['tanya_harga', ['produk' => 'nasgor', 'target_margin' => 40]],
+            ['tanya_harga', ['produk' => 'Nasi Goreng', 'target_margin' => 140]],
+            ['tanya_harga', ['produk' => 'Beras']],
+            ['tanya_harga', ['produk' => 'Martabak']],
+        );
+        $cost = $this->item('Nasi Goreng')->load('recipeLines.material')->unitCost();
+
+        $this->ask('harga jual nasgor kalau margin 40%', null)->assertOk()
+            ->assertJsonPath('reply', 'HPP Nasi Goreng Rp'.number_format($cost, 0, ',', '.')." per porsi. Ini dari resep, belum termasuk biaya seperti gas dan upah.\n"
+                .'Harga jual sekarang Rp15.000, margin Rp'.number_format(15000 - $cost, 0, ',', '.').' ('.Format::decimalInput(round((15000 - $cost) / 15000 * 100, 1)).'%).'."\n"
+                .'Supaya margin 40%, harga jual minimal '.Format::rupiah(Item::priceForMargin($cost, 40)).'.')
+            ->assertJsonPath('link.label', 'Buka produk');
+        // A margin of 100% or more cannot be priced, so the usual choices are offered.
+        $this->ask('harga nasgor margin 140%', null)->assertSee('Margin 30%: ', false)->assertSee('Margin 50%: ', false);
+        // Bahan are not sold: their cost, with no price to suggest.
+        $this->ask('modal beras berapa', null)->assertJsonPath('reply', 'Biaya rata-rata Beras Rp14.000 per kg.');
+        $this->ask('hpp martabak', null)->assertJsonPath('reply', '"Martabak" tidak ada di daftar produk.');
+    }
+
+    public function test_a_price_for_a_margin_is_rounded_up_to_rp500(): void
+    {
+        // Same numbers as cost.test.ts.
+        $this->assertSame(12000, Item::priceForMargin(7200, 40));
+        $this->assertSame(10500, Item::priceForMargin(7200, 30));
+        $this->assertSame(14500, Item::priceForMargin(7200, 50));
+        $this->assertSame(1000, Item::priceForMargin(699, 30));
     }
 
     public function test_a_receipt_photo_is_copied_by_the_vision_model_then_recorded_like_a_message(): void

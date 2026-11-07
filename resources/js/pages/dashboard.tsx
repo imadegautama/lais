@@ -181,7 +181,7 @@ function Overview(props: DashboardProps & { loading: boolean }) {
                 </SectionCard>
 
                 <SectionCard
-                    title="Uang usaha dan uang pribadi"
+                    title="Uang usaha dan yang diambil pemilik"
                     description="Dipisah supaya laba tidak tercampur kebutuhan rumah."
                     icon={Wallet}
                     className="md:self-start xl:col-span-4 xl:self-stretch"

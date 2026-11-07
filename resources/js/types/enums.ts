@@ -18,6 +18,7 @@ export const TransactionType = {
     Penjualan: 'penjualan',
     Pembelian: 'pembelian',
     Biaya: 'biaya',
+    PemasukanLain: 'pemasukan_lain',
     UtangPiutang: 'utang_piutang',
     Modal: 'modal',
     PindahDana: 'pindah_dana',
@@ -30,6 +31,7 @@ export const transactionTypeLabels: Record<TransactionType, string> = {
     penjualan: 'Penjualan',
     pembelian: 'Belanja',
     biaya: 'Biaya',
+    pemasukan_lain: 'Pemasukan lain',
     utang_piutang: 'Utang-piutang',
     modal: 'Modal',
     pindah_dana: 'Pindah dana',
@@ -171,8 +173,9 @@ export const ActivityCategory = {
     Transaksi: 'transaksi',
     Produk: 'produk',
     Kontak: 'kontak',
-    Rekening: 'rekening',
     Akun: 'akun',
+    BaganAkun: 'bagan_akun',
+    Rekening: 'rekening',
 } as const;
 
 export type ActivityCategory = (typeof ActivityCategory)[keyof typeof ActivityCategory];
@@ -181,8 +184,9 @@ export const activityCategoryLabels: Record<ActivityCategory, string> = {
     transaksi: 'Transaksi',
     produk: 'Produk',
     kontak: 'Kontak',
-    rekening: 'Rekening',
     akun: 'Akun',
+    bagan_akun: 'Bagan akun',
+    rekening: 'Rekening',
 };
 
 export const MoneyAccountKind = {
@@ -259,6 +263,24 @@ export const paymentStatusLabels: Record<PaymentStatus, string> = {
     lunas: 'Lunas',
 };
 
+export const AccountType = {
+    Aset: 'aset',
+    Kewajiban: 'kewajiban',
+    Ekuitas: 'ekuitas',
+    Pendapatan: 'pendapatan',
+    Beban: 'beban',
+} as const;
+
+export type AccountType = (typeof AccountType)[keyof typeof AccountType];
+
+export const accountTypeLabels: Record<AccountType, string> = {
+    aset: 'Aset',
+    kewajiban: 'Kewajiban',
+    ekuitas: 'Modal',
+    pendapatan: 'Pendapatan',
+    beban: 'Beban',
+};
+
 export const soldItemKinds: readonly ItemKind[] = ['produk', 'komposisi'];
 
 export const stockedItemKinds: readonly ItemKind[] = ['produk', 'bahan'];
@@ -267,6 +289,7 @@ export const transactionTypeMethods: Record<TransactionType, readonly PaymentMet
     penjualan: ['tunai', 'non_tunai', 'kredit'],
     pembelian: ['tunai', 'non_tunai', 'kredit', 'pribadi'],
     biaya: ['tunai', 'non_tunai', 'kredit', 'pribadi'],
+    pemasukan_lain: ['tunai', 'non_tunai'],
     utang_piutang: ['tunai', 'non_tunai'],
     modal: ['tunai', 'non_tunai'],
     pindah_dana: [],
@@ -277,6 +300,7 @@ export const transactionTypeKinds: Record<TransactionType, readonly TransactionK
     penjualan: [],
     pembelian: ['barang', 'peralatan'],
     biaya: ['listrik_air', 'gas_bbm', 'sewa', 'upah', 'transport', 'pemasaran', 'lain'],
+    pemasukan_lain: [],
     utang_piutang: ['terima_piutang', 'bayar_utang'],
     modal: ['setor', 'prive'],
     pindah_dana: [],

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\AccountType;
 use App\Enums\ActivityCategory;
 use App\Enums\BusinessCategory;
 use App\Enums\ContactType;
@@ -51,6 +52,7 @@ class GenerateEnumTypes extends Command
         OrderStatus::class,
         OrderFulfillment::class,
         PaymentStatus::class,
+        AccountType::class,
     ];
 
     public function handle(): int

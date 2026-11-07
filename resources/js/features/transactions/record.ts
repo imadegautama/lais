@@ -48,6 +48,7 @@ export const DEFAULT_KIND: Record<TransactionType, TransactionKind | ''> = {
     penjualan: '',
     pembelian: TransactionKind.Barang,
     biaya: '',
+    pemasukan_lain: '',
     utang_piutang: TransactionKind.TerimaPiutang,
     modal: TransactionKind.Setor,
     pindah_dana: '',
@@ -72,10 +73,11 @@ export function recordTotal(data: RecordFormData): number {
         : (data.amount ?? 0);
 }
 
-/** Money comes in: a sale, a customer paying, capital paid in, or cash already there at the start. */
+/** Money comes in: a sale, other income, a customer paying, capital paid in, or cash already there at the start. */
 export function isIncoming(type: TransactionType, kind: string): boolean {
     return (
         type === TransactionType.Penjualan ||
+        type === TransactionType.PemasukanLain ||
         kind === TransactionKind.TerimaPiutang ||
         kind === TransactionKind.Setor ||
         kind === TransactionKind.SaldoKas
@@ -411,6 +413,15 @@ export function purchaseImpact(
     });
 }
 
+/** Peralatan say how long they last, in months; left empty, the server uses its default. */
+function usefulLife(values: RecordFormData) {
+    const years = parseDecimal(values.useful_life_years ?? '');
+
+    return namesEquipment(values.type, values.kind) && years > 0
+        ? { useful_life_months: Math.round(years * 12) }
+        : {};
+}
+
 /** What the form sends: only the fields its type uses, a known contact by id and a new one by name. */
 export function toPayload(
     values: RecordFormData,
@@ -429,6 +440,7 @@ export function toPayload(
             type: values.type,
             kind: values.kind,
             amount: values.amount,
+            ...usefulLife(values),
             ...(values.kind === TransactionKind.SaldoKas
                 ? { money_account_id: idOrNull(values.money_account_id) }
                 : {}),
@@ -458,10 +470,17 @@ export function toPayload(
 
     return {
         type: values.type,
-        ...(values.type === TransactionType.Penjualan
+        ...(values.type === TransactionType.Penjualan ||
+        values.type === TransactionType.PemasukanLain
             ? {}
             : { kind: values.kind }),
+        ...((values.type === TransactionType.Biaya ||
+            values.type === TransactionType.PemasukanLain) &&
+        values.account_id
+            ? { account_id: Number(values.account_id) }
+            : {}),
         method: values.method,
+        ...usefulLife(values),
         // Only non-tunai names its rekening; with one, the server picks it.
         ...(values.method === PaymentMethod.NonTunai &&
         values.money_account_id !== ''

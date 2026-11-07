@@ -48,6 +48,14 @@ export function margin(
     };
 }
 
+/** The lowest price, rounded up to Rp500, that keeps this margin. Same rule as Item::priceForMargin. */
+export function suggestedPrice(unitCost: number, percent: number): number {
+    // Rounded first: 7200 / 0.6 can land a hair above 12000 and cost a whole Rp500 step.
+    return (
+        Math.ceil(roundHalfAway(unitCost / (1 - percent / 100) / 500, 6)) * 500
+    );
+}
+
 /** What opening stock adds to the books: quantity times purchase price. */
 export function openingValue(
     qty: number,

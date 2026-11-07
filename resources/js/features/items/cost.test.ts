@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 import type { RecipeMaterial } from '@/types/domain';
-import { margin, openingValue, recipeCost } from './cost';
+import { margin, openingValue, recipeCost, suggestedPrice } from './cost';
 
 // Same numbers as InventoryTest::test_recipe_cost_is_the_sum_of_ingredients_at_average_cost.
 const materials = new Map<string, RecipeMaterial>(
@@ -33,6 +33,16 @@ describe('recipe cost', () => {
         ).toBeNull();
         expect(margin(15_000, null)).toBeNull();
         expect(margin(0, 500)).toEqual({ rupiah: -500, percent: null });
+    });
+});
+
+describe('suggested price', () => {
+    // Same numbers as AssistantTest::test_a_price_for_a_margin_is_rounded_up_to_rp500.
+    it('keeps the margin and rounds up to Rp500', () => {
+        expect(suggestedPrice(7_200, 40)).toBe(12_000);
+        expect(suggestedPrice(7_200, 30)).toBe(10_500);
+        expect(suggestedPrice(7_200, 50)).toBe(14_500);
+        expect(suggestedPrice(699, 30)).toBe(1_000);
     });
 });
 

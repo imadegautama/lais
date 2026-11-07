@@ -5,7 +5,7 @@ export function DetailRow({
     label,
     children,
 }: {
-    label: string;
+    label: ReactNode;
     children: ReactNode;
 }) {
     return (

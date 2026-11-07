@@ -38,6 +38,35 @@ enum Period: string
         };
     }
 
+    /** The column heading for prior(). */
+    public function priorLabel(): string
+    {
+        return match ($this) {
+            self::HariIni => 'Kemarin',
+            self::MingguIni => 'Minggu lalu',
+            self::BulanIni => 'Bulan lalu',
+            self::BulanLalu => 'Bulan sebelumnya',
+        };
+    }
+
+    /**
+     * The whole period before this one, [start, before): the comparative
+     * column of a report (SAK EMKM par. 3.8). previous() stops at the same
+     * moment instead, for the dashboard's like-for-like change.
+     *
+     * @return array{0: CarbonImmutable, 1: CarbonImmutable}
+     */
+    public function prior(): array
+    {
+        $start = $this->start();
+
+        return [match ($this) {
+            self::HariIni => $start->subDay(),
+            self::MingguIni => $start->subWeek(),
+            self::BulanIni, self::BulanLalu => $start->subMonthNoOverflow(),
+        }, $start];
+    }
+
     /**
      * Where the period that holds $at (default: now) begins.
      */
