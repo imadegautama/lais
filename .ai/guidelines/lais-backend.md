@@ -67,6 +67,7 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - Baris yang tidak ada di katalog disimpan di `values.unknown` draf transaksi dan memblokir simpan. Jangan membuangnya diam-diam. Hanya pemilik yang bisa melepasnya (`FormAssistant::skipsMissing()`, tanpa model); model tidak diberi cara untuk itu.
     - Selama ada draf terbuka, model hanya menerima 2 giliran terakhir, karena riwayat lama menarik model kembali ke permintaan yang sudah lewat. Yang perlu diingat harus ada di draf atau di `context()`.
     - Perubahan prompt diuji dengan eval beberapa kali, bukan sekali, karena jawaban model berbeda antarputaran.
+    - Pertanyaan usaha yang tidak tercakup `tanya_angka` dan `tanya_harga` memakai `tanya_data`: panggilan kedua membaca `BusinessFacts::sheet()`. Model tidak menghitung; angka baru ditambahkan ke lembar fakta, bukan ke prompt. Jawaban selalu melewati `BusinessFacts::grounded()`. Nomor HP, alamat, dan foto tidak masuk lembar.
     - Konfirmasi dideteksi deterministik lewat `FormAssistant::confirms()` ("iya", "oke gas", "simpan"), hanya untuk draf yang sudah ditunjukkan ke pemilik.
     - Draf yang dikirim balik dari browser diperlakukan seperti isian form: ditimpakan ke nilai awal form (`TransactionDraft::fill([], …)`), divalidasi ulang dengan `FormRequest`-nya, lalu disimpan lewat `TransactionService::record()` atau `Catalog::create()`.
 - Argumen tool diperlakukan seperti input pengguna:

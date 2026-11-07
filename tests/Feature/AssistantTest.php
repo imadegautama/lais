@@ -635,6 +635,49 @@ class AssistantTest extends TestCase
             ->assertJsonPath('values.price', 14000);
     }
 
+    public function test_a_question_about_the_business_is_answered_from_the_fact_sheet(): void
+    {
+        $this->model(['tanya_data', []], ['jawab', ['jawaban' => 'Stok beras 10 kg.']]);
+
+        $this->ask('stok beras tinggal berapa?', null)->assertOk()
+            ->assertJsonPath('reply', 'Stok beras 10 kg.')
+            ->assertJsonPath('link.href', '/laporan');
+
+        $recorded = Http::recorded();
+        $this->assertStringNotContainsString('LEMBAR FAKTA', $recorded[0][0]['messages'][0]['content']);
+        $this->assertStringContainsString('LEMBAR FAKTA', $recorded[1][0]['messages'][0]['content']);
+        $this->assertStringContainsString('Beras: 10 kg', $recorded[1][0]['messages'][0]['content']);
+        $this->assertSame('stok beras tinggal berapa?', $recorded[1][0]['messages'][1]['content']);
+    }
+
+    public function test_an_answer_with_a_figure_that_is_not_on_the_sheet_is_not_shown(): void
+    {
+        $this->model(['tanya_data', []], ['jawab', ['jawaban' => 'Untung Anda Rp9.876.543.']]);
+
+        $response = $this->ask('untung kira-kira berapa?', null)->assertOk()
+            ->assertJsonPath('reply', 'Angkanya belum bisa saya pastikan, jadi tidak saya sebutkan. Cek langsung di Laporan.');
+
+        $this->assertStringNotContainsString('9.876.543', (string) $response->getContent());
+    }
+
+    public function test_a_question_the_sheet_cannot_answer_says_so(): void
+    {
+        $this->model(['tanya_data', []], ['jawab', ['jawaban' => '', 'tidak_ada' => true]]);
+
+        $this->ask('harga beras di pasar berapa?', null)->assertOk()
+            ->assertJsonPath('reply', 'Datanya belum ada di pembukuan, jadi belum bisa saya jawab. Coba lihat di Laporan.');
+    }
+
+    public function test_recording_a_sale_never_carries_the_fact_sheet(): void
+    {
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'Nasi Goreng', 'qty' => 1]]]]);
+
+        $this->ask('jual 1 nasgor tunai', 'transaksi')->assertOk();
+
+        Http::assertSentCount(1);
+        $this->assertStringNotContainsString('LEMBAR FAKTA', Http::recorded()[0][0]['messages'][0]['content']);
+    }
+
     public function test_a_business_past_its_daily_limit_stops_reaching_the_model(): void
     {
         foreach (range(1, 200) as $call) {

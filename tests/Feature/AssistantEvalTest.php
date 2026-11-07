@@ -10,7 +10,9 @@ use App\Services\Ai\AssistantUnavailable;
 use App\Services\Ai\FormAssistant;
 use App\Services\Ai\ItemDraft;
 use App\Services\Ai\TransactionDraft;
+use App\Services\BusinessFacts;
 use App\Services\Catalog;
+use App\Services\TransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -183,6 +185,59 @@ class AssistantEvalTest extends TestCase
 
         $period = $ask('kalau bulan lalu?', [['role' => 'user', 'text' => 'untung bulan ini berapa?'], ['role' => 'assistant', 'text' => 'Laba bersih bulan ini Rp0.']], null);
         $check('periode lanjutan', str_starts_with($period['reply'], 'Laba bersih bulan lalu'), $period);
+
+        $this->assertSame([], $failures, implode("\n", $failures));
+    }
+
+    /**
+     * Questions no fixed metric covers, read from the fact sheet. An answer
+     * must quote what the sheet says, and one it refuses counts as a miss.
+     */
+    public function test_the_assistant_answers_from_the_fact_sheet(): void
+    {
+        config(['services.llm.timeout' => 60]);
+        $business = self::business();
+        $service = app(TransactionService::class);
+        $teh = $business->items()->where('items.name', 'Es Teh')->sole();
+        $air = $business->items()->where('items.name', 'Air Mineral')->sole();
+        $lastMonth = now()->subMonthNoOverflow()->startOfMonth()->addDays(9)->format('Y-m-d 09:00');
+        $service->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 3000000, 'occurred_at' => $lastMonth]);
+        $service->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'occurred_at' => $lastMonth, 'lines' => [['item_id' => $teh->id, 'qty' => 30, 'price' => 5000], ['item_id' => $air->id, 'qty' => 10, 'price' => 4000]]]);
+        $service->record($business, ['type' => 'biaya', 'kind' => 'sewa', 'method' => 'tunai', 'amount' => 50000, 'occurred_at' => $lastMonth]);
+        $service->record($business, ['type' => 'biaya', 'kind' => 'pemasaran', 'method' => 'tunai', 'amount' => 10000, 'occurred_at' => $lastMonth]);
+        $sheet = app(BusinessFacts::class)->sheet($business);
+        $on = function (string $pattern) use ($sheet) {
+            preg_match($pattern, $sheet, $match);
+
+            return $match[1] ?? '(tidak ada di lembar)';
+        };
+        $cases = [
+            'berapa BEP usaha saya?' => $on('/BEP penjualan (Rp[\d.]+)/'),
+            'bep es teh berapa gelas sebulan?' => $on('/Es Teh: ([\d.,]+ gelas) sebulan/'),
+            'modal saya berapa sekarang?' => $on('/Modal pemilik \(aset dikurangi kewajiban\) (Rp[\d.]+)/'),
+            'aset saya berapa?' => $on('/Total aset (Rp[\d.]+)/'),
+            'stok beras tinggal berapa?' => '10 kg',
+            'produk paling laris apa?' => 'Es Teh',
+            'kenapa untung bulan ini turun?' => '',
+            'biaya apa yang bisa dihemat?' => '',
+            'hari apa paling ramai?' => '',
+        ];
+        $failures = [];
+
+        foreach ($cases as $question => $expected) {
+            $reply = app(FormAssistant::class)->reply($business->user, $question, null, [], [])['reply'];
+
+            if (str_starts_with($reply, 'Angkanya belum') || str_starts_with($reply, 'Datanya belum') || ! str_contains($reply, $expected)) {
+                $failures[] = "{$question} => mau \"{$expected}\", dapat: {$reply}";
+            }
+        }
+
+        $unknown = app(FormAssistant::class)->reply($business->user, 'harga beras di pasar hari ini berapa?', null, [], [])['reply'];
+
+        // Declining in any words is right; a price from nowhere is not.
+        if (preg_match('/\d/', str_replace('Rp100', '', $unknown)) === 1 && ! str_contains($unknown, 'jual 3 nasi goreng')) {
+            $failures[] = "harga pasar => dapat: {$unknown}";
+        }
 
         $this->assertSame([], $failures, implode("\n", $failures));
     }
