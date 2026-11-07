@@ -60,8 +60,13 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 
 ## AI
 
-- Model hanya dipanggil lewat `App\Services\Ai\LlmClient::toolCall()` (HTTP client ke 9Router, `config('services.llm')`). Kunci API hanya ada di `.env` dan tidak pernah ditulis ke log atau ke `properties` log aktivitas.
+- Model hanya dipanggil lewat `App\Services\Ai\LlmClient::toolCall()`, dengan `config('services.llm.driver')`: `claude` (SDK resmi, produksi) atau `gateway` (9Router, bawaan tes). Pemanggil memakai bentuk OpenAI; terjemahan ke Claude ada di `LlmClient`. Kunci API hanya ada di `.env` dan tidak pernah ditulis ke log atau ke `properties` log aktivitas.
+    - Bagian prompt yang tetap masuk `$system` (di-cache) dan yang berubah masuk `$context`. Waktu, draf, dan katalog jangan ditaruh di `$system`, karena satu karakter berbeda membatalkan cache.
+    - `phpunit.xml` mengunci `LLM_DRIVER=gateway` supaya tes biasa tidak memakai kredit. Eval berbayar: `LLM_DRIVER=claude LOG_CHANNEL=single php artisan test --group=llm`.
 - AI tidak pernah menyimpan tanpa konfirmasi pemilik, dan tidak ada tool untuk menyimpan.
+    - Baris yang tidak ada di katalog disimpan di `values.unknown` draf transaksi dan memblokir simpan. Jangan membuangnya diam-diam. Hanya pemilik yang bisa melepasnya (`FormAssistant::skipsMissing()`, tanpa model); model tidak diberi cara untuk itu.
+    - Selama ada draf terbuka, model hanya menerima 2 giliran terakhir, karena riwayat lama menarik model kembali ke permintaan yang sudah lewat. Yang perlu diingat harus ada di draf atau di `context()`.
+    - Perubahan prompt diuji dengan eval beberapa kali, bukan sekali, karena jawaban model berbeda antarputaran.
     - Konfirmasi dideteksi deterministik lewat `FormAssistant::confirms()` ("iya", "oke gas", "simpan"), hanya untuk draf yang sudah ditunjukkan ke pemilik.
     - Draf yang dikirim balik dari browser diperlakukan seperti isian form: ditimpakan ke nilai awal form (`TransactionDraft::fill([], …)`), divalidasi ulang dengan `FormRequest`-nya, lalu disimpan lewat `TransactionService::record()` atau `Catalog::create()`.
 - Argumen tool diperlakukan seperti input pengguna:

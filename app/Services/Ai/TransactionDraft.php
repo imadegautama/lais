@@ -96,36 +96,62 @@ final class TransactionDraft
             $values['contact'] = $contact === null ? self::text($args['kontak']) : (string) $contact->id;
         }
 
+        $listed = fn (Item $item) => [$item->name, ...($item->aliases ?? [])];
+        $pool = $items->filter(fn (Item $item) => $type === TransactionType::Penjualan ? $item->kind->isSold() : $item->kind->isStocked());
+
         if (self::hasLines($type, (string) $values['kind']) && is_array($args['baris'] ?? null) && $args['baris'] !== []) {
-            $pool = $items->filter(fn (Item $item) => $type === TransactionType::Penjualan ? $item->kind->isSold() : $item->kind->isStocked());
             $lines = [];
 
             foreach ($args['baris'] as $row) {
                 // Some models write a line as nama/jumlah, like tulis_nota, whatever the schema says.
                 $name = is_array($row) ? ($row['item'] ?? $row['nama'] ?? null) : null;
-                $item = Names::match($pool, $name, fn (Item $item) => [$item->name, ...($item->aliases ?? [])]);
-
-                if ($item === null) {
-                    $notes[] = '"'.self::text($name).'" tidak ada di daftar produk.';
-
-                    continue;
-                }
-
+                $item = Names::match($pool, $name, $listed);
                 $written = $row['qty'] ?? $row['jumlah'] ?? null;
                 $qty = is_numeric($written) && (float) $written > 0 ? (float) $written : 1;
                 // "beras 5 kg 70rb" names the line's total; the unit price is worked out here, not by the model.
                 $price = match (true) {
                     is_numeric($row['harga'] ?? null) && (int) $row['harga'] > 0 => (int) $row['harga'],
                     is_numeric($row['total'] ?? null) && (int) $row['total'] > 0 => (int) round((int) $row['total'] / $qty),
-                    default => self::defaultPrice($item, $type),
+                    default => $item === null ? null : self::defaultPrice($item, $type),
                 };
-                $lines[] = ['item_id' => (string) $item->id, 'qty' => Format::decimalInput($qty), 'price' => $price];
+
+                if ($item !== null) {
+                    $lines[] = ['item_id' => (string) $item->id, 'qty' => Format::decimalInput($qty), 'price' => $price];
+                } elseif (self::text($name) !== '') {
+                    // Corrections never remove a waiting line; only the owner's own "catat yang ada saja" does.
+                    $values['unknown'] = [
+                        ...array_filter($values['unknown'], fn (array $line) => mb_strtolower($line['name']) !== mb_strtolower(self::text($name))),
+                        ['name' => mb_substr(self::text($name), 0, 120), 'qty' => Format::decimalInput($qty), 'price' => $price],
+                    ];
+                }
             }
 
             if ($lines !== []) {
                 $values['lines'] = $lines;
             }
         }
+
+        // Goods not listed yet stay in the draft with their quantity and price. They block saving,
+        // so a record never drops a line quietly, and join the lines once the catalog has them.
+        $waiting = [];
+
+        foreach (self::hasLines($type, (string) $values['kind']) ? $values['unknown'] : [] as $line) {
+            $item = Names::match($pool, $line['name'], $listed);
+
+            if ($item === null) {
+                $waiting[] = $line;
+                $notes[] = "\"{$line['name']}\" tidak ada di daftar produk.";
+
+                continue;
+            }
+
+            $values['lines'] = [
+                ...array_filter($values['lines'], fn (array $row) => $row['item_id'] !== ''),
+                ['item_id' => (string) $item->id, 'qty' => $line['qty'], 'price' => $line['price'] ?? self::defaultPrice($item, $type)],
+            ];
+        }
+
+        $values['unknown'] = $waiting;
 
         if (! self::hasLines($type, (string) $values['kind']) && is_numeric($args['nominal'] ?? null) && (int) $args['nominal'] > 0) {
             $values['amount'] = (int) $args['nominal'];
@@ -212,6 +238,17 @@ final class TransactionDraft
                 }
             }
 
+            foreach ($values['unknown'] as $line) {
+                $qty = self::decimal($line['qty']);
+                $lines[] = [
+                    'name' => $line['name'],
+                    'qty' => $qty,
+                    'unit' => null,
+                    'price' => $line['price'],
+                    'amount' => $qty === null || $line['price'] === null ? null : (int) round($qty * $line['price']),
+                ];
+            }
+
             $amounts = array_column($lines, 'amount');
             $total = $lines === [] || in_array(null, $amounts, true) ? null : ['label' => 'Total', 'amount' => array_sum($amounts)];
         } elseif (is_int($values['amount'])) {
@@ -275,6 +312,7 @@ final class TransactionDraft
             'method' => PaymentMethod::Tunai->value,
             'occurred_at' => now()->format('Y-m-d\TH:i'),
             'lines' => [['item_id' => '', 'qty' => '1', 'price' => null]],
+            'unknown' => [],
             'amount' => null,
             'paid_amount' => null,
             'contact' => '',
@@ -290,6 +328,11 @@ final class TransactionDraft
             'qty' => self::text($line['qty'] ?? null),
             'price' => is_numeric($line['price'] ?? null) ? (int) $line['price'] : null,
         ], $lines);
+        $values['unknown'] = array_values(array_map(fn (array $line) => [
+            'name' => mb_substr(self::text($line['name'] ?? null), 0, 120),
+            'qty' => self::text($line['qty'] ?? null),
+            'price' => is_numeric($line['price'] ?? null) ? (int) $line['price'] : null,
+        ], array_filter(is_array($values['unknown']) ? $values['unknown'] : [], fn (mixed $line) => is_array($line) && self::text($line['name'] ?? null) !== '')));
 
         foreach (['kind', 'method', 'occurred_at', 'contact', 'money_account_id', 'to_money_account_id', 'note'] as $key) {
             $values[$key] = self::text($values[$key]);

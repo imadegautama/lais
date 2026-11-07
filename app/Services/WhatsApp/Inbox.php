@@ -144,12 +144,8 @@ class Inbox
         if ($reply['saved'] !== null) {
             Cache::forget(self::draftKey($owner));
         } elseif ($source !== null) {
-            // A correction of a receipt's draft keeps the receipt; products take no proof.
-            $keptPhoto = null;
-
-            if ($source['form'] === 'transaksi') {
-                $keptPhoto = $photo ?? (($previous['form'] ?? null) === 'transaksi' ? ($previous['photo'] ?? null) : null);
-            }
+            // A correction of a receipt's draft keeps the receipt, also through registering its goods; products take no proof.
+            $keptPhoto = $source['form'] === 'produk' ? null : $photo ?? $previous['photo'] ?? null;
             Cache::put(self::draftKey($owner), array_filter([
                 'form' => $source['form'],
                 'values' => $source['values'],

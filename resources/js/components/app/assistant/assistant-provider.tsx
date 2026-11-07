@@ -14,6 +14,9 @@ import { store } from '@/routes/assistant';
 /** The forms "Tanya AI" drafts (App\Services\Ai\FormAssistant::FORMS). */
 export type AssistantFormName = 'transaksi' | 'produk';
 
+/** A chat draft: a form's, or goods on their way into the catalog. */
+type DraftFormName = AssistantFormName | 'barang';
+
 /** TransactionDraft::card() / ItemDraft::card(): what is about to be saved. */
 export type DraftCard = {
     title: string;
@@ -65,7 +68,7 @@ export type AssistantTurn =
 /** AssistantController@store. `values` is the form's data shape, filled in. */
 type AssistantReply = {
     reply: string;
-    form: AssistantFormName | null;
+    form: DraftFormName | null;
     values: object | null;
     card: DraftCard | null;
     missing: string[];
@@ -79,7 +82,7 @@ type AssistantReply = {
 
 /** The draft the owner was last shown, until it is saved or handed to a form. */
 type Draft = {
-    form: AssistantFormName;
+    form: DraftFormName;
     values: object;
     target: string;
     /** Index of the turn that shows it. */
@@ -103,6 +106,8 @@ type AssistantContextValue = {
     form: AssistantFormName | null;
     /** Which turn shows the live draft, or null. */
     draftTurn: number | null;
+    /** Goods waiting to be listed have no form to open in. */
+    draftHasForm: boolean;
     send: (message: string, photo?: string) => void;
     retry: () => void;
     reset: () => void;
@@ -278,14 +283,11 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
                     values: reply.values,
                     target: reply.target,
                     turn: base.length + 1,
-                    // A follow-up on a receipt's draft keeps the receipt; products take no proof.
+                    // A follow-up on a receipt's draft keeps the receipt, also through listing its goods; products take no proof.
                     photo:
-                        reply.form === 'transaksi'
-                            ? (photo ??
-                              (shown?.form === reply.form
-                                  ? shown.photo
-                                  : undefined))
-                            : undefined,
+                        reply.form === 'produk'
+                            ? undefined
+                            : (photo ?? shown?.photo),
                 });
             }
         },
@@ -300,6 +302,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             sending: http.processing,
             form,
             draftTurn: draft?.turn ?? null,
+            draftHasForm: draft !== null && draft.form !== 'barang',
             send: (message, photo) => void send(message, photo, turns, draft),
             // The failed reply and the message before it make way for the new try.
             retry: () => {
@@ -314,7 +317,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
                 setDraft(null);
             },
             openInForm: () => {
-                if (draft === null) {
+                if (draft === null || draft.form === 'barang') {
                     return;
                 }
 

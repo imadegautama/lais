@@ -482,6 +482,11 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 
 ### C19. Asisten AI (panel "Tanya AI")
 
+**Barang yang belum terdaftar (7 Nov):** baris draf yang tidak ada di daftar tetap tampil di kartu dengan jumlah dan harganya, sehingga total sesuai nota, dan draf belum bisa disimpan. Di bawah kartu ada dua pilihan:
+
+- **Daftarkan barang yang belum ada:** AI menanyakan dijual lagi atau bahan baku, lalu harga jual kalau dijual. Semua barang tampil di satu kartu "Tambah ke daftar produk" dengan satu konfirmasi, lalu draf belanja kembali utuh dan foto nota tetap ikut sebagai bukti. Kartu ini tidak punya "Ubah di form".
+- **Catat yang ada saja:** membuang baris yang belum terdaftar, tanpa memanggil AI.
+
 **Status pembuatan (slice 6): mencatat dengan konfirmasi.** Asisten berbentuk panel, tidak punya halaman sendiri.
 
 - **Cara membuka:**

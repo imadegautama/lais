@@ -262,6 +262,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
     - PDF untuk sementara lewat **cetak dari browser** ("Cetak / simpan PDF"), dengan header nama usaha, periode, dan tanggal cetak. PDF dari server (dompdf) menyusul untuk "kirim laporan pdf" lewat WA.
     - Buku kas dan Produk terlaris masih "Segera".
 - **Status slice 11 (7 Nov 2026):**
+    - Draf yang memuat barang di luar daftar tidak bisa disimpan sebagian. Barangnya tetap di draf, bisa didaftarkan sekaligus dari chat, atau dibuang lewat "Catat yang ada saja". AI tidak bisa membuang baris.
     - Filter **rentang tanggal** sudah ada di semua laporan berperiode, dan tiap laporan dibuka dengan kesimpulan yang dihitung server dari jurnal, tanpa AI.
     - Acuan akuntansi: SAK EMKM. Sumber yang dibaca adalah draf eksposur IAI; IAI menyatakan SAK EMKM disahkan 24 Oktober 2016 dan belum direvisi. Nomor paragraf perlu dicocokkan dengan teks final sebelum dikutip di proposal.
     - Laporan minimum SAK EMKM (par. 3.9) sudah lengkap: Laporan Posisi Keuangan, Laba Rugi, dan Catatan atas Laporan Keuangan otomatis di `/laporan/catatan`. Keduanya memakai kolom pembanding periode sebelumnya (par. 3.8).
@@ -387,6 +388,8 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 ### 3.1 Tool Requirements
 
 **Penyedia model:** 9Router sebagai gateway, dengan Gemini di belakangnya. 9Router menyediakan `POST /v1/chat/completions` berformat OpenAI dengan header `Authorization: Bearer <api-key>`. ID model memakai prefix provider. Contoh untuk provider Gemini CLI: `gc/gemini-3-flash-preview`, `gc/gemini-2.5-flash`, `gc/gemini-2.5-pro`.
+
+**Perubahan 7 Nov 2026:** produksi memakai Claude API (`LLM_DRIVER=claude`, model `claude-haiku-5-5`, SDK PHP resmi `anthropic-ai/sdk`), karena 9Router hanya berjalan di laptop pemilik. 9Router tetap tersedia sebagai driver `gateway`. Thinking dimatikan, satu tool dipaksa, dan aturan prompt yang tetap di-cache. Tiap usaha dibatasi 200 pesan ke model per hari supaya kredit terlindungi. Eval 7 Nov (28 kasus, satu foto nota): intent 100%, isian 100%, rata-rata 1,2 detik, sekitar $0,005 per eval. Uraian di bawah berlaku untuk driver `gateway`.
 
 **Klien di Laravel.** Hasil spike 27 Okt 2026: dipakai pilihan 2, HTTP client manual (`App\Services\Ai\LlmClient`), karena dua hal:
 

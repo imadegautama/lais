@@ -119,6 +119,7 @@ function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
         retry,
         sending,
         draftTurn,
+        draftHasForm,
         openInForm,
         takeOffer,
         setOpen,
@@ -234,15 +235,17 @@ function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
                             Simpan
                         </Button>
                     )}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={sending}
-                        onClick={openInForm}
-                    >
-                        Ubah di form
-                    </Button>
+                    {draftHasForm && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={sending}
+                            onClick={openInForm}
+                        >
+                            Ubah di form
+                        </Button>
+                    )}
                 </div>
             )}
             {/* Only the latest question can still be answered. */}
