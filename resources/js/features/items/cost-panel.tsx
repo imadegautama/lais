@@ -40,7 +40,7 @@ export function CostPanel({
                     ? `Dihitung langsung dari resep, per ${unit || 'porsi'}.`
                     : `Dari harga beli per ${unit || 'satuan'}.`
             }
-            className="lg:sticky lg:top-18"
+            className="lg:last:sticky lg:last:top-18"
         >
             <div className="flex flex-col divide-y" aria-live="polite">
                 <MetricInline

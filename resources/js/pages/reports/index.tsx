@@ -6,6 +6,7 @@ import {
     Landmark,
     ListTree,
     NotebookPen,
+    NotebookText,
     Package,
     Scale,
     Sigma,
@@ -254,6 +255,12 @@ export default function ReportsIndex(props: ReportsIndexProps) {
                                     label="Daftar akun (COA)"
                                     detail={`${props.accountCount} akun, dengan saldo dan buku besarnya`}
                                     href={reports.chart.url()}
+                                />
+                                <ReportLink
+                                    icon={NotebookText}
+                                    label="Jurnal umum"
+                                    detail={`Semua pencatatan ${scope}, urut tanggal`}
+                                    href={reports.journal.url(link)}
                                 />
                                 <ReportLink
                                     icon={Sigma}

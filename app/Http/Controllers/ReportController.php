@@ -200,6 +200,22 @@ class ReportController extends Controller
     }
 
     /**
+     * Jurnal umum: every entry of the range, which is where the other reports come from.
+     */
+    public function journal(Request $request): Response
+    {
+        [$business, $range] = $this->scope($request);
+        $entries = $this->reports->journalEntries($business, $range->from, $range->before);
+        $lines = array_merge(...array_column($entries, 'lines'), ...[[]]);
+
+        return Inertia::render('reports/journal', [
+            ...$this->frame($business, $range),
+            'story' => $this->story->trialBalance((int) array_sum(array_column($lines, 'debit')), (int) array_sum(array_column($lines, 'credit'))),
+            'entries' => $entries,
+        ]);
+    }
+
+    /**
      * Catatan atas laporan keuangan (SAK EMKM par. 6.2): the details as they
      * stand today, and the expenses of the chosen range beside the one before.
      */

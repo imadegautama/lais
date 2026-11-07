@@ -3,11 +3,13 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
 use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\GowaWebhookController;
 use App\Http\Controllers\ItemController;
+use App\Http\Controllers\LandingController;
 use App\Http\Controllers\MoneyAccountController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
@@ -18,7 +20,7 @@ use App\Support\DemoData;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::inertia('/', 'welcome')->name('home');
+Route::get('/', LandingController::class)->name('home');
 
 // The shop and the customer's nota (UI-PAGES A2–A4): public, no account.
 Route::get('t/{slug}', [ShopController::class, 'show'])->name('shop.show');
@@ -64,6 +66,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::get('utang-piutang', [DebtController::class, 'index'])->name('debts.index');
+    Route::get('kontak', [ContactController::class, 'index'])->name('contacts.index');
+    Route::post('kontak', [ContactController::class, 'store'])->name('contacts.store');
+    Route::get('kontak/{contact}', [ContactController::class, 'show'])->name('contacts.show');
+    Route::put('kontak/{contact}', [ContactController::class, 'update'])->name('contacts.update');
+    Route::delete('kontak/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
+
     Route::get('utang-piutang/{contact}', [DebtController::class, 'show'])->name('debts.show');
     Route::post('utang-piutang/{contact}/bayar', [DebtController::class, 'pay'])->name('debts.pay');
 
@@ -77,6 +85,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('laporan/buku-kas', [ReportController::class, 'cashBook'])->name('reports.cash-book');
     Route::get('laporan/produk', [ReportController::class, 'products'])->name('reports.products');
     Route::get('laporan/coa', [ReportController::class, 'chart'])->name('reports.chart');
+    Route::get('laporan/jurnal', [ReportController::class, 'journal'])->name('reports.journal');
     Route::get('laporan/neraca-saldo', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
     Route::get('laporan/buku-besar/{code}', [ReportController::class, 'ledger'])->whereNumber('code')->name('reports.ledger');
     Route::get('laporan/aset-tetap', [FixedAssetController::class, 'index'])->name('fixed-assets.index');

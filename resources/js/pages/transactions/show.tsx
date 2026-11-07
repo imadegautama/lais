@@ -249,7 +249,7 @@ export default function TransactionShow({
                         <SectionCard
                             title="Ringkasan"
                             tone="focus"
-                            className="lg:sticky lg:top-18"
+                            className="lg:last:sticky lg:last:top-18"
                         >
                             <div className="flex flex-col divide-y">
                                 <MetricInline

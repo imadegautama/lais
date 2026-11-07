@@ -10,6 +10,8 @@ use App\Enums\TransactionType;
 use App\Models\Account;
 use App\Models\Business;
 use App\Models\Item;
+use App\Models\JournalEntry;
+use App\Models\JournalLine;
 use App\Models\Transaction;
 use App\Support\Format;
 use Carbon\CarbonImmutable;
@@ -136,6 +138,41 @@ class Reports
                     'balance' => $account->normal_balance === 'credit' ? -$amount : $amount,
                 ];
             })
+            ->all());
+    }
+
+    /**
+     * Jurnal umum: every entry of a time range as it was booked, oldest first,
+     * debits before credits. A cancelled record shows with its reversal.
+     * shortcut: capped at 2000 entries for one page; page it on the server if a range ever holds more.
+     *
+     * @return list<array{id: int, occurredAt: string, description: string, transactionId: int|null, lines: list<array{code: string, name: string, debit: int, credit: int}>}>
+     */
+    public function journalEntries(Business $business, CarbonInterface $from, ?CarbonInterface $before = null): array
+    {
+        $transaction = (new Transaction)->getMorphClass();
+
+        return array_values(JournalEntry::query()
+            ->where('business_id', $business->id)
+            ->where('occurred_at', '>=', $from)
+            ->when($before, fn ($query) => $query->where('occurred_at', '<', $before))
+            ->with('lines.account')
+            ->orderBy('occurred_at')
+            ->orderBy('id')
+            ->limit(2000)
+            ->get()
+            ->map(fn (JournalEntry $entry) => [
+                'id' => $entry->id,
+                'occurredAt' => $entry->occurred_at->toIso8601String(),
+                'description' => $entry->description,
+                'transactionId' => $entry->source_type === $transaction ? (int) $entry->source_id : null,
+                'lines' => array_values($entry->lines->sortByDesc('debit')->map(fn (JournalLine $line) => [
+                    'code' => $line->account->code,
+                    'name' => $line->account->name,
+                    'debit' => $line->debit,
+                    'credit' => $line->credit,
+                ])->all()),
+            ])
             ->all());
     }
 

@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Hammer, TriangleAlert } from 'lucide-react';
+import { Hammer, Plus, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { LabelBadge } from '@/components/app/badges';
 import { DetailRow } from '@/components/app/detail-row';
@@ -20,6 +20,7 @@ import { index, update } from '@/routes/fixed-assets';
 import reports from '@/routes/reports';
 import { create as createTransaction } from '@/routes/transactions';
 import type { FixedAsset, FixedAssetsProps } from '@/types/domain';
+import { TransactionKind, TransactionType } from '@/types/enums';
 
 const years = (months: number) =>
     `${String(months / 12).replace('.', ',')} tahun`;
@@ -84,6 +85,21 @@ export default function FixedAssets({
     const cost = sum((asset) => asset.cost);
     const accumulated = sum((asset) => asset.accumulated);
     const bookValue = sum((asset) => asset.bookValue);
+    const addEquipment = (
+        <Button asChild>
+            <Link
+                href={createTransaction({
+                    query: {
+                        jenis: TransactionType.Pembelian,
+                        kategori: TransactionKind.Peralatan,
+                    },
+                })}
+            >
+                <Plus aria-hidden />
+                Tambah peralatan
+            </Link>
+        </Button>
+    );
 
     return (
         <>
@@ -98,7 +114,12 @@ export default function FixedAssets({
                     className="print:hidden"
                     title="Aset tetap"
                     description="Peralatan usaha, penyusutannya, dan nilai bukunya. Penyusutan dicatat otomatis tiap akhir bulan."
-                    actions={<ReportToolbar />}
+                    actions={
+                        <div className="flex flex-wrap items-start gap-2">
+                            <ReportToolbar />
+                            {addEquipment}
+                        </div>
+                    }
                 />
 
                 <ReportLead story={story} />
@@ -109,17 +130,7 @@ export default function FixedAssets({
                         icon={Hammer}
                         title="Belum ada peralatan"
                         description="Peralatan muncul di sini setelah dicatat lewat Belanja, pilihan peralatan."
-                        action={
-                            <Button asChild>
-                                <Link
-                                    href={createTransaction({
-                                        query: { jenis: 'belanja' },
-                                    })}
-                                >
-                                    Catat belanja peralatan
-                                </Link>
-                            </Button>
-                        }
+                        action={addEquipment}
                     />
                 ) : (
                     <div className="grid grid-cols-1 items-start gap-4 md:gap-6 lg:grid-cols-12">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\PaymentMethod;
 use App\Enums\Period;
+use App\Enums\TransactionKind;
 use App\Enums\TransactionSource;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
@@ -80,14 +81,18 @@ class TransactionController extends Controller
     }
 
     /**
-     * Record form (UI-PAGES C3). `?jenis=` opens the matching tab.
+     * Record form (UI-PAGES C3). `?jenis=` opens the matching tab, and
+     * `?kategori=` a choice inside it, such as peralatan under pembelian.
      */
     public function create(Request $request, Ledger $ledger): Response
     {
         $business = $request->user()->currentBusiness();
+        $type = TransactionType::tryFrom((string) $request->query('jenis')) ?? TransactionType::Penjualan;
+        $kind = TransactionKind::tryFrom((string) $request->query('kategori'));
 
         return Inertia::render('transactions/create', [
-            'initialType' => TransactionType::tryFrom((string) $request->query('jenis')) ?? TransactionType::Penjualan,
+            'initialType' => $type,
+            'initialKind' => $kind?->type() === $type ? $kind : null,
             ...$this->formOptions($business, $ledger),
         ]);
     }

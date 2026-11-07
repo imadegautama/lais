@@ -51,6 +51,11 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 - `types/enums.ts` **dibuat otomatis** oleh `php artisan lais:enums` dari `app/Enums`. Jangan diubah manual. Nilai ditulis lewat konstantanya (`TransactionType.Penjualan`), label lewat `transactionTypeLabels` dan sejenisnya, bukan string tulisan tangan. `badges.tsx` hanya menambahkan ikon.
 - Hitungan yang meniru server (HPP, rata-rata, biaya resep, efek kas) memakai `lib/stock.ts` atau `features/*`, dengan test yang memakai angka dari test PHP.
 
+## Landing page
+
+- Isi demo chat ada di `features/landing/examples.ts`, tanpa memanggil AI. Setiap angkanya dibuktikan `tests/Feature/LandingTest.php`, jadi kalau katalog awal atau balasan bot berubah, perbarui keduanya.
+- Angka statistik hanya boleh yang sumbernya bisa diperiksa, dan ditulis bersama sumbernya. Tidak ada testimoni, logo mitra, atau jumlah pengguna sampai datanya nyata.
+
 ## Selesai berarti
 
 - `npm run types:check`, `npm run check`, dan `php artisan test` hijau.

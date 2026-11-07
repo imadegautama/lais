@@ -262,6 +262,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
     - PDF untuk sementara lewat **cetak dari browser** ("Cetak / simpan PDF"), dengan header nama usaha, periode, dan tanggal cetak. PDF dari server (dompdf) menyusul untuk "kirim laporan pdf" lewat WA.
     - Buku kas dan Produk terlaris masih "Segera".
 - **Status slice 11 (7 Nov 2026):**
+    - Kontak (C12), Jurnal umum, dan halaman error (D1) sudah dibuat. Menghapus data kontak berriwayat dilakukan dengan anonimisasi, jadi pembukuan tetap utuh; nama di keterangan jurnal dan log aktivitas tetap ada sebagai jejak audit.
     - Pertanyaan usaha di luar metrik tetap dijawab dari lembar fakta (`App\Services\BusinessFacts`): server menghitung semua angka, model hanya merangkai kalimat, dan `grounded()` menolak jawaban berisi angka yang tidak ada di lembar. BEP memakai anggapan biaya tetap = sewa, upah, listrik dan air, serta penyusutan, dari angka bulan lalu.
     - Draf yang memuat barang di luar daftar tidak bisa disimpan sebagian. Barangnya tetap di draf, bisa didaftarkan sekaligus dari chat, atau dibuang lewat "Catat yang ada saja". AI tidak bisa membuang baris.
     - Filter **rentang tanggal** sudah ada di semua laporan berperiode, dan tiap laporan dibuka dengan kesimpulan yang dihitung server dari jurnal, tanpa AI.

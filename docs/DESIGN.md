@@ -95,7 +95,7 @@ Oranye hanya muncul di:
 2. Item menu dan pilihan yang aktif.
 3. Seri grafik yang disorot.
 4. Kartu fokus, satu per layar.
-5. Wash halaman `bg-page-wash` di layout, sebagai satu-satunya latar berwarna (keputusan pemilik, §2).
+5. Wash halaman `bg-page-wash` di layout, sebagai satu-satunya latar berwarna (keputusan pemilik, §2). Landing page memakai `bg-landing-glow` pada panelnya, bukan pada halaman.
 
 Oranye tidak dipakai untuk ikon biasa, garis dekoratif, atau latar section lain selain wash halaman. **Teks oranye selalu memakai `text-primary-text`**, dan ikon oranye memakai `text-brand-strong`. Jangan pakai `text-primary` untuk teks.
 
@@ -157,6 +157,7 @@ Aturan pakai:
     - `shadow-bar`: `FormActionBar`, bayangan hangat ke atas supaya bar terpisah dari isi yang tergulir di bawahnya.
     - `shadow-toast`: toast. Kilau putih di atas dan angkat hangat yang lebih dalam, karena toast melayang di atas halaman.
     - `bg-page-wash` (utility): gradien `wash` → putih di `AppContent`, mulai di bawah header 56 px.
+    - `bg-landing-glow` (utility): panel landing page, `surface-warm` dengan cahaya `wash` dan `brand-soft`. Hanya untuk `features/landing`.
     - **Ring fokus dua lapis:** tombol dan toggle memakai `ring-offset-2 ring-offset-background`, jadi ring oranye selalu menempel ke celah putih.
     - `shadow-lg`: hanya untuk popover, dialog, drawer, dan sheet.
 
@@ -259,11 +260,13 @@ Isinya 20 baris per halaman. Param yang tidak valid diabaikan dan tidak pernah d
 8. **Dialog berisi form sendiri** yang dipasang di dalam `<form>` halaman wajib memanggil `event.stopPropagation()` di `onSubmit`. React meneruskan event lewat portal, jadi tanpa itu form halaman ikut terkirim.
 9. **Ringkasan di atas tabel server** dikirim sebagai closure (`'summary' => fn () => ...`) bila angkanya untuk semua baris dan tidak ikut saringan (Produk & stok). Bila ringkasan harus ikut saringan (Transaksi: uang masuk/keluar per periode), pakai parameter `summary` di `TableQuery::paginate()` supaya ikut terkirim di prop tabel saat reload. Filter yang bukan kolom biasa (periode) memakai closure di `filters`.
 10. **Form:** isian di kolom kiri, ringkasan di kolom kanan (biaya dan margin, nilai stok awal, atau riwayat stok), sehingga kolom kanan tidak pernah kosong. Aksi selalu di `FormActionBar`, sebagai anak terakhir `<form>` yang memakai `flex flex-1 flex-col` di dalam container halaman `flex-1`. Dengan begitu bar tetap di dasar layar walau isinya pendek atau layar di-zoom out. Panel kanan yang menempel memakai `lg:top-18` supaya tidak tertutup header. Pilihan yang bisa bertambah memakai `SearchSelect`, bukan `<Select>`.
+    - Kartu di kolom samping hanya boleh menempel saat digulir kalau ia kartu terakhir di kolomnya (`lg:last:sticky`). Kalau ada kartu di bawahnya, kartu itu akan tertutup.
 11. **Form transaksi (C3):** tab jenis berupa `Link ?jenis=` sehingga form dipasang ulang dan bersih. Submit memakai `preserveState: 'errors'` supaya isian tetap ada saat ada error, tetapi "Simpan & catat lagi" membuka form kosong. Panel kanan "Dampak catatan ini" menghitung dengan aturan yang sama dengan server (`Inventory`). Di HP tombol Batal disembunyikan supaya bar tetap satu baris.
 12. **Halaman publik (toko dan nota):** `ShopLayout`, satu kolom maksimal 640 px, header berisi nama toko (bukan logo Lais), footer "Dibuat dengan Lais". Kartu produk berisi foto 1:1 (atau huruf depan di `bg-secondary`), nama, harga, lalu tombol Tambah `outline` yang menjadi `QtyStepper`. Satu-satunya tombol primary di katalog adalah bar keranjang yang menempel di bawah (`shadow-bar`, safe area). Data dari `sessionStorage` dibaca setelah mount, tidak di `useState` awal, karena halaman ikut dirender di server (hydration).
 13. **Pesanan:** status pesanan memakai `OrderTimeline` (langkah bernomor dengan waktunya, Ditolak menjadi satu banner merah), bukan `Stepper` form. Aksi berikutnya (Terima → Tandai siap → Selesai) adalah tombol primary; Tolak dan Batalkan berupa tombol `ghost` merah dengan dialog alasan. Tombol di header kartu (`SectionCard action`) hanya untuk aksi pendek seperti "Pengaturan"; tombol berlabel panjang ditaruh di isi kartu supaya tidak bertabrakan dengan judul di 360 px.
 14. **Daftar yang bisa terus bertambah** (riwayat pesanan, transaksi, utang-piutang) memakai `AppDataTable`: tabel di desktop, daftar bertumpuk di HP (`renderMobileItem`), dengan urut dan halaman 20 baris. Data dari query memakai mode server (`TableQuery` + `useTableQuery`); data yang sudah dihitung di PHP dan pasti sedikit memakai mode browser. Kartu saja hanya untuk daftar yang pasti pendek. Tombol aksi di baris selalu terlihat, tidak muncul hanya saat hover, karena layar sentuh tidak punya hover.
 15. **Pengaturan pendamping daftar** (misalnya Toko online di Pesanan) menjadi bar ringkas di atas daftar (`ShopBar`), bukan kolom samping, supaya tabel mendapat lebar penuh.
+16. **Landing page (`/`):** satu-satunya halaman yang menjual, jadi lebarnya sampai 1280 px, di luar aturan 640 px halaman publik. Tata letaknya: panel `bg-landing-glow` berganti dengan bagian putih, satu demo chat yang bisa diklik di hero, dan dua bagian selang-seling. Aturan yang tetap berlaku: token yang sama, tanpa animasi scroll, tanpa eyebrow di atas judul, dan semua angka demo berlabel `DemoDataBadge`. Bagian yang datanya tidak ada (testimoni, logo mitra, jumlah pengguna, harga) tidak dibuat.
 
 ## 7. Aturan konten
 

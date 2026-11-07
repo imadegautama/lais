@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Services\Orders;
 use App\Support\OrderMessages;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -30,14 +31,7 @@ class ShopController extends Controller
 
         return Inertia::render('shop/show', [
             'shop' => self::shop($business),
-            'items' => $business->items()
-                ->whereIn('items.kind', ItemKind::sold())
-                ->where('items.show_in_store', true)
-                ->whereNotNull('items.price')
-                ->orderBy('items.name')
-                ->get()
-                ->map(self::item(...))
-                ->values(),
+            'items' => self::catalog($business),
         ]);
     }
 
@@ -89,6 +83,24 @@ class ShopController extends Controller
             'whatsapp' => $business->whatsapp === null ? null : Orders::phone($business->whatsapp),
             'qrisUrl' => $business->qrisUrl(),
         ];
+    }
+
+    /**
+     * What the shop sells to customers, by name.
+     *
+     * @return Collection<int, array{id: int, name: string, unit: string, price: int|null, photoUrl: string|null, orderable: bool}>
+     */
+    public static function catalog(Business $business): Collection
+    {
+        return $business->items()
+            ->whereIn('items.kind', ItemKind::sold())
+            ->where('items.show_in_store', true)
+            ->whereNotNull('items.price')
+            ->orderBy('items.name')
+            ->get()
+            ->map(self::item(...))
+            ->values()
+            ->toBase();
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\Transaction;
@@ -269,6 +270,28 @@ class ReportsTest extends TestCase
     /**
      * @param  array<string, mixed>  $data
      */
+    public function test_the_journal_lists_every_entry_of_the_range_and_balances(): void
+    {
+        $owner = Business::factory()->create();
+        $service = app(TransactionService::class);
+        $service->record($owner, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 500000, 'occurred_at' => '2026-10-02 09:00']);
+        $service->record($owner, ['type' => 'biaya', 'kind' => 'sewa', 'method' => 'tunai', 'amount' => 60000, 'occurred_at' => '2026-10-20 09:00']);
+        $other = Business::factory()->create();
+        $service->record($other, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 777000, 'occurred_at' => '2026-10-03 09:00']);
+
+        $this->actingAs($owner->user)->get(route('reports.journal', ['dari' => '2026-10-01', 'sampai' => '2026-10-10']))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('reports/journal')
+                ->has('entries', 1)
+                ->where('entries.0.lines.0.code', Account::CASH)
+                ->where('entries.0.lines.0.debit', 500000)
+                ->where('entries.0.lines.1.credit', 500000)
+                ->where('story.headline', 'Pembukuan seimbang.'));
+
+        $id = Transaction::query()->where('business_id', $owner->id)->where('type', 'modal')->sole()->id;
+        $this->get(route('reports.journal', ['dari' => '2026-10-01', 'sampai' => '2026-10-31']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('entries', 2)->where('entries.0.transactionId', $id));
+    }
+
     private function recordFor(Business $business, array $data): Transaction
     {
         return app(TransactionService::class)->record($business, $data);

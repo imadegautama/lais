@@ -277,6 +277,8 @@ export type OwnAccountOption = {
 
 export type TransactionCreateProps = {
     initialType: TransactionType;
+    /** A choice inside the tab; the edit page has none. */
+    initialKind?: TransactionKind | null;
     /** Server time (WIB) as a datetime-local value. */
     now: string;
     items: RecordItem[];
@@ -571,6 +573,60 @@ export type ChartProps = ReportFrame & {
     expensesByKind: Partial<Record<TransactionKind, Rupiah>>;
 };
 
+export type JournalEntryRow = {
+    id: number;
+    occurredAt: string;
+    description: string;
+    /** The record it came from; depreciation has none. */
+    transactionId: number | null;
+    lines: Array<{
+        code: string;
+        name: string;
+        debit: Rupiah;
+        credit: Rupiah;
+    }>;
+};
+
+export type JournalProps = ReportFrame & {
+    story: ReportStory;
+    entries: JournalEntryRow[];
+};
+
+export type ContactPerson = {
+    id: number;
+    name: string;
+    type: ContactType;
+    phone: string | null;
+};
+
+export type ContactRow = ContactPerson & {
+    transactions: number;
+    lastAt: string | null;
+    balance: Rupiah;
+};
+
+export type ContactsIndexProps = {
+    tab: ContactType;
+    counts: Record<ContactType, number>;
+    contacts: TablePage<ContactRow>;
+};
+
+export type ContactOrder = {
+    code: string;
+    status: OrderStatus;
+    total: Rupiah;
+    createdAt: string;
+};
+
+export type ContactShowProps = {
+    contact: ContactPerson;
+    balance: Rupiah;
+    /** Why the data cannot be removed yet, or null when it can. */
+    blockedBy: string | null;
+    transactions: TransactionRow[];
+    orders: ContactOrder[];
+};
+
 export type TrialBalanceProps = ReportFrame & {
     story: ReportStory;
     date: string;
@@ -685,6 +741,13 @@ export type OwnerOrder = PublicOrder & {
 };
 
 export type ShopShowProps = { shop: ShopInfo; items: ShopItem[] };
+
+/** The example shop on the landing page; null when it does not exist. */
+export type DemoShop = Pick<ShopInfo, 'name' | 'slug' | 'open'> & {
+    items: ShopItem[];
+};
+
+export type WelcomeProps = { demoShop: DemoShop | null };
 
 export type ShopOrderProps = { shop: ShopInfo; order: PublicOrder };
 

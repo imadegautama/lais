@@ -8,6 +8,8 @@ import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig({
+    // Only the app's own tests; packages in vendor/ ship theirs.
+    test: { include: ['resources/js/**/*.test.{ts,tsx}'] },
     plugins: lazyPlugins(() => [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],

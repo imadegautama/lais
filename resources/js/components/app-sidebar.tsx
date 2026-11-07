@@ -27,6 +27,7 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import contacts from '@/routes/contacts';
 import debts from '@/routes/debts';
 import activity from '@/routes/activity';
 import items from '@/routes/items';
@@ -68,7 +69,7 @@ const navGroups = (
             },
             { title: 'Produk & stok', href: items.index(), icon: Package },
             { title: 'Utang-piutang', href: debts.index(), icon: NotebookPen },
-            { title: 'Kontak', icon: BookUser, comingSoon: true },
+            { title: 'Kontak', href: contacts.index(), icon: BookUser },
         ],
     },
     {
