@@ -26,6 +26,39 @@ export type DemoExample = {
 
 export const CONFIRM = 'Balas 1 untuk simpan, 2 untuk batal.';
 
+/**
+ * The real app on the laptop. The pictures come from `public/images/landing`,
+ * taken from the example books (DemoHistorySeeder).
+ */
+export const appScreens = [
+    {
+        id: 'dashboard',
+        label: 'Dashboard',
+        caption:
+            'Penjualan, untung, dan uang usaha, plus hal yang perlu kamu tindak.',
+        alt: 'Dashboard Lais berisi penjualan, untung bersih, uang usaha, daftar yang perlu ditindak, dan kesehatan usaha.',
+    },
+    {
+        id: 'produk',
+        label: 'Produk & stok',
+        caption: 'Harga jual, HPP, margin, dan sisa stok tiap produk.',
+        alt: 'Halaman Produk dan stok berisi nilai persediaan, stok menipis, dan daftar produk dengan harga jual, HPP, dan margin.',
+    },
+    {
+        id: 'piutang',
+        label: 'Utang-piutang',
+        caption:
+            'Siapa yang belum bayar, sudah berapa lama, dan berapa sisanya.',
+        alt: 'Halaman Utang-piutang berisi pelanggan yang belum bayar, umur tagihan, dan sisanya.',
+    },
+    {
+        id: 'laporan',
+        label: 'Laporan',
+        caption: 'Laba rugi dengan kesimpulan satu kalimat, lalu rinciannya.',
+        alt: 'Laporan laba rugi dengan kesimpulan bulan lalu untung, rincian penjualan sampai laba bersih, dan grafik laba.',
+    },
+] as const;
+
 /** Messages from AssistantEvalTest, so each one is known to be understood. */
 export const sampleMessages = [
     'jual 3 nasgor 2 es teh qris',

@@ -107,6 +107,7 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 - **Contoh pesan:** marquee berisi pesan yang lulus eval `AssistantEvalTest`, dengan tombol jeda.
 - **Masalah:** satu angka bersumber (46%, OCBC Business Fitness Index 2024) dan tiga akibat tanpa angka.
 - **Cara kerja:** satu pembukuan, tiga pintu masuk (chat, web, toko).
+- **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan.
 - **Untuk siapa:** kuliner, kelontong, fashion, kerajinan.
 - **Uang terpisah** dan **Laporan:** dua bagian selang-seling.
 - **Kenapa bisa dipercaya:** AI tidak menyimpan tanpa konfirmasi, angka dari sistem, data tiap usaha terpisah.

@@ -2,6 +2,11 @@
 
 return [
 
+    // The demo account judges sign in with (DatabaseSeeder).
+    'demo' => [
+        'password' => env('DEMO_PASSWORD') ?: 'password',
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

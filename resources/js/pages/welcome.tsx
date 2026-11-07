@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { useRef } from 'react';
+import { AppShowcase } from '@/features/landing/app-showcase';
 import { LandingFooter } from '@/features/landing/landing-footer';
 import { LandingHeader } from '@/features/landing/landing-header';
 import {
@@ -46,6 +47,7 @@ export default function Welcome({ demoShop }: WelcomeProps) {
                     <SampleMessages />
                     <Problem />
                     <HowItWorks />
+                    <AppShowcase />
                     <Audience />
                     <SeparateMoney />
                     <Reports />

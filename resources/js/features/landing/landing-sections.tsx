@@ -36,7 +36,7 @@ const SOURCE_URL =
     'https://prnewswire.com/apac/news-releases/only-46-of-msmes-fully-separate-their-business-and-personal-finances-ocbc-simplifies-the-process-for-entrepreneurs-to-open-a-business-checking-account-100-digital-302240246.html';
 
 const shell = 'mx-auto w-full max-w-[1280px] px-4 md:px-8';
-const heading =
+export const heading =
     'text-3xl font-semibold tracking-tight text-balance md:text-4xl';
 
 function SignUpButton() {
