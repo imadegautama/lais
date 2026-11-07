@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { useRef } from 'react';
 import { LandingFooter } from '@/features/landing/landing-footer';
 import { LandingHeader } from '@/features/landing/landing-header';
 import {
@@ -9,13 +10,18 @@ import {
     HowItWorks,
     Problem,
     Reports,
+    SampleMessages,
     SeparateMoney,
     Trust,
 } from '@/features/landing/landing-sections';
+import { useReveal } from '@/features/landing/use-reveal';
 import type { WelcomeProps } from '@/types/domain';
 
 /** The landing page (UI-PAGES A1). */
 export default function Welcome({ demoShop }: WelcomeProps) {
+    const page = useRef<HTMLDivElement>(null);
+    useReveal(page);
+
     return (
         <>
             <Head title="Catat usaha cukup lewat chat">
@@ -24,7 +30,10 @@ export default function Welcome({ demoShop }: WelcomeProps) {
                     content="Lais mencatat penjualan dari chat, mengurangi stok sesuai resep, memisahkan uang pribadi, dan menyusun laporan yang mengacu pada SAK EMKM."
                 />
             </Head>
-            <div className="relative min-h-svh bg-background text-foreground">
+            <div
+                ref={page}
+                className="landing relative min-h-svh overflow-x-clip bg-background text-foreground"
+            >
                 <a
                     href="#konten"
                     className="sr-only z-50 rounded-lg bg-card px-4 py-2 font-semibold focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
@@ -34,6 +43,7 @@ export default function Welcome({ demoShop }: WelcomeProps) {
                 <LandingHeader hasShop={demoShop !== null} />
                 <main id="konten" tabIndex={-1}>
                     <Hero demoShop={demoShop} />
+                    <SampleMessages />
                     <Problem />
                     <HowItWorks />
                     <Audience />

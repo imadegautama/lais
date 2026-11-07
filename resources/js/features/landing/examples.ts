@@ -26,6 +26,18 @@ export type DemoExample = {
 
 export const CONFIRM = 'Balas 1 untuk simpan, 2 untuk batal.';
 
+/** Messages from AssistantEvalTest, so each one is known to be understood. */
+export const sampleMessages = [
+    'jual 3 nasgor 2 es teh qris',
+    'bu sari ngutang 2 nasgor',
+    'beli beras 5 kg 70rb di toko makmur',
+    'bayar listrik 350rb',
+    'gaji karyawan 1,5jt transfer',
+    'setor modal 2jt tunai',
+    'bu sari bayar utangnya 30rb',
+    'tambah menu mie goreng 14rb pakai telur 1 dan beras 1 ons',
+];
+
 export const examples: DemoExample[] = [
     {
         id: 'jual',

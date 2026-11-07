@@ -2,7 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { login, register } from '@/routes';
 
 const link =
-    'inline-flex items-center hover:text-foreground pointer-coarse:min-h-11';
+    'inline-flex items-center justify-center hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11';
 
 export function LandingFooter({ hasShop }: { hasShop: boolean }) {
     const { auth } = usePage().props;

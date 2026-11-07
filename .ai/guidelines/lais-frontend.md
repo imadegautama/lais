@@ -54,6 +54,7 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 ## Landing page
 
 - Isi demo chat ada di `features/landing/examples.ts`, tanpa memanggil AI. Setiap angkanya dibuktikan `tests/Feature/LandingTest.php`, jadi kalau katalog awal atau balasan bot berubah, perbarui keduanya.
+- Animasi landing ada di `resources/css/landing.css` dan `use-reveal.ts`, dan hanya untuk landing. Aplikasi tetap MOTION 1. Hanya hook yang boleh menyembunyikan elemen, dan hanya yang di bawah layar, supaya tanpa JS halaman tetap utuh.
 - Angka statistik hanya boleh yang sumbernya bisa diperiksa, dan ditulis bersama sumbernya. Tidak ada testimoni, logo mitra, atau jumlah pengguna sampai datanya nyata.
 
 ## Selesai berarti

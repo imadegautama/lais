@@ -6,6 +6,8 @@ import {
     CircleCheck,
     CircleX,
     LockKeyhole,
+    Pause,
+    Play,
     Scissors,
     Shirt,
     ShieldCheck,
@@ -15,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { LabelBadge } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { Money } from '@/components/app/money';
@@ -26,6 +29,8 @@ import { show as showShop } from '@/routes/shop';
 import type { DemoShop } from '@/types/domain';
 import { BusinessCategory, businessCategoryLabels } from '@/types/enums';
 import { ChatDemo } from './chat-demo';
+import { sampleMessages } from './examples';
+import { delay, WordReveal } from './word-reveal';
 
 const SOURCE_URL =
     'https://prnewswire.com/apac/news-releases/only-46-of-msmes-fully-separate-their-business-and-personal-finances-ocbc-simplifies-the-process-for-entrepreneurs-to-open-a-business-checking-account-100-digital-302240246.html';
@@ -51,19 +56,27 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
         <section aria-labelledby="judul" className="px-2 pt-2 md:px-4 md:pt-4">
             <div className="mx-auto max-w-[1400px] rounded-3xl bg-landing-glow pt-24 pb-8 md:pt-28 md:pb-12">
                 <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 md:px-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,41rem)]">
-                    <div className="max-w-xl">
+                    <div className="landing-hero-copy max-w-xl">
                         <h1
                             id="judul"
-                            className="text-4xl leading-[1.1] font-semibold tracking-tight text-balance md:text-5xl xl:text-[3.5rem]"
+                            className="landing-intro text-4xl leading-[1.1] font-semibold tracking-tight text-balance md:text-5xl xl:text-[3.5rem]"
                         >
-                            Cukup chat, pembukuan usahamu tersusun sendiri.
+                            <WordReveal text="Cukup chat, pembukuan usahamu tersusun sendiri." />
                         </h1>
-                        <p className="mt-4 text-base text-pretty md:text-lg">
+                        <p
+                            data-intro
+                            style={delay(380)}
+                            className="mt-4 text-base text-pretty md:text-lg"
+                        >
                             Ketik penjualan seperti biasa. Lais mengurangi stok
                             sesuai resep, menghitung HPP, memisahkan uang
                             pribadi, dan menyusun laporannya.
                         </p>
-                        <div className="mt-6 flex flex-wrap gap-2">
+                        <div
+                            data-intro
+                            style={delay(460)}
+                            className="mt-6 flex flex-wrap gap-2"
+                        >
                             <SignUpButton />
                             {demoShop && (
                                 <Button asChild size="lg" variant="outline">
@@ -73,7 +86,11 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
                                 </Button>
                             )}
                         </div>
-                        <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+                        <ul
+                            data-intro
+                            style={delay(540)}
+                            className="mt-5 flex flex-wrap gap-x-5 gap-y-1.5 text-sm"
+                        >
                             {[
                                 'Catat tanpa istilah akuntansi',
                                 'Lewat Telegram dan web',
@@ -95,6 +112,69 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
                 </div>
             </div>
         </section>
+    );
+}
+
+/** Messages the assistant understands, drifting past (paused on request). */
+export function SampleMessages() {
+    const [paused, setPaused] = useState(false);
+
+    return (
+        <section
+            aria-labelledby="contoh-pesan"
+            className={cn(
+                shell,
+                'flex flex-col gap-3 pt-6 md:flex-row md:items-center md:gap-5',
+            )}
+        >
+            <h2
+                id="contoh-pesan"
+                className="shrink-0 text-sm font-medium text-muted-foreground"
+            >
+                Cukup tulis seperti ini
+            </h2>
+            <div
+                data-paused={paused || undefined}
+                className="landing-marquee min-w-0 flex-1 overflow-hidden mask-x-from-95% motion-reduce:mask-none"
+            >
+                <div className="landing-marquee-track flex w-max motion-reduce:w-auto">
+                    <MessageList />
+                    <MessageList hidden />
+                </div>
+            </div>
+            <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setPaused(!paused)}
+                aria-label={paused ? 'Putar contoh pesan' : 'Jeda contoh pesan'}
+                className="shrink-0 self-end motion-reduce:hidden md:self-auto"
+            >
+                {paused ? <Play aria-hidden /> : <Pause aria-hidden />}
+            </Button>
+        </section>
+    );
+}
+
+/** The second copy only closes the loop, so nothing reads it out. */
+function MessageList({ hidden = false }: { hidden?: boolean }) {
+    return (
+        <ul
+            aria-hidden={hidden || undefined}
+            className={cn(
+                'flex shrink-0 gap-2 pr-2 motion-reduce:flex-wrap',
+                hidden && 'motion-reduce:hidden',
+            )}
+        >
+            {sampleMessages.map((message) => (
+                <li
+                    key={message}
+                    className="rounded-2xl rounded-br-md bg-brand-soft px-3 py-2 text-sm whitespace-nowrap"
+                >
+                    {message}
+                </li>
+            ))}
+        </ul>
     );
 }
 
@@ -123,12 +203,16 @@ export function Problem() {
                 <div className="lg:col-span-5">
                     <h2
                         id="masalah"
+                        data-reveal="words"
                         className="text-2xl font-semibold tracking-tight text-balance md:text-3xl"
                     >
-                        Baru 46% UMKM yang sepenuhnya memisahkan uang usaha dan
-                        uang pribadi.
+                        <WordReveal text="Baru 46% UMKM yang sepenuhnya memisahkan uang usaha dan uang pribadi." />
                     </h2>
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <p
+                        data-reveal="up"
+                        style={delay(250)}
+                        className="mt-2 text-sm text-muted-foreground"
+                    >
                         Survei{' '}
                         <a
                             href={SOURCE_URL}
@@ -142,8 +226,12 @@ export function Problem() {
                     </p>
                 </div>
                 <ul className="grid gap-6 sm:grid-cols-3 lg:col-span-7">
-                    {consequences.map(({ title, text }) => (
-                        <li key={title}>
+                    {consequences.map(({ title, text }, index) => (
+                        <li
+                            key={title}
+                            data-reveal="up"
+                            style={delay(index * 100)}
+                        >
                             <p className="font-semibold">{title}</p>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 {text}
@@ -157,16 +245,22 @@ export function Problem() {
 }
 
 function Door({
+    order,
     title,
     text,
     children,
 }: {
+    order: number;
     title: string;
     text: string;
     children: ReactNode;
 }) {
     return (
-        <li className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-card">
+        <li
+            data-reveal="up"
+            style={delay(order * 110)}
+            className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-card"
+        >
             <div className="flex min-h-32 flex-col justify-center gap-2 rounded-xl bg-surface-warm p-4 md:min-h-44">
                 {children}
             </div>
@@ -201,16 +295,25 @@ export function HowItWorks() {
             className={cn(shell, 'scroll-mt-6 py-12 md:py-16')}
         >
             <div className="mx-auto max-w-2xl text-center">
-                <h2 id="cara-kerja-judul" className={heading}>
-                    Satu pembukuan, tiga pintu masuk
+                <h2
+                    id="cara-kerja-judul"
+                    data-reveal="words"
+                    className={heading}
+                >
+                    <WordReveal text="Satu pembukuan, tiga pintu masuk" />
                 </h2>
-                <p className="mt-3 text-muted-foreground">
+                <p
+                    data-reveal="up"
+                    style={delay(200)}
+                    className="mt-3 text-muted-foreground"
+                >
                     Dari pintu mana pun catatan masuk, angkanya berakhir di buku
                     yang sama.
                 </p>
             </div>
             <ul className="mt-10 grid gap-4 md:grid-cols-3 md:gap-6">
                 <Door
+                    order={0}
                     title="Catat lewat chat"
                     text="Ketik di Telegram atau Tanya AI, atau kirim foto nota. Lais membuat draf, kamu yang menyetujui."
                 >
@@ -222,6 +325,7 @@ export function HowItWorks() {
                     </p>
                 </Door>
                 <Door
+                    order={1}
                     title="Kelola di web"
                     text="Dashboard, stok, kas, utang-piutang, dan laporan ada di satu tempat, di HP maupun laptop."
                 >
@@ -229,6 +333,7 @@ export function HowItWorks() {
                     <MiniRow icon={Calculator}>Laba bulan ini naik</MiniRow>
                 </Door>
                 <Door
+                    order={2}
                     title="Terima pesanan dari toko"
                     text="Pelanggan memesan lewat link toko tanpa akun. Saat pesanan selesai, penjualan dan stok ikut tercatat."
                 >
@@ -280,8 +385,13 @@ export function Audience() {
                 Untuk usaha yang punya stok
             </h2>
             <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 lg:grid-cols-4">
-                {audiences.map(({ category, icon: Icon, text }) => (
-                    <li key={category} className="flex items-start gap-3">
+                {audiences.map(({ category, icon: Icon, text }, index) => (
+                    <li
+                        key={category}
+                        data-reveal="up"
+                        style={delay(index * 80)}
+                        className="flex items-start gap-3"
+                    >
                         <Icon
                             className="mt-0.5 size-5 shrink-0 text-brand-strong"
                             aria-hidden
@@ -303,7 +413,7 @@ export function Audience() {
 
 function Ledger({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <div className="rounded-xl border bg-card p-4 shadow-card">
+        <div className="landing-drift rounded-xl border bg-card p-4 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold">{title}</p>
                 <DemoDataBadge />
@@ -330,10 +440,19 @@ function LedgerRow({
 
 function Note({ children }: { children: ReactNode }) {
     return (
-        <p className="relative z-10 mt-3 flex w-fit items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm font-medium shadow-toast md:-mt-3 md:-mr-10 md:ml-auto">
-            <BadgeCheck className="size-4 shrink-0 text-success" aria-hidden />
-            {children}
-        </p>
+        <div className="landing-drift-more">
+            <p
+                data-reveal="pop"
+                style={delay(350)}
+                className="relative z-10 mt-3 flex w-fit items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm font-medium shadow-toast md:-mt-3 md:-mr-10 md:ml-auto"
+            >
+                <BadgeCheck
+                    className="size-4 shrink-0 text-success"
+                    aria-hidden
+                />
+                {children}
+            </p>
+        </div>
     );
 }
 
@@ -346,7 +465,7 @@ export function SeparateMoney() {
                 'grid items-center gap-8 py-12 md:grid-cols-2 md:gap-14 md:py-16',
             )}
         >
-            <div>
+            <div data-reveal="left">
                 <h2 id="uang-terpisah" className={heading}>
                     Uang usaha dan uang pribadi punya tempatnya sendiri.
                 </h2>
@@ -356,7 +475,10 @@ export function SeparateMoney() {
                     Kamu selalu tahu berapa uang yang benar-benar milik usaha.
                 </p>
             </div>
-            <div className="rounded-3xl bg-landing-glow p-4 md:p-8">
+            <div
+                data-reveal="right"
+                className="rounded-3xl bg-landing-glow p-4 md:p-8"
+            >
                 <Ledger title="Ambil 200rb buat rumah">
                     <LedgerRow label="Kas tunai">
                         <Money value={200_000} direction="out" size="sm" />
@@ -383,7 +505,10 @@ export function Reports() {
                 'grid items-center gap-8 py-12 md:grid-cols-2 md:gap-14 md:py-16',
             )}
         >
-            <div className="rounded-3xl bg-landing-glow p-4 md:order-first md:p-8">
+            <div
+                data-reveal="left"
+                className="rounded-3xl bg-landing-glow p-4 md:order-first md:p-8"
+            >
                 <Ledger title="Laba rugi bulan ini">
                     <LedgerRow label="Penjualan">
                         <Money value={49_000} size="sm" />
@@ -397,7 +522,7 @@ export function Reports() {
                 </Ledger>
                 <Note>Selisih laba dan kas terjelaskan</Note>
             </div>
-            <div className="order-first md:order-none">
+            <div data-reveal="right" className="order-first md:order-none">
                 <h2 id="laporan" className={heading}>
                     Laporan tersusun sendiri, mengacu pada SAK EMKM.
                 </h2>
@@ -444,10 +569,18 @@ export function Trust() {
                     )}
                 >
                     <div>
-                        <h2 id="dipercaya" className={heading}>
-                            AI membantu mencatat, keputusannya tetap di kamu.
+                        <h2
+                            id="dipercaya"
+                            data-reveal="words"
+                            className={heading}
+                        >
+                            <WordReveal text="AI membantu mencatat, keputusannya tetap di kamu." />
                         </h2>
-                        <p className="mt-4 mb-6">
+                        <p
+                            data-reveal="up"
+                            style={delay(250)}
+                            className="mt-4 mb-6"
+                        >
                             Lais mengerti bahasa sehari-hari, tetapi tidak
                             diberi cara untuk menyimpan sendiri atau mengarang
                             angka.
@@ -455,27 +588,31 @@ export function Trust() {
                         <SignUpButton />
                     </div>
                     <ul className="flex flex-col gap-3">
-                        {safeguards.map(({ icon: Icon, title, text }) => (
-                            <li
-                                key={title}
-                                className="flex items-start gap-3 rounded-2xl border bg-card p-4 shadow-card"
-                            >
-                                <span
-                                    aria-hidden
-                                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong"
+                        {safeguards.map(
+                            ({ icon: Icon, title, text }, index) => (
+                                <li
+                                    key={title}
+                                    data-reveal="right"
+                                    style={delay(index * 120)}
+                                    className="flex items-start gap-3 rounded-2xl border bg-card p-4 shadow-card"
                                 >
-                                    <Icon className="size-[18px]" />
-                                </span>
-                                <span className="min-w-0">
-                                    <span className="block font-semibold">
-                                        {title}
+                                    <span
+                                        aria-hidden
+                                        className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand-strong"
+                                    >
+                                        <Icon className="size-[18px]" />
                                     </span>
-                                    <span className="block text-sm text-muted-foreground">
-                                        {text}
+                                    <span className="min-w-0">
+                                        <span className="block font-semibold">
+                                            {title}
+                                        </span>
+                                        <span className="block text-sm text-muted-foreground">
+                                            {text}
+                                        </span>
                                     </span>
-                                </span>
-                            </li>
-                        ))}
+                                </li>
+                            ),
+                        )}
                     </ul>
                 </div>
             </div>
@@ -497,15 +634,26 @@ export function ExampleShop({ shop }: { shop: DemoShop }) {
             className={cn(shell, 'scroll-mt-6 py-12 md:py-16')}
         >
             <div className="mx-auto max-w-2xl text-center">
-                <h2 id="toko-contoh-judul" className={heading}>
-                    Setiap usaha dapat toko sendiri
+                <h2
+                    id="toko-contoh-judul"
+                    data-reveal="words"
+                    className={heading}
+                >
+                    <WordReveal text="Setiap usaha dapat toko sendiri" />
                 </h2>
-                <p className="mt-3 text-muted-foreground">
+                <p
+                    data-reveal="up"
+                    style={delay(200)}
+                    className="mt-3 text-muted-foreground"
+                >
                     Coba jadi pelanggan di toko contoh dan lihat alurnya dari
                     awal.
                 </p>
             </div>
-            <div className="mt-10 grid gap-6 rounded-3xl border bg-card p-4 shadow-card md:p-6 lg:grid-cols-12 lg:gap-10">
+            <div
+                data-reveal="up"
+                className="mt-10 grid gap-6 rounded-3xl border bg-card p-4 shadow-card md:p-6 lg:grid-cols-12 lg:gap-10"
+            >
                 <div className="min-w-0 lg:col-span-7">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                         <span
@@ -523,8 +671,13 @@ export function ExampleShop({ shop }: { shop: DemoShop }) {
                         <DemoDataBadge />
                     </div>
                     <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        {shop.items.map((item) => (
-                            <li key={item.id} className="min-w-0">
+                        {shop.items.map((item, index) => (
+                            <li
+                                key={item.id}
+                                data-reveal="pop"
+                                style={delay(200 + index * 90)}
+                                className="min-w-0"
+                            >
                                 {item.photoUrl ? (
                                     <img
                                         src={item.photoUrl}
@@ -580,11 +733,15 @@ export function Closing() {
             className="px-2 pt-4 pb-2 md:px-4 md:pb-4"
         >
             <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-5 rounded-3xl bg-landing-glow px-4 py-14 text-center md:py-20">
-                <LogoWordmark className="h-8" />
-                <h2 id="penutup" className={heading}>
-                    Catat penjualan pertamamu hari ini.
+                <div data-reveal="pop">
+                    <LogoWordmark className="h-8" />
+                </div>
+                <h2 id="penutup" data-reveal="words" className={heading}>
+                    <WordReveal text="Catat penjualan pertamamu hari ini." />
                 </h2>
-                <SignUpButton />
+                <div data-reveal="up" style={delay(300)}>
+                    <SignUpButton />
+                </div>
             </div>
         </section>
     );

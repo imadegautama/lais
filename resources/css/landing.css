@@ -1,0 +1,269 @@
+/*
+ * The phone in the hero, drawn rather than a picture: the chat inside stays
+ * live and sharp at any size. Its metal is the ink token mixed with white.
+ */
+.landing-phone {
+    --landing-metal: color-mix(in srgb, var(--foreground) 45%, white);
+    --landing-metal-dark: color-mix(in srgb, var(--foreground) 80%, white);
+    position: relative;
+    padding: 3px;
+    border-radius: 3rem;
+    background: linear-gradient(
+        140deg,
+        var(--landing-metal),
+        var(--landing-metal-dark) 28%,
+        var(--landing-metal) 52%,
+        var(--landing-metal-dark) 78%,
+        var(--landing-metal)
+    );
+    box-shadow: var(--shadow-toast);
+}
+
+.landing-phone-bezel {
+    padding: 6px;
+    border-radius: calc(3rem - 3px);
+    background: var(--foreground);
+}
+
+.landing-phone-screen {
+    overflow: hidden;
+    border-radius: calc(3rem - 9px);
+    background: var(--card);
+}
+
+.landing-phone-key {
+    position: absolute;
+    left: -2px;
+    width: 3px;
+    border-radius: 2px 0 0 2px;
+    background: var(--landing-metal-dark);
+}
+
+.landing-phone-key-right {
+    right: -2px;
+    left: auto;
+    border-radius: 0 2px 2px 0;
+}
+
+/*
+ * Landing page motion. The app stays at MOTION 1 (DESIGN.md §1); this page
+ * is the one exception. Everything sits behind `screen` and no-preference, so
+ * reduced motion, print, and a page without JavaScript show the finished
+ * layout. Only transform, opacity, and filter move.
+ */
+@media screen and (prefers-reduced-motion: no-preference) {
+    .landing {
+        --landing-ease: cubic-bezier(0.16, 1, 0.3, 1);
+        --landing-slide: 2.5rem;
+    }
+
+    /* The hero plays once on load, without waiting for JavaScript. */
+    .landing-word {
+        display: inline-block;
+    }
+
+    .landing-intro .landing-word {
+        animation: landing-word-in 0.7s var(--landing-ease)
+            calc(var(--i) * 70ms) both;
+    }
+
+    [data-intro] {
+        animation: landing-rise 0.8s var(--landing-ease) var(--delay, 0ms) both;
+    }
+
+    /* The demo: the message, the draft, the reply, then the books change. */
+    [data-bubble] {
+        animation: landing-bubble 0.35s var(--landing-ease)
+            calc(var(--start) + var(--at)) both;
+    }
+
+    [data-impact] {
+        animation: landing-impact 0.4s var(--landing-ease)
+            calc(var(--start) + var(--cards) + var(--order) * 70ms) both;
+    }
+
+    /* Held back by use-reveal.ts until the reader reaches it. */
+    [data-waiting] [data-intro],
+    [data-waiting] [data-bubble],
+    [data-waiting] [data-impact] {
+        animation-play-state: paused;
+    }
+
+    [data-reveal='up'],
+    [data-reveal='left'],
+    [data-reveal='right'],
+    [data-reveal='pop'] {
+        transition:
+            opacity 0.8s var(--landing-ease) var(--delay, 0ms),
+            transform 0.9s var(--landing-ease) var(--delay, 0ms);
+    }
+
+    [data-reveal='up'][data-waiting] {
+        opacity: 0;
+        transform: translateY(3rem);
+    }
+
+    [data-reveal='left'][data-waiting] {
+        opacity: 0;
+        transform: translateX(calc(var(--landing-slide) * -1));
+    }
+
+    [data-reveal='right'][data-waiting] {
+        opacity: 0;
+        transform: translateX(var(--landing-slide));
+    }
+
+    [data-reveal='pop'][data-waiting] {
+        opacity: 0;
+        transform: translateY(1rem) scale(0.9);
+    }
+
+    [data-reveal='words'] .landing-word {
+        transition:
+            opacity 0.7s var(--landing-ease) calc(var(--i) * 45ms),
+            transform 0.7s var(--landing-ease) calc(var(--i) * 45ms);
+    }
+
+    [data-reveal='words'][data-waiting] .landing-word {
+        opacity: 0;
+        transform: translateY(0.35em);
+    }
+
+    .landing-marquee-track {
+        animation: landing-marquee 45s linear infinite;
+    }
+
+    .landing-marquee:hover .landing-marquee-track,
+    .landing-marquee:focus-within .landing-marquee-track,
+    .landing-marquee[data-paused] .landing-marquee-track {
+        animation-play-state: paused;
+    }
+
+    @media (min-width: 768px) {
+        .landing {
+            --landing-slide: 6rem;
+        }
+
+        /* Blur stays off phones: a filter leaves the GPU path on cheap ones. */
+        .landing-intro .landing-word {
+            animation-name: landing-word-blur;
+        }
+
+        [data-reveal='words'] .landing-word {
+            transition:
+                opacity 0.7s var(--landing-ease) calc(var(--i) * 45ms),
+                transform 0.7s var(--landing-ease) calc(var(--i) * 45ms),
+                filter 0.7s var(--landing-ease) calc(var(--i) * 45ms);
+        }
+
+        [data-reveal='words'][data-waiting] .landing-word {
+            filter: blur(10px);
+        }
+    }
+
+    /* Scroll-linked, on wide screens. Browsers without it keep the page still. */
+    @supports (animation-timeline: scroll()) {
+        @media (min-width: 1024px) {
+            .landing-hero-copy {
+                animation: landing-hero-out linear both;
+                animation-timeline: scroll(root);
+                animation-range: 0 70vh;
+            }
+
+            .landing-demo-drift {
+                animation: landing-demo-drift linear both;
+                animation-timeline: scroll(root);
+                animation-range: 0 90vh;
+            }
+
+            .landing-drift,
+            .landing-drift-more {
+                animation: landing-drift linear both;
+                animation-timeline: view();
+            }
+
+            .landing-drift {
+                --landing-drift: 1.25rem;
+            }
+
+            .landing-drift-more {
+                --landing-drift: 2.5rem;
+            }
+        }
+    }
+}
+
+@keyframes landing-word-in {
+    from {
+        opacity: 0;
+        transform: translateY(0.35em);
+    }
+}
+
+@keyframes landing-word-blur {
+    from {
+        opacity: 0;
+        transform: translateY(0.35em);
+        filter: blur(10px);
+    }
+}
+
+@keyframes landing-rise {
+    from {
+        opacity: 0;
+        transform: translateY(1.5rem);
+    }
+}
+
+@keyframes landing-bubble {
+    from {
+        opacity: 0;
+        transform: translateY(0.5rem) scale(0.96);
+    }
+}
+
+@keyframes landing-impact {
+    from {
+        opacity: 0;
+        transform: translate(var(--from-x, 0), 1rem) scale(0.92);
+    }
+}
+
+@keyframes landing-marquee {
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+@keyframes landing-hero-out {
+    to {
+        opacity: 0.15;
+        transform: translateY(3rem);
+    }
+}
+
+@keyframes landing-demo-drift {
+    to {
+        transform: translateY(2rem);
+    }
+}
+
+@keyframes landing-drift {
+    from {
+        transform: translateY(var(--landing-drift));
+    }
+
+    to {
+        transform: translateY(calc(var(--landing-drift) * -1));
+    }
+}
+
+@media (min-width: 768px) {
+    [data-impact='left'] {
+        --from-x: 3rem;
+    }
+
+    [data-impact='right'] {
+        --from-x: -3rem;
+    }
+}
