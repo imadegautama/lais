@@ -104,7 +104,7 @@ Satu kolom, maksimal 640 px, dioptimalkan untuk HP. Header berisi logo dan nama 
 Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya ada di `resources/js/features/landing`.
 
 - **Hero:** judul "Cukup chat, pembukuan usahamu tersusun sendiri.", tombol **Daftar gratis** dan **Lihat toko contoh**, lalu demo chat: empat contoh pesan yang bisa dipilih, HP berisi percakapan, dan kartu Stok, Kas, Laba, Jurnal yang ikut berubah. Demo tidak memanggil AI.
-- **Contoh pesan:** marquee berisi pesan yang lulus eval `AssistantEvalTest`, dengan tombol jeda.
+- **Contoh pesan:** ban berjalan. Pesan dari eval `AssistantEvalTest` masuk dari kiri, melewati simpul AI di tengah, dan keluar sebagai catatan jadi. Berhenti saat disorot, disentuh, atau difokus.
 - **Masalah:** satu angka bersumber (46%, OCBC Business Fitness Index 2024) dan tiga akibat tanpa angka.
 - **Cara kerja:** satu pembukuan, tiga pintu masuk (chat, web, toko).
 - **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan.

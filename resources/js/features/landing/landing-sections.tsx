@@ -1,22 +1,21 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    ArrowRight,
     BadgeCheck,
     Calculator,
     Check,
     CircleCheck,
     CircleX,
     LockKeyhole,
-    Pause,
-    Play,
     ShieldCheck,
     Store,
     TriangleAlert,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
 import { LabelBadge } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { Money } from '@/components/app/money';
 import { LogoWordmark } from '@/components/logo-wordmark';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ import { show as showShop } from '@/routes/shop';
 import type { DemoShop } from '@/types/domain';
 import { businessCategoryLabels } from '@/types/enums';
 import { ChatDemo } from './chat-demo';
-import { businessPhotos, sampleMessages } from './examples';
+import { businessPhotos, sampleRecords } from './examples';
 import { delay, WordReveal } from './word-reveal';
 
 const SOURCE_URL =
@@ -114,10 +113,11 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
     );
 }
 
-/** Messages the assistant understands, drifting past (paused on request). */
+/**
+ * Messages ride in from the left, pass the AI in the middle, and leave as
+ * records (landing.css): two lanes moving together, each shown on one side.
+ */
 export function SampleMessages() {
-    const [paused, setPaused] = useState(false);
-
     return (
         <section
             aria-labelledby="contoh-pesan"
@@ -133,47 +133,123 @@ export function SampleMessages() {
                 Cukup tulis seperti ini
             </h2>
             <div
-                data-paused={paused || undefined}
-                className="landing-marquee min-w-0 flex-1 overflow-hidden mask-x-from-95% motion-reduce:mask-none"
+                role="region"
+                aria-label="Contoh pesan yang berubah menjadi catatan. Sorot, sentuh, atau fokus untuk berhenti."
+                tabIndex={0}
+                // A tap focuses it, so touch can pause it too (landing.css).
+                onPointerDown={(event) => event.currentTarget.focus()}
+                className="landing-conveyor w-full min-w-0 rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 motion-reduce:hidden md:flex-1"
             >
-                <div className="landing-marquee-track flex w-max motion-reduce:w-auto">
-                    <MessageList />
-                    <MessageList hidden />
+                <div
+                    aria-hidden
+                    className="flex justify-between px-4 pb-1 text-xs text-muted-foreground"
+                >
+                    <span>Chat masuk</span>
+                    <span>Tercatat</span>
+                </div>
+                <div className="landing-conveyor-belt relative h-20">
+                    <Lane face="message" className="landing-conveyor-in" />
+                    <Lane face="record" className="landing-conveyor-out" />
+                    <span
+                        aria-hidden
+                        className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-border"
+                    />
+                    <span
+                        aria-hidden
+                        className="absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs font-semibold shadow-tile"
+                    >
+                        <AppLogoIcon className="h-3.5" />
+                        AI
+                    </span>
                 </div>
             </div>
-            <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setPaused(!paused)}
-                aria-label={paused ? 'Putar contoh pesan' : 'Jeda contoh pesan'}
-                className="shrink-0 self-end motion-reduce:hidden md:self-auto"
-            >
-                {paused ? <Play aria-hidden /> : <Pause aria-hidden />}
-            </Button>
+            <ul className="sr-only motion-reduce:not-sr-only motion-reduce:grid motion-reduce:gap-2 motion-reduce:md:flex-1 motion-reduce:lg:grid-cols-2">
+                {sampleRecords.map((sample) => (
+                    <li
+                        key={sample.message}
+                        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+                    >
+                        <span className="rounded-2xl rounded-br-md bg-brand-soft px-3 py-1">
+                            {sample.message}
+                        </span>
+                        <ArrowRight
+                            className="size-4 shrink-0 text-muted-foreground"
+                            aria-hidden
+                        />
+                        <span className="sr-only">dicatat sebagai</span>
+                        <span className="font-medium">{sample.record}</span>
+                        <Money
+                            value={sample.amount}
+                            direction={sample.direction}
+                            size="sm"
+                        />
+                    </li>
+                ))}
+            </ul>
         </section>
     );
 }
 
-/** The second copy only closes the loop, so nothing reads it out. */
-function MessageList({ hidden = false }: { hidden?: boolean }) {
+/**
+ * One lane of the conveyor, the list twice so the loop closes. Every card is
+ * the same width in both lanes, so a message and its record meet at the
+ * middle line.
+ */
+function Lane({
+    face,
+    className,
+}: {
+    face: 'message' | 'record';
+    className: string;
+}) {
     return (
-        <ul
-            aria-hidden={hidden || undefined}
+        <div
+            aria-hidden
             className={cn(
-                'flex shrink-0 gap-2 pr-2 motion-reduce:flex-wrap',
-                hidden && 'motion-reduce:hidden',
+                'absolute inset-0 flex items-center overflow-hidden',
+                className,
             )}
         >
-            {sampleMessages.map((message) => (
-                <li
-                    key={message}
-                    className="rounded-2xl rounded-br-md bg-brand-soft px-3 py-2 text-sm whitespace-nowrap"
-                >
-                    {message}
-                </li>
-            ))}
-        </ul>
+            <div className="landing-conveyor-track flex w-max">
+                {[...sampleRecords, ...sampleRecords].map((sample, index) => (
+                    <div
+                        key={`${sample.message}-${index}`}
+                        className="w-52 shrink-0 pr-3 md:w-64"
+                    >
+                        {face === 'message' ? (
+                            <p className="flex h-16 items-center rounded-2xl rounded-br-md bg-brand-soft px-3 text-sm">
+                                <span className="line-clamp-2">
+                                    {sample.message}
+                                </span>
+                            </p>
+                        ) : (
+                            <div className="flex h-16 items-center gap-2.5 rounded-2xl border bg-card px-3 shadow-tile">
+                                <CircleCheck
+                                    className="size-5 shrink-0 text-success"
+                                    aria-hidden
+                                />
+                                <span className="min-w-0">
+                                    <span className="block truncate text-sm font-semibold">
+                                        {sample.record}
+                                    </span>
+                                    <span className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
+                                        <Money
+                                            value={sample.amount}
+                                            direction={sample.direction}
+                                            size="sm"
+                                            className="text-xs"
+                                        />
+                                        <span className="truncate">
+                                            {sample.detail}
+                                        </span>
+                                    </span>
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 

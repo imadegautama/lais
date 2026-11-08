@@ -11,7 +11,6 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { ChoiceGroup } from '@/components/app/choice-group';
-import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { Money } from '@/components/app/money';
 import { formatQty, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -44,16 +43,14 @@ export function ChatDemo() {
 
     return (
         <div className="landing-demo-drift flex min-w-0 flex-col gap-4">
-            <div
+            <p
+                id="demo-pilih"
                 data-intro
                 style={delay(450)}
-                className="flex flex-wrap items-center justify-between gap-2"
+                className="text-sm font-medium"
             >
-                <p id="demo-pilih" className="text-sm font-medium">
-                    Pilih pesan, lihat yang tercatat
-                </p>
-                <DemoDataBadge />
-            </div>
+                Coba contoh pesan, lihat yang tercatat
+            </p>
             <div data-intro style={delay(520)}>
                 <ChoiceGroup
                     wrap

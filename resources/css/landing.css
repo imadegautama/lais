@@ -47,6 +47,25 @@
     border-radius: 0 2px 2px 0;
 }
 
+/* Messages show left of the middle line, records right of it. */
+.landing-conveyor-belt {
+    mask-image: linear-gradient(
+        to right,
+        transparent,
+        black 8%,
+        black 92%,
+        transparent
+    );
+}
+
+.landing-conveyor-in {
+    clip-path: inset(0 50% 0 0);
+}
+
+.landing-conveyor-out {
+    clip-path: inset(0 0 0 50%);
+}
+
 /* Four photographers, one mood. */
 .landing-photo {
     filter: saturate(0.92) sepia(0.08);
@@ -196,13 +215,15 @@
         transform: translateY(0.35em);
     }
 
-    .landing-marquee-track {
-        animation: landing-marquee 45s linear infinite;
+    /* Both lanes run the same clock, so a message turns into its record
+       exactly as it crosses the middle. */
+    .landing-conveyor-track {
+        animation: landing-conveyor 40s linear infinite;
     }
 
-    .landing-marquee:hover .landing-marquee-track,
-    .landing-marquee:focus-within .landing-marquee-track,
-    .landing-marquee[data-paused] .landing-marquee-track {
+    .landing-conveyor:hover .landing-conveyor-track,
+    .landing-conveyor:focus-within .landing-conveyor-track,
+    .landing-conveyor:active .landing-conveyor-track {
         animation-play-state: paused;
     }
 
@@ -303,8 +324,8 @@
     }
 }
 
-@keyframes landing-marquee {
-    to {
+@keyframes landing-conveyor {
+    from {
         transform: translateX(-50%);
     }
 }

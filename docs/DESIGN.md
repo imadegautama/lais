@@ -255,7 +255,7 @@ Isinya 20 baris per halaman. Param yang tidak valid diabaikan dan tidak pernah d
     - kosong: sebab + satu tindakan
     - memuat: menyebut apa yang dimuat
     - gagal: apa yang gagal + cara melanjutkan
-6. **Halaman dengan data contoh** menampilkan `DemoDataBadge` sampai datanya berasal dari ledger asli.
+6. **Halaman dengan data contoh** menampilkan `DemoDataBadge` sampai datanya berasal dari ledger asli. Pengecualian: hero landing cukup memakai kata "contoh" di labelnya.
 7. **Tujuan yang belum dibangun** memakai `{ comingSoon: true }` atau `ActionButton`: tampil nonaktif dengan label "Segera" dan komentar `TODO(kode halaman)`. Tidak boleh ada link atau tombol mati.
 8. **Dialog berisi form sendiri** yang dipasang di dalam `<form>` halaman wajib memanggil `event.stopPropagation()` di `onSubmit`. React meneruskan event lewat portal, jadi tanpa itu form halaman ikut terkirim.
 9. **Ringkasan di atas tabel server** dikirim sebagai closure (`'summary' => fn () => ...`) bila angkanya untuk semua baris dan tidak ikut saringan (Produk & stok). Bila ringkasan harus ikut saringan (Transaksi: uang masuk/keluar per periode), pakai parameter `summary` di `TableQuery::paginate()` supaya ikut terkirim di prop tabel saat reload. Filter yang bukan kolom biasa (periode) memakai closure di `filters`.
@@ -270,7 +270,7 @@ Isinya 20 baris per halaman. Param yang tidak valid diabaikan dan tidak pernah d
     - **Gerak:** atas permintaan pemilik, halaman ini memakai animasi, semuanya di `resources/css/landing.css` dan `use-reveal.ts`. Satu-satunya library adalah Lenis (`use-smooth-scroll.ts`), hanya untuk menghaluskan roda mouse di halaman ini. Guliran sentuh tetap native. Momen utamanya urutan demo chat: pesan, draf, "tersimpan", baru kartu Stok, Kas, Laba, Jurnal keluar. Saat digulir: judul per kata, kartu naik, dan bagian selang-seling masuk dari samping.
     - **Laptop:** berisi tangkapan layar asli, bukan gambar buatan, dari data contoh `DemoHistorySeeder` dan selalu berlabel `DemoDataBadge`. Nama, angka, dan teksnya tidak disunting.
     - **Foto:** hanya dari sumber yang lisensinya bisa diperiksa, tanpa gambar AI. Kredit fotografer dan lisensinya wajib tampil di dekat foto. Pilih tangan atau orang yang sedang bekerja, bukan wajah yang menatap kamera, supaya tidak terbaca sebagai testimoni.
-    - **Batasnya:** hanya `transform`, `opacity`, dan `filter`. Blur mati di bawah 768 px. Tanpa JS dan dengan `prefers-reduced-motion`, halaman langsung utuh. Elemen yang sudah terlihat tidak boleh disembunyikan, hanya yang di bawah layar. Marquee wajib punya tombol jeda. Aplikasi tetap MOTION 1.
+    - **Batasnya:** hanya `transform`, `opacity`, dan `filter`. Blur mati di bawah 768 px. Tanpa JS dan dengan `prefers-reduced-motion`, halaman langsung utuh. Elemen yang sudah terlihat tidak boleh disembunyikan, hanya yang di bawah layar. Marquee berhenti saat disorot, disentuh, atau difokus keyboard, dan berubah menjadi daftar diam saat gerak dikurangi. Aplikasi tetap MOTION 1.
 
 ## 7. Aturan konten
 

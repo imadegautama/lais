@@ -1,4 +1,11 @@
-import { BusinessCategory } from '@/types/enums';
+import type { MoneyDirection } from '@/types/domain';
+import {
+    BusinessCategory,
+    TransactionKind,
+    TransactionType,
+    transactionKindLabels,
+    transactionTypeLabels,
+} from '@/types/enums';
 
 /**
  * What the landing page's chat demo plays, with no model behind it. The
@@ -108,16 +115,74 @@ export const appScreens = [
     },
 ] as const;
 
-/** Messages from AssistantEvalTest, so each one is known to be understood. */
-export const sampleMessages = [
-    'jual 3 nasgor 2 es teh qris',
-    'bu sari ngutang 2 nasgor',
-    'beli beras 5 kg 70rb di toko makmur',
-    'bayar listrik 350rb',
-    'gaji karyawan 1,5jt transfer',
-    'setor modal 2jt tunai',
-    'bu sari bayar utangnya 30rb',
-    'tambah menu mie goreng 14rb pakai telur 1 dan beras 1 ons',
+/**
+ * Messages from AssistantEvalTest and what each becomes in the books, so
+ * every pair is one the assistant is known to read right. Amounts come from
+ * the message or the starter catalog's prices.
+ */
+export const sampleRecords: Array<{
+    message: string;
+    record: string;
+    detail: string;
+    amount: number;
+    direction: MoneyDirection;
+}> = [
+    {
+        message: 'jual 3 nasgor 2 es teh qris',
+        record: transactionTypeLabels[TransactionType.Penjualan],
+        detail: 'Non-tunai',
+        amount: 55_000,
+        direction: 'in',
+    },
+    {
+        message: 'bu sari ngutang 2 nasgor',
+        record: 'Piutang Bu Sari',
+        detail: 'Belum dibayar',
+        amount: 30_000,
+        direction: 'none',
+    },
+    {
+        message: 'beli beras 5 kg 70rb di toko makmur',
+        record: transactionTypeLabels[TransactionType.Pembelian],
+        detail: 'Stok beras +5 kg',
+        amount: 70_000,
+        direction: 'out',
+    },
+    {
+        message: 'bayar listrik 350rb',
+        record: transactionKindLabels[TransactionKind.ListrikAir],
+        detail: 'Biaya',
+        amount: 350_000,
+        direction: 'out',
+    },
+    {
+        message: 'gaji karyawan 1,5jt transfer',
+        record: transactionKindLabels[TransactionKind.Upah],
+        detail: 'Non-tunai',
+        amount: 1_500_000,
+        direction: 'out',
+    },
+    {
+        message: 'setor modal 2jt tunai',
+        record: transactionKindLabels[TransactionKind.Setor],
+        detail: 'Tunai',
+        amount: 2_000_000,
+        direction: 'in',
+    },
+    {
+        message: 'bu sari bayar utangnya 30rb',
+        record: 'Terima bayaran',
+        detail: 'Dari Bu Sari',
+        amount: 30_000,
+        direction: 'in',
+    },
+    {
+        message: 'tambah menu mie goreng 14rb pakai telur 1 dan beras 1 ons',
+        record: 'Produk baru: Mie Goreng',
+        detail: 'Resep 2 bahan',
+        amount: 14_000,
+        direction: 'none',
+    },
 ];
 
 export const examples: DemoExample[] = [
