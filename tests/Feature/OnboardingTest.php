@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\BusinessCategory;
+use App\Models\Account;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\JournalLine;
@@ -54,6 +55,38 @@ class OnboardingTest extends TestCase
         $this->assertSame((int) JournalLine::query()->sum('debit'), (int) JournalLine::query()->sum('credit'));
         $this->assertSame([today()->startOfDay()->toDateTimeString()], Transaction::query()->pluck('occurred_at')->map->toDateTimeString()->unique()->values()->all());
         $this->assertSame(['saldo_awal'], Transaction::query()->distinct()->pluck('type')->map->value->all());
+    }
+
+    public function test_the_akun_step_adds_the_owners_own_accounts_and_refuses_names_already_taken(): void
+    {
+        $business = Business::factory()->create();
+        $this->actingAs($business->user);
+        $refused = fn (array $accounts) => $this->post(route('onboarding.store'), ['custom_accounts' => $accounts] + $this->wizard($business));
+
+        // A fixed account's name, the same name twice, and a type that is not income or expense.
+        $refused([['type' => 'beban', 'name' => 'Beban Sewa']])->assertSessionHasErrors('custom_accounts.0.name');
+        $refused([['type' => 'beban', 'name' => 'Beban Kemasan'], ['type' => 'beban', 'name' => 'Beban Kemasan']])->assertSessionHasErrors('custom_accounts.1.name');
+        $refused([['type' => 'aset', 'name' => 'Laci kasir']])->assertSessionHasErrors('custom_accounts.0.type');
+        $this->assertNull($business->refresh()->onboarded_at);
+
+        $refused([['type' => 'beban', 'name' => 'Beban Kemasan'], ['type' => 'pendapatan', 'name' => 'Pendapatan Jasa Antar'], ['type' => 'beban', 'name' => 'Beban Internet & pulsa']])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            ['4201' => 'Pendapatan Jasa Antar', '6501' => 'Beban Kemasan', '6502' => 'Beban Internet & pulsa'],
+            Account::query()->where('accounts.business_id', $business->id)->orderBy('accounts.code')->pluck('accounts.name', 'accounts.code')->all(),
+        );
+        $this->assertNotNull($business->refresh()->onboarded_at);
+    }
+
+    public function test_the_wizard_shows_the_fixed_chart_for_the_akun_step(): void
+    {
+        $business = Business::factory()->create();
+        $this->actingAs($business->user);
+
+        $this->get(route('onboarding.show'))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('chart.0.code', '1101')
+            ->where('chart', fn ($chart) => collect($chart)->pluck('code')->contains('6104')));
     }
 
     public function test_a_draft_is_saved_after_each_step_checking_only_that_step(): void

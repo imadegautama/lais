@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\AccountType;
 use App\Enums\BusinessCategory;
 use App\Enums\ItemKind;
 use App\Services\Onboarding;
@@ -20,7 +21,7 @@ class OnboardingRequest extends FormRequest
     /**
      * In the order the wizard shows them.
      */
-    public const STEPS = ['usaha', 'uang', 'peralatan', 'produk', 'utang'];
+    public const STEPS = ['usaha', 'uang', 'peralatan', 'produk', 'utang', 'akun'];
 
     /**
      * Get the validation rules that apply to the request.
@@ -39,11 +40,13 @@ class OnboardingRequest extends FormRequest
             'draft.products' => ['nullable', 'array', 'max:100'],
             'draft.debts' => ['nullable', 'array', 'max:50'],
             'draft.receivables' => ['nullable', 'array', 'max:50'],
+            'draft.custom_accounts' => ['nullable', 'array', 'max:10'],
             'accounts' => ['nullable', 'array', 'max:20'],
             'equipment' => ['nullable', 'array', 'max:30'],
             'products' => ['nullable', 'array', 'max:100'],
             'debts' => ['nullable', 'array', 'max:50'],
             'receivables' => ['nullable', 'array', 'max:50'],
+            'custom_accounts' => ['nullable', 'array', 'max:10'],
         ];
 
         foreach ($finishing ? self::STEPS : [(string) $this->input('step')] as $step) {
@@ -53,6 +56,7 @@ class OnboardingRequest extends FormRequest
                 'peralatan' => $this->amounts('equipment') + $rules,
                 'produk' => $this->products() + $rules,
                 'utang' => $this->amounts('debts') + $this->amounts('receivables') + $rules,
+                'akun' => $this->customAccounts() + $rules,
                 default => $rules,
             };
         }
@@ -93,6 +97,11 @@ class OnboardingRequest extends FormRequest
             'products.*.opening_stock.min' => 'Stok awal tidak boleh minus.',
             'products.*.opening_stock.in' => 'Produk dengan resep tidak punya stok sendiri; stoknya ada di bahan.',
             'products.*.recipe.required' => 'Produk dengan resep perlu minimal satu bahan.',
+            'custom_accounts.max' => 'Paling banyak 10 akun khusus. Sisanya bisa ditambah nanti di Daftar akun.',
+            'custom_accounts.*.name.distinct' => 'Nama akun ini ada dua kali.',
+            'custom_accounts.*.name.unique' => 'Nama ini sudah dipakai akun lain.',
+            'custom_accounts.*.name.max' => 'Nama akun paling panjang 60 huruf.',
+            'custom_accounts.*.type.in' => 'Akun khusus hanya untuk pendapatan atau beban.',
         ];
     }
 
@@ -125,6 +134,24 @@ class OnboardingRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    /**
+     * "Akun khusus": income and expense accounts of the business's own, named
+     * like AccountRequest names them (unique in the business and the fixed chart).
+     *
+     * @return array<string, array<mixed>>
+     */
+    private function customAccounts(): array
+    {
+        return [
+            'custom_accounts.*.type' => ['required', Rule::in([AccountType::Pendapatan->value, AccountType::Beban->value])],
+            'custom_accounts.*.name' => [
+                'required', 'string', 'max:60', 'distinct',
+                Rule::unique('accounts', 'name')->where('business_id', $this->user()->currentBusiness()->id),
+                Rule::unique('accounts', 'name')->whereNull('business_id'),
+            ],
+        ];
     }
 
     /**

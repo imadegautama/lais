@@ -18,15 +18,7 @@ class AccountController extends Controller
     public function store(AccountRequest $request): RedirectResponse
     {
         $business = $request->user()->currentBusiness();
-        $type = AccountType::from((string) $request->validated('type'));
-        $account = new Account([
-            'code' => Account::nextCode($business, $type),
-            'name' => $request->validated('name'),
-            'type' => $type,
-            'normal_balance' => $type === AccountType::Beban ? 'debit' : 'credit',
-        ]);
-        $account->business_id = $business->id;
-        $account->save();
+        $account = Account::addTo($business, AccountType::from((string) $request->validated('type')), (string) $request->validated('name'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Akun {$account->name} ditambahkan dengan kode {$account->code}."]);
 

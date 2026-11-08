@@ -3,22 +3,26 @@ import { useState } from 'react';
 import { FormActionBar } from '@/components/app/form-action-bar';
 import { PageHeader } from '@/components/app/page-header';
 import { SectionCard } from '@/components/app/section-card';
-import { Stepper } from '@/components/app/stepper';
+import { TermHint, type Term } from '@/components/app/term-hint';
 import { Button } from '@/components/ui/button';
+import { AccountsStep } from '@/features/onboarding/accounts-step';
 import { AmountRows } from '@/features/onboarding/amount-rows';
 import { BusinessStep } from '@/features/onboarding/business-step';
 import { MoneyStep } from '@/features/onboarding/money-step';
 import {
+    earnedBadges,
     firstStepWithError,
     initialDraft,
     openingBalance,
     resumeIndex,
     STEPS,
     toPayload,
+    type ChartAccount,
     type OnboardingDraft,
     type StarterRow,
 } from '@/features/onboarding/onboarding';
 import { ProductsStep } from '@/features/onboarding/products-step';
+import { SetupProgress } from '@/features/onboarding/setup-progress';
 import { SummaryStep } from '@/features/onboarding/summary-step';
 import { fieldSetter, focusFirstError, formErrors } from '@/lib/form';
 import { store, update } from '@/routes/onboarding';
@@ -34,40 +38,62 @@ type OnboardingProps = {
     templates: Record<BusinessCategory, StarterRow[]>;
     /** Products added before the wizard, with their opening stock. */
     inventory: { count: number; value: number };
+    /** The fixed chart (COA) for the Akun step. */
+    chart: ChartAccount[];
 };
 
+/** Each step asks one everyday question, says why it matters, and explains its terms. */
 const intro: Record<
     (typeof STEPS)[number]['key'],
-    { title: string; description: string }
+    { title: string; description: string; terms: Array<[Term, string]> }
 > = {
     usaha: {
-        title: 'Tentang usahamu',
-        description: 'Nama dan jenis usaha, serta tanggal mulai pembukuan.',
+        title: 'Usahamu apa?',
+        description:
+            'Nama dan jenis usaha membantu Lais menyiapkan contoh produk dan akun yang cocok. Tanggal mulai jadi hari pertama pembukuanmu.',
+        terms: [['openingBalance', 'Saldo awal']],
     },
     uang: {
-        title: 'Uang usaha saat ini',
+        title: 'Ada uang usaha berapa sekarang?',
         description:
-            'Berapa uang usaha di tiap tempat pada tanggal mulai. Yang kosong biarkan saja.',
+            'Isi uang usaha di tiap tempat pada tanggal mulai, supaya saldo kas di Lais sama dengan kenyataan. Yang kosong biarkan saja.',
+        terms: [['assets', 'Aset']],
     },
     peralatan: {
-        title: 'Peralatan usaha',
+        title: 'Punya peralatan usaha apa?',
         description:
-            'Barang yang dipakai untuk usaha, bukan untuk dijual: kompor, etalase, freezer. Isi perkiraan nilainya sekarang. Boleh dilewati.',
+            'Barang yang dipakai untuk usaha, bukan dijual: kompor, etalase, mesin jahit. Isi perkiraan nilainya sekarang. Boleh dilewati.',
+        terms: [['equipment', 'Peralatan']],
     },
     produk: {
-        title: 'Produk & bahan',
+        title: 'Apa yang kamu jual, dan stoknya berapa?',
         description:
-            'Yang kamu jual dan bahan yang kamu stok, dengan stok saat mulai. Boleh dilewati.',
+            'Produk dan bahan beserta stok saat mulai. Dari sini Lais menghitung stok dan modal barang tiap penjualan. Boleh dilewati.',
+        terms: [
+            ['inventory', 'Persediaan'],
+            ['cogs', 'HPP'],
+        ],
     },
     utang: {
-        title: 'Utang & piutang',
+        title: 'Ada utang atau kasbon yang belum lunas?',
         description:
-            'Utang ke supplier dan kasbon pelanggan yang belum lunas saat mulai. Boleh dilewati.',
+            'Utang ke supplier dan kasbon pelanggan saat mulai, supaya tagihannya tidak terlupa. Boleh dilewati.',
+        terms: [
+            ['payables', 'Utang'],
+            ['receivables', 'Piutang'],
+        ],
+    },
+    akun: {
+        title: 'Ini daftar akun usahamu',
+        description:
+            'Daftar akun (COA) adalah laci-laci pembukuan. Lais sudah menyiapkannya; tambah akun khusus kalau perlu.',
+        terms: [['chartOfAccounts', 'Daftar akun']],
     },
     ringkasan: {
-        title: 'Neraca awal',
+        title: 'Hampir selesai!',
         description:
             'Ringkasan dari langkah sebelumnya. Periksa dulu, lalu simpan.',
+        terms: [['capital', 'Modal']],
     },
 };
 
@@ -80,6 +106,7 @@ export default function Onboarding({
     hasRecords,
     templates,
     inventory,
+    chart,
 }: OnboardingProps) {
     const form = useForm<OnboardingDraft>(
         initialDraft({
@@ -134,13 +161,13 @@ export default function Onboarding({
 
     return (
         <>
-            <Head title="Buka pembukuan" />
+            <Head title="Siapkan buku usaha" />
             <div className="flex flex-col gap-5">
                 <PageHeader
-                    title="Buka pembukuan"
-                    description="Catat yang sudah dimiliki usahamu saat mulai, supaya saldo kas dan neraca sesuai kenyataan. Bisa dilanjutkan nanti."
+                    title="Siapkan buku usahamu"
+                    description="Jawab beberapa pertanyaan tentang usahamu. Lais menyusun saldo awal dan daftar akunnya. Bisa dilanjutkan nanti."
                 />
-                <Stepper steps={STEPS} current={index} />
+                <SetupProgress current={index} />
 
                 <form
                     noValidate
@@ -154,93 +181,130 @@ export default function Onboarding({
                     }}
                     className="flex flex-col gap-5"
                 >
-                    <SectionCard
-                        title={intro[step.key].title}
-                        description={intro[step.key].description}
-                        tone={last ? 'focus' : 'default'}
+                    {/* Keyed by step, so each step slides in once (setup motion, DESIGN.md §6). */}
+                    <div
+                        key={step.key}
+                        className="motion-safe:animate-in motion-safe:duration-300 motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
                     >
-                        {step.key === 'usaha' && (
-                            <BusinessStep
-                                data={data}
-                                errors={errors}
-                                setField={setField}
-                                latestStart={latestStart}
-                                hasRecords={hasRecords}
-                            />
-                        )}
-                        {step.key === 'uang' && (
-                            <MoneyStep
-                                accounts={data.accounts}
-                                onChange={(next) => setField('accounts', next)}
-                                errors={errors}
-                            />
-                        )}
-                        {step.key === 'peralatan' && (
-                            <AmountRows
-                                list="equipment"
-                                rows={data.equipment}
-                                onChange={(next) => setField('equipment', next)}
-                                errors={errors}
-                                nameLabel="Nama peralatan"
-                                namePlaceholder="Kompor dua tungku"
-                                amountLabel="Perkiraan nilai"
-                                addLabel="Tambah peralatan"
-                            />
-                        )}
-                        {step.key === 'produk' && (
-                            <ProductsStep
-                                products={data.products}
-                                onChange={(next) => setField('products', next)}
-                                errors={errors}
-                                category={data.category}
-                                templates={templates}
-                                inventory={inventory}
-                            />
-                        )}
-                        {step.key === 'utang' && (
-                            <div className="flex flex-col gap-6">
-                                <section className="flex flex-col gap-3">
-                                    <h3 className="text-sm font-semibold">
-                                        Utang ke supplier
-                                    </h3>
-                                    <AmountRows
-                                        list="debts"
-                                        rows={data.debts}
-                                        onChange={(next) =>
-                                            setField('debts', next)
-                                        }
-                                        errors={errors}
-                                        nameLabel="Supplier"
-                                        namePlaceholder="Toko Sumber Rejeki"
-                                        amountLabel="Sisa utang"
-                                        addLabel="Tambah utang"
+                        <SectionCard
+                            title={intro[step.key].title}
+                            description={intro[step.key].description}
+                            tone={last ? 'focus' : 'default'}
+                        >
+                            <div className="-mt-1 mb-4 flex flex-wrap gap-2">
+                                {intro[step.key].terms.map(([term, label]) => (
+                                    <TermHint
+                                        key={term}
+                                        term={term}
+                                        label={label}
+                                        chip
                                     />
-                                </section>
-                                <section className="flex flex-col gap-3">
-                                    <h3 className="text-sm font-semibold">
-                                        Piutang pelanggan (kasbon)
-                                    </h3>
-                                    <AmountRows
-                                        list="receivables"
-                                        rows={data.receivables}
-                                        onChange={(next) =>
-                                            setField('receivables', next)
-                                        }
-                                        errors={errors}
-                                        nameLabel="Pelanggan"
-                                        namePlaceholder="Bu Sari"
-                                        amountLabel="Sisa piutang"
-                                        addLabel="Tambah piutang"
-                                    />
-                                </section>
+                                ))}
                             </div>
-                        )}
-                        {step.key === 'ringkasan' && (
-                            <SummaryStep
-                                books={openingBalance(data, inventory.value)}
-                            />
-                        )}
-                    </SectionCard>
+                            {step.key === 'usaha' && (
+                                <BusinessStep
+                                    data={data}
+                                    errors={errors}
+                                    setField={setField}
+                                    latestStart={latestStart}
+                                    hasRecords={hasRecords}
+                                />
+                            )}
+                            {step.key === 'uang' && (
+                                <MoneyStep
+                                    accounts={data.accounts}
+                                    onChange={(next) =>
+                                        setField('accounts', next)
+                                    }
+                                    errors={errors}
+                                />
+                            )}
+                            {step.key === 'peralatan' && (
+                                <AmountRows
+                                    list="equipment"
+                                    rows={data.equipment}
+                                    onChange={(next) =>
+                                        setField('equipment', next)
+                                    }
+                                    errors={errors}
+                                    nameLabel="Nama peralatan"
+                                    namePlaceholder="Kompor dua tungku"
+                                    amountLabel="Perkiraan nilai"
+                                    addLabel="Tambah peralatan"
+                                />
+                            )}
+                            {step.key === 'produk' && (
+                                <ProductsStep
+                                    products={data.products}
+                                    onChange={(next) =>
+                                        setField('products', next)
+                                    }
+                                    errors={errors}
+                                    category={data.category}
+                                    templates={templates}
+                                    inventory={inventory}
+                                />
+                            )}
+                            {step.key === 'utang' && (
+                                <div className="flex flex-col gap-6">
+                                    <section className="flex flex-col gap-3">
+                                        <h3 className="text-sm font-semibold">
+                                            Utang ke supplier
+                                        </h3>
+                                        <AmountRows
+                                            list="debts"
+                                            rows={data.debts}
+                                            onChange={(next) =>
+                                                setField('debts', next)
+                                            }
+                                            errors={errors}
+                                            nameLabel="Supplier"
+                                            namePlaceholder="Toko Sumber Rejeki"
+                                            amountLabel="Sisa utang"
+                                            addLabel="Tambah utang"
+                                        />
+                                    </section>
+                                    <section className="flex flex-col gap-3">
+                                        <h3 className="text-sm font-semibold">
+                                            Piutang pelanggan (kasbon)
+                                        </h3>
+                                        <AmountRows
+                                            list="receivables"
+                                            rows={data.receivables}
+                                            onChange={(next) =>
+                                                setField('receivables', next)
+                                            }
+                                            errors={errors}
+                                            nameLabel="Pelanggan"
+                                            namePlaceholder="Bu Sari"
+                                            amountLabel="Sisa piutang"
+                                            addLabel="Tambah piutang"
+                                        />
+                                    </section>
+                                </div>
+                            )}
+                            {step.key === 'akun' && (
+                                <AccountsStep
+                                    chart={chart}
+                                    data={data}
+                                    existingStock={inventory.value}
+                                    onChange={(next) =>
+                                        setField('custom_accounts', next)
+                                    }
+                                    errors={errors}
+                                />
+                            )}
+                            {step.key === 'ringkasan' && (
+                                <SummaryStep
+                                    books={openingBalance(
+                                        data,
+                                        inventory.value,
+                                    )}
+                                    badges={earnedBadges(index)}
+                                />
+                            )}
+                        </SectionCard>
+                    </div>
 
                     {/* Back on the left and forward on the right, as in any wizard. */}
                     <FormActionBar>

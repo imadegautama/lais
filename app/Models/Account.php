@@ -128,6 +128,24 @@ class Account extends Model
     /**
      * The next free code for an account this business adds.
      */
+    /**
+     * An income or expense account of the business's own, with the next code
+     * of its type (Daftar akun, and "Akun khusus" in the setup).
+     */
+    public static function addTo(Business $business, AccountType $type, string $name): self
+    {
+        $account = new self([
+            'code' => self::nextCode($business, $type),
+            'name' => $name,
+            'type' => $type,
+            'normal_balance' => $type === AccountType::Beban ? 'debit' : 'credit',
+        ]);
+        $account->business_id = $business->id;
+        $account->save();
+
+        return $account;
+    }
+
     public static function nextCode(Business $business, AccountType $type): string
     {
         $last = (int) self::query()->where('accounts.business_id', $business->id)->where('accounts.type', $type)->max('accounts.code');
