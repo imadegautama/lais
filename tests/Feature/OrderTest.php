@@ -8,6 +8,7 @@ use App\Enums\StockReason;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionSource;
 use App\Enums\TransactionStatus;
+use App\Http\Controllers\ShopController;
 use App\Models\Account;
 use App\Models\Business;
 use App\Models\Contact;
@@ -104,6 +105,38 @@ class OrderTest extends TestCase
         $refused([], 'lines');
 
         $this->assertSame(0, Order::query()->count());
+    }
+
+    public function test_the_shop_takes_no_more_than_the_stock_open_orders_leave(): void
+    {
+        $tea = Item::factory()->for($this->business)->create(['name' => 'Es Teh', 'unit' => 'gelas', 'price' => 5000]);
+        app(Inventory::class)->receive($tea, 5, 10000, StockReason::StokAwal, Account::OWNER_CAPITAL);
+        Item::factory()->recipe()->for($this->business)->create(['name' => 'Nasi Goreng', 'price' => 15000]);
+        $order = fn (int $qty) => $this->post(route('shop.store', $this->business->slug), $this->form(['lines' => [['item_id' => $tea->id, 'qty' => $qty]]]));
+        $left = fn () => ShopController::catalog($this->business)->firstWhere('name', 'Es Teh')['left'];
+
+        $order(6)->assertSessionHasErrors(['lines' => 'Stok Es Teh tinggal 5 gelas. Kurangi jumlahnya, lalu kirim lagi.']);
+        $order(3)->assertSessionHasNoErrors();
+        $order(3)->assertSessionHasErrors(['lines' => 'Stok Es Teh tinggal 2 gelas. Kurangi jumlahnya, lalu kirim lagi.']);
+        $order(2)->assertSessionHasNoErrors();
+        $order(1)->assertSessionHasErrors(['lines' => 'Es Teh sudah habis dipesan. Hapus dari pesanan, lalu kirim lagi.']);
+        $this->get(route('shop.show', $this->business->slug))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('items.1.name', 'Es Teh')
+            ->where('items.1.left', 0)
+            ->where('items.1.orderable', false)
+            // A recipe product follows its "tersedia" switch, not a count.
+            ->where('items.2.name', 'Nasi Goreng')
+            ->where('items.2.left', null));
+
+        // A rejected order lets its units go; a finished one has taken them out of the stock.
+        [$first, $second] = Order::query()->orderBy('id')->get()->all();
+        $orders = app(Orders::class);
+        $orders->reject($first, null);
+        $orders->complete($orders->accept($second));
+        $this->assertSame(3, $left());
+
+        // The owner may take an order past the stock (made or bought later).
+        $this->actingAs($this->business->user)->post(route('orders.store'), $this->form(['lines' => [['item_id' => $tea->id, 'qty' => 20]]]))->assertSessionHasNoErrors();
     }
 
     public function test_a_network_places_at_most_five_orders_in_ten_minutes(): void

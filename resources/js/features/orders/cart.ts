@@ -8,6 +8,13 @@ export type CartLine = { item: ShopItem; qty: number; subtotal: number };
 export const MAX_QTY = 999;
 /** OrderRequest takes at most 20 different products. */
 export const MAX_LINES = 20;
+/** From this many left, the shop shows "Sisa N". */
+export const LOW_LEFT = 5;
+
+/** The most a customer may order: what is left (Orders::left), or 999 for a recipe product. */
+export function maxQty(item: ShopItem): number {
+    return Math.min(MAX_QTY, item.left ?? MAX_QTY);
+}
 
 export function setQty(cart: Cart, itemId: number, qty: number): Cart {
     const next = { ...cart };
@@ -21,15 +28,18 @@ export function setQty(cart: Cart, itemId: number, qty: number): Cart {
     return next;
 }
 
-/** Lines in catalog order; items no longer orderable drop out. */
+/**
+ * Lines in catalog order; items no longer orderable drop out, and a saved
+ * quantity above what is left now is cut down to it.
+ */
 export function cartLines(cart: Cart, items: ShopItem[]): CartLine[] {
     return items
         .filter((item) => item.orderable && (cart[item.id] ?? 0) > 0)
-        .map((item) => ({
-            item,
-            qty: cart[item.id],
-            subtotal: cart[item.id] * item.price,
-        }));
+        .map((item) => {
+            const qty = Math.min(cart[item.id], maxQty(item));
+
+            return { item, qty, subtotal: qty * item.price };
+        });
 }
 
 export function cartTotal(lines: CartLine[]): number {

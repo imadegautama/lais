@@ -55,6 +55,8 @@ import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { SearchSelect } from '@/components/app/search-select';
 import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
+import { ProductRow } from '@/features/orders/product-row';
+import { ShopIntro } from '@/features/orders/shop-intro';
 import { BreakdownBars } from '@/features/reports/breakdown-bars';
 import { ReportLead } from '@/features/reports/report-lead';
 import { Statement } from '@/features/reports/statement';
@@ -95,6 +97,7 @@ const sections = [
     ['bentuk', 'Bentuk'],
     ['tombol', 'Tombol'],
     ['form', 'Form'],
+    ['toko', 'Toko'],
     ['badge', 'Badge'],
     ['angka', 'Angka'],
     ['kartu', 'Kartu'],
@@ -766,6 +769,66 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                             </Button>
                             <Button variant="outline">Batal</Button>
                         </FormActionBar>
+                    </div>
+                </Section>
+
+                <Section
+                    id="toko"
+                    title="Toko"
+                    intro="Halaman toko publik: kartu toko dengan Cara pesan, lalu baris produk. Tanpa foto, baris memakai ubin oranye muda dengan huruf depan. Tombol + berhenti di sisa stok, dan Sisa N tampil saat tinggal 5 atau kurang."
+                >
+                    <div className="flex flex-col gap-3">
+                        <ShopIntro
+                            shop={{
+                                name: 'Warung Bu Rina',
+                                slug: 'warung-bu-rina',
+                                category: 'Kuliner',
+                                open: true,
+                                whatsapp: null,
+                                qrisUrl: null,
+                                onlinePayment: false,
+                            }}
+                        />
+                        <ul className="grid gap-3 md:grid-cols-2">
+                            {[
+                                {
+                                    id: 1,
+                                    name: 'Mie Goreng Aceh',
+                                    unit: 'porsi',
+                                    price: 14000,
+                                    left: null,
+                                    orderable: true,
+                                    qty: 0,
+                                },
+                                {
+                                    id: 2,
+                                    name: 'Air Mineral 600 ml',
+                                    unit: 'botol',
+                                    price: 4000,
+                                    left: 3,
+                                    orderable: true,
+                                    qty: 3,
+                                },
+                                {
+                                    id: 3,
+                                    name: 'Kerupuk',
+                                    unit: 'bungkus',
+                                    price: 2000,
+                                    left: 0,
+                                    orderable: false,
+                                    qty: 0,
+                                },
+                            ].map(({ qty: shownQty, ...item }) => (
+                                <ProductRow
+                                    key={item.id}
+                                    item={{ ...item, photoUrl: null }}
+                                    qty={shownQty}
+                                    open
+                                    full={false}
+                                    onQty={() => undefined}
+                                />
+                            ))}
+                        </ul>
                     </div>
                 </Section>
 

@@ -33,6 +33,8 @@ class OrderRequest extends FormRequest
             'lines.*.qty' => ['required', 'integer', 'min:1', 'max:999'],
             // Left empty by people; bots fill every field they find (PRD US-08).
             'website' => ['prohibited'],
+            // Shop only: off to DOKU after placing, when the shop offers it (ShopController::store).
+            'pay_online' => ['sometimes', 'boolean'],
         ];
     }
 

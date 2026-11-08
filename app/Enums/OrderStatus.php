@@ -55,6 +55,17 @@ enum OrderStatus: string
         return in_array($this, [self::Diproses, self::Siap], true);
     }
 
+    /**
+     * Open orders hold their units: the stock only goes out at Selesai, and
+     * the shop must not sell the same last unit twice before that.
+     *
+     * @return list<self>
+     */
+    public static function holdsStock(): array
+    {
+        return [self::Menunggu, self::Diproses, self::Siap];
+    }
+
     /** Payments come in once accepted, and after Selesai until the rest is paid. */
     public function acceptsPayment(): bool
     {

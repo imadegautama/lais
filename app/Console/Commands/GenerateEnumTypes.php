@@ -8,6 +8,7 @@ use App\Enums\BusinessCategory;
 use App\Enums\ContactType;
 use App\Enums\ItemKind;
 use App\Enums\MoneyAccountKind;
+use App\Enums\OnlinePaymentStatus;
 use App\Enums\OrderFulfillment;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
@@ -52,6 +53,7 @@ class GenerateEnumTypes extends Command
         OrderStatus::class,
         OrderFulfillment::class,
         PaymentStatus::class,
+        OnlinePaymentStatus::class,
         AccountType::class,
     ];
 

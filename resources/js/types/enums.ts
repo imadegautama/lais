@@ -263,6 +263,22 @@ export const paymentStatusLabels: Record<PaymentStatus, string> = {
     lunas: 'Lunas',
 };
 
+export const OnlinePaymentStatus = {
+    Menunggu: 'menunggu',
+    Lunas: 'lunas',
+    Kedaluwarsa: 'kedaluwarsa',
+    Gagal: 'gagal',
+} as const;
+
+export type OnlinePaymentStatus = (typeof OnlinePaymentStatus)[keyof typeof OnlinePaymentStatus];
+
+export const onlinePaymentStatusLabels: Record<OnlinePaymentStatus, string> = {
+    menunggu: 'Menunggu pembayaran',
+    lunas: 'Dibayar online',
+    kedaluwarsa: 'Kedaluwarsa',
+    gagal: 'Gagal',
+};
+
 export const AccountType = {
     Aset: 'aset',
     Kewajiban: 'kewajiban',

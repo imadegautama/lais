@@ -9,7 +9,7 @@ import { fieldSetter, formErrors } from '@/lib/form';
 import { formatRupiah } from '@/lib/format';
 import { orderFulfillmentLabels } from '@/types/enums';
 import type { OrderFulfillment } from '@/types/domain';
-import { MAX_QTY, type CartLine } from './cart';
+import { maxQty, type CartLine } from './cart';
 
 /** OrderRequest's fields; `lines` is filled from the cart when sending. */
 export type OrderFormData = {
@@ -21,6 +21,8 @@ export type OrderFormData = {
     note: string;
     /** Honeypot: hidden from people, filled by bots (PRD US-08). */
     website: string;
+    /** Shop only: go to DOKU after sending, when the shop offers it. */
+    pay_online: boolean;
     lines: Array<{ item_id: number; qty: number }>;
 };
 
@@ -32,6 +34,7 @@ export const emptyOrder: OrderFormData = {
     wanted_at: '',
     note: '',
     website: '',
+    pay_online: false,
     lines: [],
 };
 
@@ -76,7 +79,7 @@ export function CartSummary({
                             label={line.item.name}
                             value={line.qty}
                             min={0}
-                            max={MAX_QTY}
+                            max={maxQty(line.item)}
                             onChange={(qty) => onQty(line.item.id, qty)}
                         />
                         <p className="num w-24 text-right text-sm font-semibold">

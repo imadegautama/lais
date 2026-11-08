@@ -11,6 +11,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Field } from '@/components/app/field';
+import { SwitchRow } from '@/components/app/switch-row';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -27,10 +28,10 @@ import { Switch } from '@/components/ui/switch';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { formErrors } from '@/lib/form';
 import { shop as updateShop } from '@/routes/orders';
-import type { ShopInfo } from '@/types/domain';
+import type { OwnerShop } from '@/types/domain';
 import { displayPhone } from './phone';
 
-type Shop = ShopInfo & { url: string };
+type Shop = OwnerShop;
 
 /**
  * The shop's switches on the orders page (UI-PAGES C9), as one compact bar
@@ -175,10 +176,12 @@ function SettingsDialog({ shop }: { shop: Shop }) {
         whatsapp: string;
         qris: File | null;
         remove_qris: boolean;
+        online_payment: boolean;
     }>({
         whatsapp: shop.whatsapp ? displayPhone(shop.whatsapp) : '',
         qris: null,
         remove_qris: false,
+        online_payment: shop.onlinePayment,
     });
     const errors = formErrors(form);
     const [preview, setPreview] = useState<string | null>(null);
@@ -299,6 +302,17 @@ function SettingsDialog({ shop }: { shop: Shop }) {
                                 Hapus QRIS
                             </Button>
                         )}
+                    {shop.onlinePaymentReady && (
+                        <SwitchRow
+                            id={`${id}-online`}
+                            label="Terima bayar online"
+                            hint="Pelanggan bisa bayar lewat DOKU (mode uji) saat memesan. Uangnya dicatat sebagai DP di rekening Saldo DOKU."
+                            checked={form.data.online_payment}
+                            onChange={(value) =>
+                                form.setData('online_payment', value)
+                            }
+                        />
+                    )}
                     <DialogFooter>
                         <DialogClose asChild>
                             <Button type="button" variant="outline">

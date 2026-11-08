@@ -28,8 +28,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $whatsapp
  * @property string|null $qris_path
  * @property bool $daily_summary
+ * @property bool $online_payment Offers bayar online through DOKU in the shop (App\Services\Doku).
  */
-#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at', 'accepting_orders', 'whatsapp', 'qris_path', 'daily_summary'])]
+#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at', 'accepting_orders', 'whatsapp', 'qris_path', 'online_payment', 'daily_summary'])]
 class Business extends Model
 {
     /** @use HasFactory<BusinessFactory> */
@@ -48,6 +49,7 @@ class Business extends Model
             'onboarding_draft' => 'array',
             'onboarded_at' => 'datetime',
             'accepting_orders' => 'boolean',
+            'online_payment' => 'boolean',
             'daily_summary' => 'boolean',
         ];
     }

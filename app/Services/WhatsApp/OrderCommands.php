@@ -21,7 +21,7 @@ class OrderCommands
 {
     private const VERBS = 'terima|tolak|siap|selesai|batal|dp|lunas';
 
-    public function __construct(private Orders $orders) {}
+    public function __construct(private Orders $orders, private BotChannel $channel) {}
 
     /**
      * The reply, or null when the text is not an order command.
@@ -105,7 +105,7 @@ class OrderCommands
             return $verb === 'lunas' ? "Pesanan {$order->code} sudah lunas." : "Tulis nominalnya, misalnya \"{$order->code} dp 20rb qris\".";
         }
 
-        $this->orders->recordPayment($order, $amount, $method);
+        $this->orders->recordPayment($order, $amount, $method, source: $this->channel->source());
         $after = $left - $amount;
 
         return 'Pembayaran '.Format::rupiah($amount)." ({$method->label()}) untuk {$order->code} dicatat."

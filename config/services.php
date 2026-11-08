@@ -81,6 +81,13 @@ return [
         'bot_number' => env('GOWA_BOT_NUMBER'),
     ],
 
+    // Bayar online in the shop through DOKU Checkout (App\Services\Doku). Off while either key is empty.
+    'doku' => [
+        'client_id' => env('DOKU_CLIENT_ID'),
+        'secret_key' => env('DOKU_SECRET_KEY'),
+        'base_url' => env('DOKU_BASE_URL', 'https://api-sandbox.doku.com'),
+    ],
+
     // Masuk dengan Google. The button only shows when client_id is set.
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),

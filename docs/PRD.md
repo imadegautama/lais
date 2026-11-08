@@ -229,6 +229,8 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 **Status pengerjaan (web, 4 Nov 2026):** halaman toko, checkout, nota, daftar dan detail pesanan, pesanan manual oleh pemilik, upload QRIS, foto produk, dan QR toko untuk dicetak sudah jadi. Notifikasi dan perintah lewat WA (US-09) menunggu GOWA; sementara pesanan baru tampil sebagai angka di menu Pesanan dan aksi di dashboard, dan kabar ke pelanggan dikirim dari tombol `wa.me` di detail pesanan.
 
+**Status (8 Nov 2026):** toko hanya menerima sampai sisa stok (stok dikurangi pesanan yang belum selesai), halaman toko memakai daftar menu dengan Cara pesan, dan pelanggan bisa bayar online lewat DOKU Checkout (sandbox, satu akun platform) saat memesan atau dari nota. Uangnya menjadi uang muka di rekening Saldo DOKU; refund dilakukan manual di dashboard DOKU. Produksi nyata butuh Sub Account DOKU per toko.
+
 **Penyimpangan dari §Keamanan:** foto produk dan QRIS disimpan di disk publik, bukan disk privat dengan signed route, karena keduanya memang untuk dilihat pelanggan tanpa login.
 
 #### M5. Utang-Piutang

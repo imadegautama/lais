@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\OnlinePaymentStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionKind;
 use App\Models\Order;
@@ -76,6 +77,7 @@ class OrderResource extends JsonResource
             'rejectedAt' => $this->rejected_at?->toIso8601String(),
             'rejectReason' => $this->reject_reason,
             'token' => $this->token,
+            'onlinePayment' => $this->onlinePayment(),
             'lines' => $this->lines->map(fn ($line) => [
                 'name' => $line->name,
                 'unit' => $line->unit,
@@ -83,6 +85,28 @@ class OrderResource extends JsonResource
                 'price' => $line->price,
                 'subtotal' => $line->subtotal,
             ])->values(),
+        ];
+    }
+
+    /**
+     * The latest DOKU page, as the nota shows it; its link only while it still takes payments.
+     *
+     * @return array{status: OnlinePaymentStatus, url: string|null, channel: string|null}|null
+     */
+    private function onlinePayment(): ?array
+    {
+        $payment = $this->resource->onlinePayments()->latest('id')->first();
+
+        if ($payment === null) {
+            return null;
+        }
+
+        $expired = $payment->status === OnlinePaymentStatus::Menunggu && ! $payment->isOpen();
+
+        return [
+            'status' => $expired ? OnlinePaymentStatus::Kedaluwarsa : $payment->status,
+            'url' => $payment->isOpen() ? $payment->url : null,
+            'channel' => $payment->channel,
         ];
     }
 }

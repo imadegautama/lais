@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Enums\OrderFulfillment;
 use App\Enums\OrderStatus;
+use App\Enums\TransactionKind;
+use App\Enums\TransactionStatus;
 use App\Models\Order;
 
 /**
@@ -15,6 +17,7 @@ class OrderMessages
 {
     /**
      * Where the order stands and what is left to pay, with the nota link.
+     * A refused order says what uang muka comes back instead.
      *
      * @param  int  $paid  Orders::paid(), read by the caller
      */
@@ -35,8 +38,44 @@ class OrderMessages
             OrderStatus::Selesai => "Terima kasih, {$order->customer_name}! Pesanan {$order->code} sudah selesai.".($rest > 0 ? $owed : ' Pembayarannya sudah lunas.').$nota,
             OrderStatus::Ditolak => "Mohon maaf, {$order->customer_name}, pesanan {$order->code} di {$shop} tidak bisa kami proses"
                 .($order->reject_reason ? " ({$order->reject_reason})" : '').'.'
-                .($paid > 0 ? ' Uang muka '.Format::rupiah($paid).' kami kembalikan.' : '').$nota,
+                .(($returned = self::returned($order)) > 0 ? ' Uang muka '.Format::rupiah($returned).' kami kembalikan.' : '').$nota,
         };
+    }
+
+    /**
+     * Uang muka handed back when an accepted order was called off: Orders::cancel
+     * voids it, so paid() no longer counts it. Order records are locked
+     * elsewhere, so a void one here can only come from that cancel.
+     */
+    private static function returned(Order $order): int
+    {
+        return (int) $order->transactions()
+            ->where('transactions.kind', TransactionKind::UangMuka)
+            ->where('transactions.status', TransactionStatus::Void)
+            ->sum('transactions.total');
+    }
+
+    /**
+     * The bot's note to the owner when a customer paid online (App\Services\Doku).
+     *
+     * @param  int  $booked  how much went into the books; less than $amount when the order could not take it
+     */
+    public static function paidOnline(Order $order, int $amount, int $booked): string
+    {
+        $head = "*{$order->code} dibayar online* ".Format::rupiah($amount)." oleh {$order->customer_name}.";
+
+        if ($booked === $amount) {
+            return $head.'
+Dicatat sebagai uang muka di Saldo DOKU, dan pesanannya sudah diterima.';
+        }
+
+        $back = Format::rupiah($amount - $booked);
+
+        return $head.($order->status === OrderStatus::Ditolak
+            ? "
+Pesanan ini sudah ditolak, jadi tidak dicatat. Kembalikan {$back} ke pelanggan lewat dashboard DOKU."
+            : '
+Yang dicatat '.Format::rupiah($booked).". Lebihnya {$back} kembalikan ke pelanggan lewat dashboard DOKU.");
     }
 
     /**

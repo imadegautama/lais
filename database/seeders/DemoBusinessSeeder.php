@@ -27,7 +27,8 @@ class DemoBusinessSeeder extends Seeder
 
         $business = Business::query()->firstOrCreate(
             ['user_id' => $user->id],
-            ['name' => 'Warung Bu Rina', 'slug' => 'warung-bu-rina'],
+            // Bayar online shows only once DOKU keys are set (App\Services\Doku::offeredBy).
+            ['name' => 'Warung Bu Rina', 'slug' => 'warung-bu-rina', 'online_payment' => true],
         );
 
         if ($business->items()->exists()) {

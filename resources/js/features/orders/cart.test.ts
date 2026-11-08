@@ -5,17 +5,24 @@ import {
     cartLines,
     cartTotal,
     loadCart,
+    maxQty,
     saveCart,
     setQty,
 } from './cart';
 
-const item = (id: number, price: number, orderable = true): ShopItem => ({
+const item = (
+    id: number,
+    price: number,
+    orderable = true,
+    left: number | null = null,
+): ShopItem => ({
     id,
     name: `Produk ${id}`,
     unit: 'pcs',
     price,
     photoUrl: null,
     orderable,
+    left,
 });
 
 describe('cart', () => {
@@ -33,6 +40,15 @@ describe('cart', () => {
         cart = setQty(cart, 2, 5000);
         expect(cart).toEqual({ 1: 2, 2: 999 });
         expect(setQty(cart, 1, 0)).toEqual({ 2: 999 });
+    });
+
+    it('stops at what is left, and cuts a saved quantity down to it', () => {
+        expect(maxQty(item(1, 4000, true, 5))).toBe(5);
+        expect(maxQty(item(2, 15000))).toBe(999);
+
+        // The stock went down since the cart was saved: 5 left, 8 in the cart.
+        const [line] = cartLines({ 1: 8 }, [item(1, 4000, true, 5)]);
+        expect([line.qty, line.subtotal]).toEqual([5, 20000]);
     });
 
     it('totals the lines still orderable, in catalog order', () => {

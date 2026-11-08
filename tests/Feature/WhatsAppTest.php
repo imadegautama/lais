@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\TransactionSource;
 use App\Models\Business;
 use App\Models\Item;
@@ -229,6 +230,8 @@ class WhatsAppTest extends TestCase
 
         $this->deliver($this->event('A001 dp 8rb qris', id: 'O2'));
         $this->assertSent('6281234567890@s.whatsapp.net', 'Pembayaran Rp8.000 (Non-tunai) untuk A001 dicatat. Sisa Rp12.000.');
+        // Recorded from the bot, so it says so in the history.
+        $this->assertSame(TransactionSource::Wa, Order::query()->sole()->transactions()->sole()->source);
 
         $this->deliver($this->event('A001 selesai', id: 'O3'));
         $this->assertSent('6281234567890@s.whatsapp.net', 'Pesanan A001 selesai dan tercatat sebagai penjualan. Sisa Rp12.000 jadi piutang Bu Sari.');
@@ -264,8 +267,11 @@ class WhatsAppTest extends TestCase
         $order->forceFill(['status' => OrderStatus::Selesai])->save();
         $this->assertStringContainsString('Pembayarannya sudah lunas.', OrderMessages::status($order, 20000));
 
-        $order->forceFill(['status' => OrderStatus::Ditolak, 'reject_reason' => 'Bahan habis'])->save();
-        $this->assertStringContainsString('tidak bisa kami proses (Bahan habis). Uang muka Rp8.000 kami kembalikan.', OrderMessages::status($order, 8000));
+        // Called off after a deposit: the deposit is voided, so paid() is 0, yet the news says it comes back.
+        $order->forceFill(['status' => OrderStatus::Siap])->save();
+        app(Orders::class)->recordPayment($order, 8000, PaymentMethod::Tunai);
+        app(Orders::class)->cancel($order->refresh(), 'Bahan habis');
+        $this->assertStringContainsString('tidak bisa kami proses (Bahan habis). Uang muka Rp8.000 kami kembalikan.', OrderMessages::status($order->refresh(), app(Orders::class)->paid($order)));
     }
 
     public function test_why_profit_and_cash_differ_is_answered_from_the_books(): void

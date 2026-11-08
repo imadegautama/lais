@@ -95,6 +95,16 @@ class Order extends Model
     }
 
     /**
+     * DOKU Checkout pages opened for it (App\Services\Doku).
+     *
+     * @return HasMany<OnlinePayment, $this>
+     */
+    public function onlinePayments(): HasMany
+    {
+        return $this->hasMany(OnlinePayment::class);
+    }
+
+    /**
      * Uang muka, the sale, and payments after it.
      *
      * @return HasMany<Transaction, $this>
