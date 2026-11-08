@@ -54,8 +54,8 @@ class DashboardController extends Controller
                 ->exists(),
             'business' => ['name' => $business->name, 'ownerName' => $request->user()->name],
             'missions' => $this->missions($business, $request->user()),
-            // Right after the setup: the tour runs once (ProductTour remembers it per device).
-            'startTour' => $request->boolean('tur'),
+            // The tour opens by itself until the owner finishes or skips it.
+            'startTour' => $request->user()->tour_completed_at === null,
             'period' => ['key' => $period, 'label' => $period->label(), 'comparisonLabel' => $compare ? $period->comparisonLabel() : null],
             'periods' => array_map(fn (Period $option) => ['key' => $option, 'label' => $option->label()], Period::cases()),
             'summary' => [
