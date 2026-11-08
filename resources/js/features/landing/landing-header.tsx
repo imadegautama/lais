@@ -24,7 +24,7 @@ export function LandingHeader({ hasShop }: { hasShop: boolean }) {
                     </a>
                     {hasShop && (
                         <a href="#toko-contoh" className="hover:underline">
-                            Toko contoh
+                            Demo Toko
                         </a>
                     )}
                 </nav>
