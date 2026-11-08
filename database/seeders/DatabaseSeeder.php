@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             'password' => config('services.demo.password'),
         ])->markEmailAsVerified();
 
-        $this->call([DemoBusinessSeeder::class, DemoHistorySeeder::class]);
+        // Each step skips what is already there, so running db:seed again only fills gaps.
+        $this->call([DemoBusinessSeeder::class, DemoHistorySeeder::class, DemoPhotoSeeder::class]);
     }
 }

@@ -6,7 +6,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * Example dataset for "Warung Bu Rina", shown only in the living style guide
- * (/design-system) next to a visible "Data contoh" badge. Seeded, so stable.
+ * (/design-system) next to a visible "Data demo" badge. Seeded, so stable.
  */
 final class DemoData
 {

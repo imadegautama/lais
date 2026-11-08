@@ -28,6 +28,7 @@ import { ChatDemo } from './chat-demo';
 import { businessPhotos, problems, surveyFacts } from './examples';
 import { useActiveStep } from './use-active-step';
 import { delay, WordReveal } from './word-reveal';
+import { isMouse } from './pointer';
 
 const SOURCE_URL =
     'https://www.ocbc.id/id/tentang-ocbc/informasi/siaran-pers/2024/08/19/ocbc-business-fitness-index';
@@ -120,7 +121,6 @@ function Ledger({ title, children }: { title: string; children: ReactNode }) {
         <div className="landing-drift rounded-xl border bg-card p-4 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold">{title}</p>
-                <DemoDataBadge />
             </div>
             <dl className="mt-3 flex flex-col divide-y text-sm">{children}</dl>
         </div>
@@ -287,9 +287,6 @@ const answerVisuals: Record<(typeof problems)[number]['id'], ReactNode> = {
     ),
     catat: (
         <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-card">
-            <div className="flex justify-end">
-                <DemoDataBadge />
-            </div>
             <p className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-brand-soft px-3 py-2 text-sm">
                 jual 2 es teh tunai
             </p>
@@ -327,7 +324,6 @@ const answerVisuals: Record<(typeof problems)[number]['id'], ReactNode> = {
         <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-card">
             <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold">Perlu tindakan hari ini</p>
-                <DemoDataBadge />
             </div>
             <MiniRow icon={TriangleAlert}>Stok telur menipis</MiniRow>
             <MiniRow icon={Clock}>
@@ -454,6 +450,8 @@ export function Answers() {
  */
 export function Audience() {
     const [held, setHeld] = useState(false);
+    // A tap (not a scroll) holds it on touch screens; another tap lets it go.
+    const [tapped, setTapped] = useState(false);
 
     return (
         <section aria-labelledby="untuk-siapa" className="py-12 md:py-16">
@@ -469,17 +467,16 @@ export function Audience() {
                 aria-label="Foto jenis usaha. Gerakkan kursor, sentuh, atau fokus untuk berhenti."
                 tabIndex={0}
                 data-reveal="up"
-                data-held={held || undefined}
+                data-held={held || tapped || undefined}
                 onPointerMove={(event) => {
                     if (event.pointerType === 'mouse') {
                         setHeld(true);
                     }
                 }}
                 onPointerLeave={() => setHeld(false)}
-                // A tap focuses it, so touch can hold it too.
-                onPointerDown={(event) => {
-                    if (event.pointerType !== 'mouse') {
-                        event.currentTarget.focus();
+                onClick={(event) => {
+                    if (!isMouse(event.nativeEvent)) {
+                        setTapped((now) => !now);
                     }
                 }}
                 className="landing-strip mt-8 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"

@@ -28,6 +28,7 @@ void createInertiaApp({
         switch (true) {
             case name === 'welcome':
             case name.startsWith('errors/'):
+            case name.startsWith('legal/'):
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
@@ -51,7 +52,8 @@ void createInertiaApp({
         );
     },
     progress: {
-        color: '#4B5563',
+        // Inertia writes this into CSS, so a token works; brand-strong is the non-text orange.
+        color: 'var(--brand-strong)',
     },
 });
 

@@ -44,13 +44,9 @@ class AppServiceProvider extends ServiceProvider
             app()->isProduction(),
         );
 
+        // Easy to remember for a shop owner, but never a password known to be leaked.
         Password::defaults(fn (): ?Password => app()->isProduction()
-            ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
+            ? Password::min(8)->uncompromised()
             : null,
         );
     }

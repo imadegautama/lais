@@ -30,10 +30,3 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('settings/bot/ringkasan', [WhatsAppController::class, 'summary'])->name('whatsapp.summary');
 
 });
-
-Route::get('.well-known/passkey-endpoints', function () {
-    return response()->json([
-        'enroll' => route('security.edit'),
-        'manage' => route('security.edit'),
-    ]);
-})->name('well-known.passkeys');

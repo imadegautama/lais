@@ -104,7 +104,7 @@ Satu kolom, maksimal 640 px, dioptimalkan untuk HP. Header berisi logo dan nama 
 Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya ada di `resources/js/features/landing`.
 
 - **Hero:** judul "Cukup chat, pembukuan usahamu tersusun sendiri.", tombol **Daftar gratis** dan **Lihat toko contoh**, lalu demo chat: empat contoh pesan yang bisa dipilih, HP berisi percakapan, dan kartu Stok, Kas, Laba, Jurnal yang ikut berubah. Demo tidak memanggil AI.
-- **Contoh pesan:** diagram "Cukup tulis seperti biasa, Lais yang memilah." Enam chat dari eval `AssistantEvalTest` di kiri, simpul AI di tengah, enam buku di kanan. Satu chat menyala bergantian dan garisnya mengalir ke buku yang tepat, lalu catatannya muncul. Di HP disusun tegak. Kursor di atas sebuah chat menampilkan jalurnya dan menghentikan putaran; sentuhan dan fokus keyboard juga menghentikannya. Angkanya berlabel `DemoDataBadge`.
+- **Contoh pesan:** diagram "Cukup tulis seperti biasa, Lais yang memilah." Enam chat dari eval `AssistantEvalTest` di kiri, simpul AI di tengah, enam buku di kanan. Satu chat menyala bergantian dan garisnya mengalir ke buku yang tepat, lalu catatannya muncul. Di HP disusun tegak. Kursor di atas sebuah chat menampilkan jalurnya dan menghentikan putaran; sentuhan dan fokus keyboard juga menghentikannya.
 - **Masalah:** panel oranye. Judul "Usaha jalan terus, tapi untungnya ke mana?", dua angka OCBC Business Fitness Index 2024 sebagai grid 100 titik (46% memisahkan uang usaha dan pribadi, 77% dari yang sudah mencatat masih manual), lalu empat masalah bernomor.
 - **Jawaban Lais** (`#cara-kerja`): empat jawaban dengan nomor dan urutan yang sama, masing-masing dengan potongan tampilan aplikasi. Daftar masalah menempel di kiri, menyala dan tercoret saat digulir.
 - **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan. Tombol tabnya rata tengah, dan kalimat pengantarnya mengarahkan ke tab itu.
@@ -162,13 +162,20 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 ---
 
+### A5. Kebijakan Privasi `/privasi` dan Syarat dan Ketentuan `/syarat`
+
+- Halaman publik untuk consent screen Google dan untuk pendaftar. Pengelola ditulis "Tim Lais", kontak `halo@lais.web.id` (diteruskan Cloudflare Email Routing).
+- Isinya harus jujur terhadap kode: data yang disimpan, layanan pihak ketiga (Anthropic, Cloudflare R2, Telegram atau WhatsApp, Resend, Google), tanpa analitik atau iklan, dan apa yang belum ikut terhapus saat akun dihapus. Tanpa klaim patuh UU PDP; laporan "mengacu pada SAK EMKM".
+- Ditautkan dari footer landing dan dari halaman Daftar. Kalau perilaku data berubah, perbarui teks dan tanggal berlakunya.
+
 ## B. Auth & Onboarding
 
 ### B1. Daftar `/register`
 
-- Field: nama, nomor WA, password, konfirmasi password.
-- Penjelasan: "Kode verifikasi akan dikirim ke WA Anda".
-- Tautan ke halaman masuk. Layout auth bertipe _split_: kiri form, kanan ilustrasi atau cuplikan chat WA.
+- **Lanjutkan dengan Google** di atas form (`GoogleController`, tampil hanya kalau `GOOGLE_CLIENT_ID` diisi), lalu "atau daftar dengan email".
+- Field: nama, email, password (minimal 8 karakter, dengan tombol lihat). Tanpa konfirmasi password.
+- Daftar email lanjut ke verifikasi email; daftar Google langsung terverifikasi dan masuk ke onboarding.
+- Tautan ke halaman masuk. Layout auth _split_ untuk semua halaman auth: kiri form putih dengan logo sejajar field, kanan (mulai 1024 px) panel oranye `bg-auth-panel` berisi judul, cuplikan chat, dan "Cocok untuk" jenis usaha. Tanpa testimoni atau logo pihak lain.
 
 ### B2. Verifikasi OTP `/verify-phone`
 
@@ -179,7 +186,8 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 ### B3. Masuk `/login`
 
-- Nomor WA, password, "Ingat saya", tautan **Lupa password**, tautan daftar.
+- Lanjutkan dengan Google di atas (passkey dimatikan di `config/fortify.php`, atas permintaan pemilik), lalu "atau dengan email": email, password, **Lupa password?** di kanan bawah field password, "Ingat saya", tautan daftar.
+- Email Google yang sudah terdaftar disambungkan ke akun itu (hanya kalau Google menandai emailnya terverifikasi). Akun dengan 2FA tetap diminta kode.
 
 ### B4. Lupa & reset password
 

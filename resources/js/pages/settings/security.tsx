@@ -10,8 +10,6 @@ import { Label } from '@/components/ui/label';
 import { index as activityLog } from '@/routes/activity';
 import { edit } from '@/routes/security';
 import type { ActivityEntry } from '@/types/domain';
-import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys';
-import ManagePasskeys from '@/components/manage-passkeys';
 import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
 import ManageTwoFactor from '@/components/manage-two-factor';
 
@@ -19,8 +17,7 @@ import ManageTwoFactor from '@/components/manage-two-factor';
 type Props = {
     passwordRules: string;
     activities: ActivityEntry[];
-} & ManagePasskeysProps &
-    ManageTwoFactorProps;
+} & ManageTwoFactorProps;
 
 export default function Security(props: Props) {
     const passwordInput = useRef<HTMLInputElement>(null);
@@ -132,11 +129,6 @@ export default function Security(props: Props) {
                 canManageTwoFactor={props.canManageTwoFactor}
                 requiresConfirmation={props.requiresConfirmation}
                 twoFactorEnabled={props.twoFactorEnabled}
-            />
-
-            <ManagePasskeys
-                canManagePasskeys={props.canManagePasskeys}
-                passkeys={props.passkeys}
             />
 
             <div className="space-y-6">
