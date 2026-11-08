@@ -40,6 +40,29 @@ class OrderMessages
     }
 
     /**
+     * The bot's note to the owner when a customer paid online (App\Services\Doku).
+     *
+     * @param  int  $booked  how much went into the books; less than $amount when the order could not take it
+     */
+    public static function paidOnline(Order $order, int $amount, int $booked): string
+    {
+        $head = "*{$order->code} dibayar online* ".Format::rupiah($amount)." oleh {$order->customer_name}.";
+
+        if ($booked === $amount) {
+            return $head.'
+Dicatat sebagai uang muka di Saldo DOKU, dan pesanannya sudah diterima.';
+        }
+
+        $back = Format::rupiah($amount - $booked);
+
+        return $head.($order->status === OrderStatus::Ditolak
+            ? "
+Pesanan ini sudah ditolak, jadi tidak dicatat. Kembalikan {$back} ke pelanggan lewat dashboard DOKU."
+            : '
+Yang dicatat '.Format::rupiah($booked).". Lebihnya {$back} kembalikan ke pelanggan lewat dashboard DOKU.");
+    }
+
+    /**
      * The bot's note to the owner when a customer orders from the shop.
      */
     public static function arrived(Order $order): string

@@ -18,8 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
-        // GOWA signs its webhook with HMAC instead (GowaWebhookController).
-        $middleware->validateCsrfTokens(except: ['webhooks/gowa']);
+        // GOWA and DOKU sign their webhooks with HMAC instead (GowaWebhookController, DokuWebhookController).
+        $middleware->validateCsrfTokens(except: ['webhooks/gowa', 'webhooks/doku']);
         // In Coolify, TLS ends at the reverse proxy; without this the app builds http:// links.
         $middleware->trustProxies(at: '*');
 

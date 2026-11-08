@@ -7,6 +7,7 @@ import type {
     OrderFulfillment,
     OrderStatus,
     PaymentMethod,
+    OnlinePaymentStatus,
     PaymentStatus,
     Period as PeriodKey,
     StockReason as StockMovementReason,
@@ -679,6 +680,8 @@ export type ShopInfo = {
     open: boolean;
     whatsapp: string | null;
     qrisUrl: string | null;
+    /** The shop takes payment online through DOKU (App\Services\Doku::offeredBy). */
+    onlinePayment: boolean;
 };
 
 /** A product on the order form. The price is shown, never sent back. */
@@ -721,6 +724,12 @@ export type PublicOrder = {
     rejectedAt: string | null;
     rejectReason: string | null;
     token: string;
+    /** The latest DOKU page; `url` only while it still takes payments. */
+    onlinePayment: {
+        status: OnlinePaymentStatus;
+        url: string | null;
+        channel: string | null;
+    } | null;
     lines: OrderLine[];
 };
 
@@ -744,6 +753,9 @@ export type OwnerOrder = PublicOrder & {
     paidElsewhere: Rupiah;
 };
 
+/** The shop on the owner's pages: its link, and whether DOKU keys are set so bayar online can be offered. */
+export type OwnerShop = ShopInfo & { url: string; onlinePaymentReady: boolean };
+
 export type ShopShowProps = { shop: ShopInfo; items: ShopItem[] };
 
 /** The example shop on the landing page; null when it does not exist. */
@@ -756,7 +768,7 @@ export type WelcomeProps = { demoShop: DemoShop | null };
 export type ShopOrderProps = { shop: ShopInfo; order: PublicOrder };
 
 export type OrdersIndexProps = {
-    shop: ShopInfo & { url: string };
+    shop: OwnerShop;
     status: OrderStatus;
     counts: Record<OrderStatus, number>;
     /** One page of the tab, searched and sorted on the server (TableQuery). */
@@ -767,7 +779,7 @@ export type OrdersIndexProps = {
 };
 
 export type OrderShowProps = {
-    shop: ShopInfo & { url: string };
+    shop: OwnerShop;
     order: OwnerOrder;
     notaUrl: string;
     /** "Kirim kabar": the news for the customer, written by App\Support\OrderMessages. */

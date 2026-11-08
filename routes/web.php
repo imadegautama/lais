@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
+use App\Http\Controllers\DokuWebhookController;
 use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\GowaWebhookController;
 use App\Http\Controllers\ItemController;
@@ -31,6 +32,10 @@ Route::inertia('syarat', 'legal/terms')->name('terms');
 Route::get('t/{slug}', [ShopController::class, 'show'])->name('shop.show');
 Route::post('t/{slug}/pesan', [ShopController::class, 'store'])->name('shop.store');
 Route::get('p/{token}', [ShopController::class, 'order'])->name('shop.order');
+Route::post('p/{token}/bayar', [ShopController::class, 'pay'])->middleware('throttle:10,1')->name('shop.pay');
+
+// DOKU's payment notification: signed with HMAC; bootstrap/app.php leaves it out of the CSRF check.
+Route::post('webhooks/doku', DokuWebhookController::class)->name('webhooks.doku');
 
 // GOWA's webhook: signed with HMAC; bootstrap/app.php leaves it out of the CSRF check.
 Route::post('webhooks/gowa', GowaWebhookController::class)

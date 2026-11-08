@@ -6,12 +6,14 @@ import { waLink } from './phone';
 import { askSellerMessage } from './vocabulary';
 
 /** What a customer should know before ordering: no account, the seller confirms on WA. */
-const steps = [
+const steps = (onlinePayment: boolean) => [
     { title: 'Pilih produk', detail: 'Tekan + pada yang mau dipesan.' },
     { title: 'Kirim pesanan', detail: 'Nama dan nomor WA saja, tanpa akun.' },
     {
         title: 'Penjual konfirmasi',
-        detail: 'Lewat WA. Bayar tunai atau QRIS.',
+        detail: onlinePayment
+            ? 'Lewat WA. Bayar online saat memesan, atau tunai dan QRIS.'
+            : 'Lewat WA. Bayar tunai atau QRIS.',
     },
 ];
 
@@ -72,7 +74,7 @@ export function ShopIntro({ shop }: { shop: ShopInfo }) {
                 Cara pesan
             </h2>
             <ol className="mt-3 grid grid-cols-3 gap-3">
-                {steps.map((step, index) => (
+                {steps(shop.onlinePayment).map((step, index) => (
                     <li
                         key={step.title}
                         className="flex flex-col gap-2 sm:flex-row sm:gap-3"

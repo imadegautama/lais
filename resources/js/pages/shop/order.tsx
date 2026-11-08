@@ -12,6 +12,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { saveCart } from '@/features/orders/cart';
+import { OnlinePay } from '@/features/orders/online-pay';
 import { OrderLines, OrderTimeline } from '@/features/orders/order-timeline';
 import { waLink } from '@/features/orders/phone';
 import { askSellerMessage } from '@/features/orders/vocabulary';
@@ -29,6 +31,13 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
         order.status === 'ditolak' ||
         (order.status === 'selesai' && rest === 0);
     const { stop } = usePoll(30_000, { only: ['order'] });
+    // Online payment and its own order statuses, while the order is still open.
+    const payOnline =
+        shop.onlinePayment &&
+        ['menunggu', 'diproses', 'siap'].includes(order.status);
+
+    // The order is placed, also when the customer went to DOKU first: the shop's cart is done.
+    useEffect(() => saveCart(shop.slug, {}), [shop.slug]);
 
     useEffect(() => {
         if (over) {
@@ -84,11 +93,13 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
                                 {formatRupiah(rest)}
                             </span>
                         </p>
+                        {payOnline && <OnlinePay order={order} />}
                         {order.status === 'menunggu' ? (
-                            // Paying before the owner accepts risks paying for an order that is refused.
+                            // Paying the seller before they accept risks paying for an order that is refused.
                             <p className="mt-2 text-sm text-muted-foreground">
-                                Tunggu penjual menerima pesanan ini dulu, baru
-                                bayar. Halaman ini berubah sendiri.
+                                {payOnline
+                                    ? 'Atau tunggu penjual menerima pesanan ini, lalu bayar tunai atau QRIS ke penjual.'
+                                    : 'Tunggu penjual menerima pesanan ini dulu, baru bayar. Halaman ini berubah sendiri.'}
                             </p>
                         ) : shop.qrisUrl ? (
                             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -161,8 +172,10 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
                             </p>
                         )}
                         <p className="mt-3 text-xs text-muted-foreground">
-                            Konfirmasi pembayaran dilakukan penjual. Halaman ini
-                            ikut berubah setelah pembayaran dicatat.
+                            {payOnline
+                                ? 'Bayar online tercatat sendiri. Bayar tunai atau QRIS dikonfirmasi penjual.'
+                                : 'Konfirmasi pembayaran dilakukan penjual.'}{' '}
+                            Halaman ini ikut berubah setelah pembayaran dicatat.
                         </p>
                     </Card>
                 )}
@@ -196,7 +209,13 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
 
                 <div className="flex flex-wrap gap-2 print:hidden">
                     {shop.whatsapp && (
-                        <Button asChild>
+                        // One primary on the nota: Bayar online takes it while it shows.
+                        <Button
+                            asChild
+                            variant={
+                                payOnline && rest > 0 ? 'outline' : 'default'
+                            }
+                        >
                             <a
                                 href={waLink(
                                     shop.whatsapp,

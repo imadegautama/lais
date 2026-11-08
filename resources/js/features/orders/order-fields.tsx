@@ -21,6 +21,8 @@ export type OrderFormData = {
     note: string;
     /** Honeypot: hidden from people, filled by bots (PRD US-08). */
     website: string;
+    /** Shop only: go to DOKU after sending, when the shop offers it. */
+    pay_online: boolean;
     lines: Array<{ item_id: number; qty: number }>;
 };
 
@@ -32,6 +34,7 @@ export const emptyOrder: OrderFormData = {
     wanted_at: '',
     note: '',
     website: '',
+    pay_online: false,
     lines: [],
 };
 

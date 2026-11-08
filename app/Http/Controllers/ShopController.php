@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ItemKind;
+use App\Enums\OrderStatus;
 use App\Enums\TransactionSource;
 use App\Http\Requests\OrderRequest;
 use App\Http\Resources\OrderResource;
@@ -10,14 +11,16 @@ use App\Jobs\SendWhatsApp;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\Order;
+use App\Services\Doku;
 use App\Services\Orders;
 use App\Support\OrderMessages;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Throwable;
 
 /**
  * The public side (UI-PAGES A2–A4): the shop page, placing an order, and the
@@ -35,7 +38,7 @@ class ShopController extends Controller
         ]);
     }
 
-    public function store(OrderRequest $request, string $slug, Orders $orders): RedirectResponse
+    public function store(OrderRequest $request, string $slug, Orders $orders, Doku $doku): HttpResponse
     {
         $business = Business::query()->where('businesses.slug', $slug)->firstOrFail();
         // 5 orders per IP per 10 minutes (PRD §7); a form sent back with errors does not count.
@@ -55,12 +58,32 @@ class ShopController extends Controller
             SendWhatsApp::dispatch($owner->whatsappAddress(), OrderMessages::arrived($order->load('lines')), $owner->id);
         }
 
-        return to_route('shop.order', $order->token);
+        return $request->boolean('pay_online') && Doku::offeredBy($business) ? $this->payPage($order, $doku) : to_route('shop.order', $order->token);
     }
 
-    public function order(string $token): Response
+    /**
+     * "Bayar online" on the nota: a DOKU page for what is still unpaid, while
+     * the order is open.
+     */
+    public function pay(string $token, Orders $orders, Doku $doku): HttpResponse
+    {
+        $order = Order::query()->where('orders.token', $token)->with('business')->firstOrFail();
+
+        abort_unless(Doku::offeredBy($order->business) && in_array($order->status, OrderStatus::holdsStock(), true) && $orders->paid($order) < $order->total, 404);
+
+        return $this->payPage($order, $doku);
+    }
+
+    public function order(string $token, Doku $doku): Response
     {
         $order = Order::query()->where('orders.token', $token)->with(['business', 'lines'])->firstOrFail();
+        $waiting = $order->onlinePayments()->latest('id')->first();
+
+        // DOKU asks for a minute before Check Status; the notification usually comes first.
+        if ($waiting?->isOpen() && $waiting->created_at->lt(now()->subMinute())) {
+            $doku->refresh($waiting);
+            $order->refresh();
+        }
 
         return Inertia::render('shop/order', [
             'shop' => self::shop($order->business),
@@ -69,10 +92,27 @@ class ShopController extends Controller
     }
 
     /**
+     * Off to DOKU's payment page. When DOKU cannot open one, the order still
+     * stands and the nota says to try again or pay the seller.
+     */
+    private function payPage(Order $order, Doku $doku): HttpResponse
+    {
+        try {
+            return Inertia::location($doku->checkout($order)->url);
+        } catch (Throwable $exception) {
+            report($exception);
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Pembayaran online belum bisa dibuka. Coba lagi dari nota ini, atau bayar ke penjual.']);
+
+            return to_route('shop.order', $order->token);
+        }
+    }
+
+    /**
      * The shop's face: its name and link, whether it takes orders, the owner's
-     * WA number for "Hubungi penjual", and the QRIS to pay to.
+     * WA number for "Hubungi penjual", the QRIS to pay to, and whether it
+     * takes payment online.
      *
-     * @return array{name: string, slug: string, category: string|null, open: bool, whatsapp: string|null, qrisUrl: string|null}
+     * @return array{name: string, slug: string, category: string|null, open: bool, whatsapp: string|null, qrisUrl: string|null, onlinePayment: bool}
      */
     public static function shop(Business $business): array
     {
@@ -83,6 +123,7 @@ class ShopController extends Controller
             'open' => $business->accepting_orders,
             'whatsapp' => $business->whatsapp === null ? null : Orders::phone($business->whatsapp),
             'qrisUrl' => $business->qrisUrl(),
+            'onlinePayment' => Doku::offeredBy($business),
         ];
     }
 

@@ -23,6 +23,7 @@ class ShopSettingsRequest extends FormRequest
             'whatsapp' => ['sometimes', 'nullable', 'string', 'regex:/^(\+?62|0)8[0-9]{7,12}$/'],
             'qris' => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'remove_qris' => ['sometimes', 'boolean'],
+            'online_payment' => ['sometimes', 'boolean'],
         ];
     }
 

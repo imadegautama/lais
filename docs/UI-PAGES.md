@@ -144,6 +144,8 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 - **Tombol Kirim pesanan** dengan state loading. Field honeypot tersembunyi.
 - **Error:** pesan per field dan pesan rate limit ("Terlalu banyak pesanan, coba lagi 10 menit lagi").
 
+- **Cara bayar** (hanya kalau toko menyalakan bayar online dan kunci DOKU terpasang): **Bayar online sekarang** (bawaan) atau **Bayar ke penjual nanti**. Bayar online membawa pelanggan ke halaman DOKU (mode uji) setelah pesanan terkirim, dengan tombol "Kirim dan bayar". Kalau DOKU gagal membuka halaman, pesanan tetap tersimpan dan nota menampilkan pesan untuk mencoba lagi.
+
 > **Catatan implementasi (4 Nov):** A2 dan A3 dibuat sebagai satu halaman `/t/{slug}` dengan dua langkah (katalog, lalu form), dan form dikirim ke `POST /t/{slug}/pesan`. Keranjang disimpan per toko di `sessionStorage`. Batas 5 pesanan per IP dihitung dari pesanan yang berhasil saja.
 
 ### A4. Status pesanan & nota `/p/{token}`
@@ -156,6 +158,7 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
     - nominal yang harus dibayar
     - petunjuk 3 langkah
     - catatan "Konfirmasi pembayaran dilakukan penjual"
+    - **Bayar online** (DOKU, mode uji) selama pesanan masih terbuka dan ada sisa tagihan, juga saat masih Menunggu. Kalau halaman DOKU masih terbuka: **Lanjutkan bayar** dan **Cek pembayaran**. Pembayaran yang masuk otomatis menerima pesanan dan dicatat sebagai uang muka di rekening Saldo DOKU. Selama tombol ini tampil, ia menjadi tombol primary dan Hubungi penjual turun menjadi outline.
 - **Info ambil/antar:** metode, waktu, alamat.
 - **Aksi:** **Hubungi penjual** (`wa.me` dengan pesan berisi kode pesanan) dan **Simpan/Cetak nota** (tampilan cetak via `@media print`).
 - **Auto-refresh status** setiap 30 detik (Inertia polling).

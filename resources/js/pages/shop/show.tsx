@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, PackageOpen, Search, ShoppingBag } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { ChoiceGroup } from '@/components/app/choice-group';
 import { EmptyState } from '@/components/app/states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +38,11 @@ export default function ShopShow({ shop, items }: ShopShowProps) {
     const [cart, setCart] = useState<Cart>({});
     const [step, setStep] = useState<'katalog' | 'pesan'>('katalog');
     const [query, setQuery] = useState('');
-    const form = useForm<OrderFormData>(emptyOrder);
+    const form = useForm<OrderFormData>({
+        ...emptyOrder,
+        pay_online: shop.onlinePayment,
+    });
+    const online = shop.onlinePayment && form.data.pay_online;
     const errors = formErrors(form);
     const lines = useMemo(() => cartLines(cart, items), [cart, items]);
     const visible = items.filter((item) =>
@@ -132,10 +137,48 @@ export default function ShopShow({ shop, items }: ShopShowProps) {
                         )}
                     </section>
 
+                    {shop.onlinePayment && (
+                        <section
+                            aria-labelledby="cara-bayar"
+                            className="flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-card"
+                        >
+                            <h2 id="cara-bayar" className="text-sm font-medium">
+                                Cara bayar
+                            </h2>
+                            <ChoiceGroup
+                                labelledBy="cara-bayar"
+                                value={online ? 'online' : 'nanti'}
+                                options={[
+                                    {
+                                        value: 'online',
+                                        label: 'Bayar online sekarang',
+                                    },
+                                    {
+                                        value: 'nanti',
+                                        label: 'Bayar ke penjual nanti',
+                                    },
+                                ]}
+                                onChange={(value) =>
+                                    form.setData(
+                                        'pay_online',
+                                        value === 'online',
+                                    )
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                {online
+                                    ? 'Setelah dikirim, Anda dibawa ke halaman pembayaran DOKU (mode uji): QRIS, virtual account, atau e-wallet.'
+                                    : 'Bayar tunai atau QRIS ke penjual setelah pesanan dikonfirmasi.'}
+                            </p>
+                        </section>
+                    )}
+
                     <div className="flex flex-col gap-2">
                         <p className="text-xs text-muted-foreground">
-                            Data hanya dipakai untuk pesanan ini. Penjual akan
-                            mengonfirmasi pesanan dan cara bayarnya.
+                            Data hanya dipakai untuk pesanan ini.
+                            {online
+                                ? ''
+                                : ' Penjual akan mengonfirmasi pesanan dan cara bayarnya.'}
                         </p>
                         <Button
                             type="submit"
@@ -144,7 +187,7 @@ export default function ShopShow({ shop, items }: ShopShowProps) {
                         >
                             {form.processing
                                 ? 'Mengirim…'
-                                : `Kirim pesanan · ${formatRupiah(cartTotal(lines))}`}
+                                : `${online ? 'Kirim dan bayar' : 'Kirim pesanan'} · ${formatRupiah(cartTotal(lines))}`}
                         </Button>
                     </div>
                 </form>

@@ -13,6 +13,7 @@ use App\Http\Resources\MoneyAccountResource;
 use App\Http\Resources\OrderResource;
 use App\Models\Business;
 use App\Models\Order;
+use App\Services\Doku;
 use App\Services\Ledger;
 use App\Services\Orders;
 use App\Support\Media;
@@ -39,7 +40,7 @@ class OrderController extends Controller
         $status = OrderStatus::tryFrom((string) (is_array($requested) ? ($requested[0] ?? '') : $requested)) ?? OrderStatus::Menunggu;
 
         return Inertia::render('orders/index', [
-            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug)],
+            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug), 'onlinePaymentReady' => Doku::ready()],
             'status' => $status,
             'counts' => collect(OrderStatus::cases())->mapWithKeys(fn (OrderStatus $option) => [$option->value => (int) ($counts[$option->value] ?? 0)]),
             'orders' => TableQuery::paginate(
@@ -83,7 +84,7 @@ class OrderController extends Controller
         $order = $this->find($business, $code);
 
         return Inertia::render('orders/show', [
-            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug)],
+            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug), 'onlinePaymentReady' => Doku::ready()],
             'order' => OrderResource::make($order->load(['lines']))->resolve(),
             'notaUrl' => route('shop.order', $order->token),
             // The same words the bot links to (OrderMessages), so web and WhatsApp never differ.
@@ -141,12 +142,12 @@ class OrderController extends Controller
     }
 
     /**
-     * Open or close the shop, the owner's WA number, and the QRIS image.
+     * Open or close the shop, the owner's WA number, the QRIS image, and bayar online.
      */
     public function updateShop(ShopSettingsRequest $request): RedirectResponse
     {
         $business = $request->user()->currentBusiness();
-        $data = $request->safe()->only(['accepting_orders', 'whatsapp']);
+        $data = $request->safe()->only(['accepting_orders', 'whatsapp', 'online_payment']);
 
         if ($request->hasFile('qris') || $request->boolean('remove_qris')) {
             if ($business->qris_path !== null) {

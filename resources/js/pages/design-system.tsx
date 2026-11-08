@@ -786,6 +786,7 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 open: true,
                                 whatsapp: null,
                                 qrisUrl: null,
+                                onlinePayment: false,
                             }}
                         />
                         <ul className="grid gap-3 md:grid-cols-2">
