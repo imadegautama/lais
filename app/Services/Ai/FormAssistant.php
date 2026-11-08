@@ -572,7 +572,8 @@ class FormAssistant
         }
 
         return self::result([
-            'reply' => $transaction->type->savedMessage(),
+            // What it did to stock that needs buying, like the bot in PRD §2.2.
+            'reply' => implode("\n", [$transaction->type->savedMessage(), ...$this->answers->stockEffects($business, $transaction)]),
             'saved' => ['label' => 'Lihat transaksi', 'href' => route('transactions.show', $transaction, absolute: false)],
         ]);
     }

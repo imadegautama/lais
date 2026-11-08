@@ -82,6 +82,17 @@ class AssistantTest extends TestCase
         });
     }
 
+    public function test_a_saved_sale_says_which_stock_now_needs_buying(): void
+    {
+        $this->item('Telur')->update(['min_stock' => 35]);
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'nasgor', 'qty' => 2]]]]);
+        $draft = $this->ask('jual 2 nasgor tunai', null)->json('values');
+
+        // Two portions use 2 telur (30 → 28, under its minimum of 35); beras has no minimum and too little history to guess.
+        $this->ask('iya', null, draft: ['form' => 'transaksi', 'values' => $draft])
+            ->assertJsonPath('reply', "Penjualan tersimpan.\nStok Telur tinggal 28 butir (batas minimum 35).");
+    }
+
     public function test_confirming_the_draft_records_it_without_asking_the_model(): void
     {
         $this->model(['isi_transaksi', ['jenis' => 'pembelian', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'beras', 'qty' => 5, 'total' => 70000]]]]);
