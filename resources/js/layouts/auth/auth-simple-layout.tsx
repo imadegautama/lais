@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Check, Palette, Shirt, Store, UtensilsCrossed } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { home } from '@/routes';
@@ -12,6 +13,84 @@ const businesses: Array<{ label: string; icon: LucideIcon }> = [
     { label: 'Fashion', icon: Shirt },
     { label: 'Kerajinan', icon: Palette },
 ];
+
+/** A few things owners type and what Lais answers; no money amounts. */
+const chats = [
+    {
+        message: 'jual 3 nasgor 2 es teh qris',
+        reply: 'Penjualan tercatat. Stok nasi dan telur ikut berkurang sesuai resep.',
+    },
+    {
+        message: 'beli beras 5 kg di toko makmur',
+        reply: 'Belanja tercatat. Stok beras bertambah 5 kg.',
+    },
+    {
+        message: 'bu sari bayar utangnya',
+        reply: 'Pembayaran Bu Sari tercatat. Sisa utangnya ikut berkurang.',
+    },
+];
+
+/** How long one exchange stays before the next (the CSS fades it at 4.7 s). */
+const CHAT_MS = 5200;
+
+/**
+ * The panel's chat plays one exchange after another (landing.css). It holds
+ * under the cursor, and with reduced motion it stays on the first, still.
+ */
+function PanelChat() {
+    const [index, setIndex] = useState(0);
+    const [held, setHeld] = useState(false);
+    // Bumped when the cursor leaves, so the exchange replays in step with the timer.
+    const [run, setRun] = useState(0);
+    const chat = chats[index];
+
+    useEffect(() => {
+        if (
+            held ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ) {
+            return;
+        }
+
+        const timer = window.setTimeout(
+            () => setIndex((now) => (now + 1) % chats.length),
+            CHAT_MS,
+        );
+
+        return () => window.clearTimeout(timer);
+    }, [held, index, run]);
+
+    return (
+        <div
+            aria-hidden
+            key={`${index}-${run}`}
+            data-held={held || undefined}
+            onMouseEnter={() => setHeld(true)}
+            onMouseLeave={() => {
+                setHeld(false);
+                setRun((now) => now + 1);
+            }}
+            className="auth-chat flex max-w-md flex-col gap-3"
+        >
+            <p className="auth-chat-message max-w-[80%] self-end rounded-2xl rounded-br-md bg-brand-soft px-4 py-2.5 text-sm text-foreground">
+                {chat.message}
+            </p>
+            <div className="relative max-w-[85%]">
+                <p className="auth-chat-typing absolute top-0 left-0 flex items-center gap-1.5 rounded-2xl rounded-bl-md bg-card px-4 py-3 text-muted-foreground shadow-card">
+                    <span className="landing-reading flex gap-1">
+                        <span />
+                        <span />
+                        <span />
+                    </span>
+                </p>
+                <p className="auth-chat-reply flex items-start gap-2 rounded-2xl rounded-bl-md bg-card px-4 py-2.5 text-sm text-foreground shadow-card">
+                    <Check className="mt-0.5 size-4 shrink-0 text-success" />
+                    {chat.reply}
+                </p>
+            </div>
+        </div>
+    );
+}
 
 /**
  * Every auth page: the form on white, its logo lined up with the fields,
@@ -46,7 +125,7 @@ export default function AuthSimpleLayout({
 
             <aside
                 aria-labelledby="tentang-lais"
-                className="hidden flex-col bg-auth-panel px-14 py-14 text-primary-foreground lg:flex xl:px-20"
+                className="auth-texture hidden flex-col bg-auth-panel px-14 py-14 text-primary-foreground lg:flex xl:px-20"
             >
                 <div className="my-auto flex max-w-xl flex-col gap-12">
                     <h2
@@ -56,16 +135,7 @@ export default function AuthSimpleLayout({
                         Cukup chat, pembukuan usahamu tersusun sendiri.
                     </h2>
 
-                    <div aria-hidden className="flex max-w-md flex-col gap-3">
-                        <p className="max-w-[80%] self-end rounded-2xl rounded-br-md bg-brand-soft px-4 py-2.5 text-sm text-foreground">
-                            jual 3 nasgor 2 es teh qris
-                        </p>
-                        <p className="flex max-w-[85%] items-start gap-2 rounded-2xl rounded-bl-md bg-card px-4 py-2.5 text-sm text-foreground shadow-card">
-                            <Check className="mt-0.5 size-4 shrink-0 text-success" />
-                            Penjualan tercatat. Stok nasi dan telur ikut
-                            berkurang sesuai resep.
-                        </p>
-                    </div>
+                    <PanelChat />
                 </div>
 
                 <div className="mt-12">

@@ -128,6 +128,55 @@
     }
 }
 
+/*
+ * The auth panel's halftone (bg-auth-panel). Light dots only in the lit top
+ * right, clear of the words; dark dots in the shaded bottom left, where
+ * they only add contrast to the white text (DESIGN.md §3).
+ */
+.auth-texture {
+    position: relative;
+    isolation: isolate;
+}
+
+.auth-texture::before,
+.auth-texture::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-size: 12px 12px;
+}
+
+.auth-texture::before {
+    background-image: radial-gradient(
+        color-mix(in srgb, var(--primary-foreground) 24%, transparent) 1.25px,
+        transparent 1.75px
+    );
+    mask-image: radial-gradient(
+        ellipse 50% 35% at 100% 0%,
+        black,
+        transparent 75%
+    );
+}
+
+.auth-texture::after {
+    background-image: radial-gradient(
+        color-mix(in srgb, var(--foreground) 22%, transparent) 1.25px,
+        transparent 1.75px
+    );
+    mask-image: radial-gradient(
+        ellipse 55% 45% at 0% 100%,
+        black,
+        transparent 75%
+    );
+}
+
+/* Hidden unless the chat plays, so reduced motion never shows it. */
+.auth-chat-typing {
+    opacity: 0;
+}
+
 /* The shop photos: two copies of the cards drift left, the edges fade. */
 .landing-strip {
     overflow: hidden;
@@ -378,8 +427,32 @@
         animation: landing-strip 45s linear infinite;
     }
 
+    /* Keyboard focus holds it; a tap's focus does not (the tap toggles data-held). */
     .landing-strip[data-held] .landing-strip-track,
-    .landing-strip:focus-within .landing-strip-track {
+    .landing-strip:focus-visible .landing-strip-track,
+    .landing-strip:has(:focus-visible) .landing-strip-track {
+        animation-play-state: paused;
+    }
+
+    /* The auth panel's chat: message, typing, reply, a pause, then away. */
+    .auth-chat {
+        animation: auth-chat-out 0.4s ease-in 4.7s forwards;
+    }
+
+    .auth-chat-message {
+        animation: landing-bubble 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .auth-chat-typing {
+        animation: auth-chat-typing 1.2s ease 0.45s both;
+    }
+
+    .auth-chat-reply {
+        animation: landing-bubble 0.4s cubic-bezier(0.16, 1, 0.3, 1) 1.65s both;
+    }
+
+    .auth-chat[data-held],
+    .auth-chat[data-held] * {
         animation-play-state: paused;
     }
 
@@ -606,6 +679,24 @@
 @keyframes landing-drop {
     to {
         transform: translateY(8px);
+    }
+}
+
+@keyframes auth-chat-typing {
+    0%,
+    100% {
+        opacity: 0;
+    }
+
+    15%,
+    85% {
+        opacity: 1;
+    }
+}
+
+@keyframes auth-chat-out {
+    to {
+        opacity: 0;
     }
 }
 

@@ -8,6 +8,7 @@ import type { SampleRecord } from './examples';
 import { books, sampleRecords } from './examples';
 import { heading, shell } from './landing-sections';
 import { WordReveal } from './word-reveal';
+import { isMouse } from './pointer';
 
 /** How long each chat stays lit before the next one. */
 const STEP_MS = 2800;
@@ -32,7 +33,9 @@ export function ChatRouter() {
     const [step, setStep] = useState(0);
     const [hovered, setHovered] = useState(false);
     const [focused, setFocused] = useState(false);
-    const held = hovered || focused;
+    // A tap (not a scroll) holds it on touch screens; another tap lets it go.
+    const [tapped, setTapped] = useState(false);
+    const held = hovered || focused || tapped;
     const current = sampleRecords[step];
     const target = books.findIndex((book) => book.id === current.book);
 
@@ -72,10 +75,16 @@ export function ChatRouter() {
                 role="region"
                 aria-label="Contoh chat yang dipilah AI ke buku yang tepat. Arahkan kursor ke sebuah chat, sentuh, atau fokus untuk berhenti."
                 tabIndex={0}
-                onFocus={() => setFocused(true)}
+                // Only keyboard focus holds it; a tap also focuses, and tapped handles that.
+                onFocus={(event) =>
+                    setFocused(event.currentTarget.matches(':focus-visible'))
+                }
                 onBlur={() => setFocused(false)}
-                // A tap focuses it, so touch can hold it too.
-                onPointerDown={(event) => event.currentTarget.focus()}
+                onClick={(event) => {
+                    if (!isMouse(event.nativeEvent)) {
+                        setTapped((now) => !now);
+                    }
+                }}
                 className="mt-8 rounded-3xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 motion-reduce:hidden"
             >
                 <Wide

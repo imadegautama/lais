@@ -28,6 +28,7 @@ import { ChatDemo } from './chat-demo';
 import { businessPhotos, problems, surveyFacts } from './examples';
 import { useActiveStep } from './use-active-step';
 import { delay, WordReveal } from './word-reveal';
+import { isMouse } from './pointer';
 
 const SOURCE_URL =
     'https://www.ocbc.id/id/tentang-ocbc/informasi/siaran-pers/2024/08/19/ocbc-business-fitness-index';
@@ -454,6 +455,8 @@ export function Answers() {
  */
 export function Audience() {
     const [held, setHeld] = useState(false);
+    // A tap (not a scroll) holds it on touch screens; another tap lets it go.
+    const [tapped, setTapped] = useState(false);
 
     return (
         <section aria-labelledby="untuk-siapa" className="py-12 md:py-16">
@@ -469,17 +472,16 @@ export function Audience() {
                 aria-label="Foto jenis usaha. Gerakkan kursor, sentuh, atau fokus untuk berhenti."
                 tabIndex={0}
                 data-reveal="up"
-                data-held={held || undefined}
+                data-held={held || tapped || undefined}
                 onPointerMove={(event) => {
                     if (event.pointerType === 'mouse') {
                         setHeld(true);
                     }
                 }}
                 onPointerLeave={() => setHeld(false)}
-                // A tap focuses it, so touch can hold it too.
-                onPointerDown={(event) => {
-                    if (event.pointerType !== 'mouse') {
-                        event.currentTarget.focus();
+                onClick={(event) => {
+                    if (!isMouse(event.nativeEvent)) {
+                        setTapped((now) => !now);
                     }
                 }}
                 className="landing-strip mt-8 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
