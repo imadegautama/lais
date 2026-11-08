@@ -20,7 +20,7 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 2. **Oranye:**
     - tombol utama `bg-primary` (`#C25205`) selalu dengan `text-primary-foreground` (putih, 4,66:1)
     - teks oranye selalu `text-primary-text` (`#C2410C`)
-    - ikon, sorotan grafik, dan ring fokus memakai `brand-strong` (`#EA580C`)
+    - ikon, sorotan grafik, ring fokus, dan progress bar navigasi Inertia memakai `brand-strong` (`#EA580C`)
     - jangan pakai `text-primary` untuk teks
 3. **Kontras diukur, bukan ditebak:** `contrast-check.py` dari skill antislop-human. Teks ≥ 4,5:1, non-teks ≥ 3:1. Satu-satunya pengecualian yang dicatat: border field `#DAD5CF` (pilihan pemilik).
 4. **Latar putih dengan wash hangat** (`bg-page-wash` di layout, jangan dipasang per halaman). Tidak ada teks oranye langsung di atas wash. Kartu memakai `border` + `shadow-card` (sudah berisi inner shadow tipis), kotak ringkasan memakai `shadow-tile`. Tombol memakai inner shadow (`shadow-button`, `shadow-button-pressed`, `shadow-button-soft`). Field memakai `shadow-field` dan latar putih solid. `shadow-lg` hanya untuk overlay.

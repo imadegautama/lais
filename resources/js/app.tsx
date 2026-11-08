@@ -52,7 +52,8 @@ void createInertiaApp({
         );
     },
     progress: {
-        color: '#4B5563',
+        // Inertia writes this into CSS, so a token works; brand-strong is the non-text orange.
+        color: 'var(--brand-strong)',
     },
 });
 
