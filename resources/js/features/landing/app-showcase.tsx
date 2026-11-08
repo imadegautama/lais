@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ChoiceGroup } from '@/components/app/choice-group';
-import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { cn } from '@/lib/utils';
 import { appScreens } from './examples';
 import { heading } from './landing-sections';
@@ -50,7 +49,6 @@ export function AppShowcase() {
                     <p aria-live="polite" className="text-sm">
                         {current.caption}
                     </p>
-                    <DemoDataBadge />
                 </div>
 
                 <div data-reveal="up" className="mx-auto mt-8 max-w-5xl">

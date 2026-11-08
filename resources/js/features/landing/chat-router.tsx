@@ -1,7 +1,6 @@
 import { ArrowRight, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
-import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { Money } from '@/components/app/money';
 import { cn } from '@/lib/utils';
 import type { SampleRecord } from './examples';
@@ -67,9 +66,6 @@ export function ChatRouter() {
             >
                 <WordReveal text="Cukup tulis seperti biasa, Lais yang memilah." />
             </h2>
-            <div className="mt-3 flex justify-center">
-                <DemoDataBadge />
-            </div>
 
             <div
                 role="region"

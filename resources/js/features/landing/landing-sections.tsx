@@ -121,7 +121,6 @@ function Ledger({ title, children }: { title: string; children: ReactNode }) {
         <div className="landing-drift rounded-xl border bg-card p-4 shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold">{title}</p>
-                <DemoDataBadge />
             </div>
             <dl className="mt-3 flex flex-col divide-y text-sm">{children}</dl>
         </div>
@@ -288,9 +287,6 @@ const answerVisuals: Record<(typeof problems)[number]['id'], ReactNode> = {
     ),
     catat: (
         <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-card">
-            <div className="flex justify-end">
-                <DemoDataBadge />
-            </div>
             <p className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-brand-soft px-3 py-2 text-sm">
                 jual 2 es teh tunai
             </p>
@@ -328,7 +324,6 @@ const answerVisuals: Record<(typeof problems)[number]['id'], ReactNode> = {
         <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-card">
             <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold">Perlu tindakan hari ini</p>
-                <DemoDataBadge />
             </div>
             <MiniRow icon={TriangleAlert}>Stok telur menipis</MiniRow>
             <MiniRow icon={Clock}>

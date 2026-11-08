@@ -30,7 +30,7 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
     - Bottom nav dan sidebar sheet di bawah 1024 px.
     - Tabel berubah jadi daftar kartu di bawah 768 px.
     - Tidak ada scroll horizontal di 360 px.
-7. **Konten:** Bahasa Indonesia sehari-hari, CTA menyebut tindakannya, tanpa em dash, buzzword, atau emoji. Uang dan tanggal hanya lewat `resources/js/lib/format.ts` dan `<Money>`. Zona waktu mengikuti server (`APP_TIMEZONE`, dikirim sebagai prop `timeZone` dan dipasang di `app.tsx`). Jangan menulis `'Asia/Jakarta'` atau "WIB" langsung; pakai `appTimeZone()` untuk `Intl` dan `zoneLabel()` untuk label jam. Angka atau data contoh selalu berlabel `DemoDataBadge`, kecuali hero landing yang cukup memakai kata "contoh" di labelnya.
+7. **Konten:** Bahasa Indonesia sehari-hari, CTA menyebut tindakannya, tanpa em dash, buzzword, atau emoji. Uang dan tanggal hanya lewat `resources/js/lib/format.ts` dan `<Money>`. Zona waktu mengikuti server (`APP_TIMEZONE`, dikirim sebagai prop `timeZone` dan dipasang di `app.tsx`). Jangan menulis `'Asia/Jakarta'` atau "WIB" langsung; pakai `appTimeZone()` untuk `Intl` dan `zoneLabel()` untuk label jam. Angka atau data demo di aplikasi selalu berlabel `DemoDataBadge` ("Data demo"). Di landing, label itu hanya di toko demo Bu Rina; ilustrasi landing lain tidak berlabel (keputusan pemilik).
 8. **Light mode saja.** Grafik tanpa animasi (MOTION 1). Hormati `prefers-reduced-motion`.
 9. **Perubahan keputusan desain** wajib memperbarui `docs/DESIGN.md` dan `/design-system` di commit yang sama.
 
