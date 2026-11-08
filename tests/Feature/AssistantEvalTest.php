@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Enums\ContactType;
+use App\Enums\MoneyAccountKind;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
+use App\Models\MoneyAccount;
 use App\Services\Ai\AssistantUnavailable;
 use App\Services\Ai\FormAssistant;
 use App\Services\Ai\ItemDraft;
@@ -40,7 +42,9 @@ class AssistantEvalTest extends TestCase
      * @var list<array{0: string, 1: string|null, 2: array<string, mixed>, 3?: string}>
      */
     private const CASES = [
-        ['jual 3 nasgor 2 es teh qris', 'transaksi', ['form' => 'transaksi', 'type' => 'penjualan', 'method' => 'non_tunai', 'lines' => ['Nasi Goreng' => 3, 'Es Teh' => 2]]],
+        // Two non-cash rekening, and QRIS lands in GoPay (Pesanan → Pengaturan): "qris" alone is enough.
+        ['jual 3 nasgor 2 es teh qris', 'transaksi', ['form' => 'transaksi', 'type' => 'penjualan', 'method' => 'non_tunai', 'rekening' => 'GoPay', 'lines' => ['Nasi Goreng' => 3, 'Es Teh' => 2]]],
+        ['es teh 2 bayar qris', null, ['form' => 'transaksi', 'type' => 'penjualan', 'method' => 'non_tunai', 'rekening' => 'GoPay', 'lines' => ['Es Teh' => 2]]],
         ['nasgor 2 bungkus, aqua 1, tunai', 'transaksi', ['form' => 'transaksi', 'type' => 'penjualan', 'method' => 'tunai', 'lines' => ['Nasi Goreng' => 2, 'Air Mineral' => 1]]],
         ['bu sari ngutang 2 nasgor', 'transaksi', ['form' => 'transaksi', 'type' => 'penjualan', 'method' => 'kredit', 'contact' => 'Bu Sari', 'lines' => ['Nasi Goreng' => 2]]],
         ['jual 1 nasgor harga 18rb tunai', 'transaksi', ['form' => 'transaksi', 'method' => 'tunai', 'prices' => ['Nasi Goreng' => 18000]]],
@@ -214,6 +218,8 @@ class AssistantEvalTest extends TestCase
         $service->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'occurred_at' => $lastMonth, 'lines' => [['item_id' => $teh->id, 'qty' => 30, 'price' => 5000], ['item_id' => $air->id, 'qty' => 10, 'price' => 4000]]]);
         $service->record($business, ['type' => 'biaya', 'kind' => 'sewa', 'method' => 'tunai', 'amount' => 50000, 'occurred_at' => $lastMonth]);
         $service->record($business, ['type' => 'biaya', 'kind' => 'pemasaran', 'method' => 'tunai', 'amount' => 10000, 'occurred_at' => $lastMonth]);
+        // Busiest days read the last 30 days; the 10th of last month falls out of them late in the month.
+        $service->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'occurred_at' => now()->subDay()->format('Y-m-d 09:00'), 'lines' => [['item_id' => $teh->id, 'qty' => 2, 'price' => 5000]]]);
         $sheet = app(BusinessFacts::class)->sheet($business);
         $on = function (string $pattern) use ($sheet) {
             preg_match($pattern, $sheet, $match);
@@ -263,6 +269,8 @@ class AssistantEvalTest extends TestCase
         ]);
         $business->contacts()->create(['type' => ContactType::Pelanggan, 'name' => 'Bu Sari']);
         $business->contacts()->create(['type' => ContactType::Supplier, 'name' => 'Toko Makmur']);
+        $business->moneyAccounts()->where('kind', MoneyAccountKind::NonTunai)->sole()->update(['name' => 'BCA']);
+        $business->update(['qris_money_account_id' => $business->moneyAccounts()->create(['kind' => MoneyAccountKind::NonTunai, 'name' => 'GoPay'])->id]);
 
         return $business;
     }
@@ -288,6 +296,7 @@ class AssistantEvalTest extends TestCase
             'reply' => $reply['reply'],
             'reply_starts' => $reply['reply'],
             'topic' => $reply['guide']['topic'] ?? null,
+            'rekening' => MoneyAccount::query()->find((int) ($values['money_account_id'] ?? 0))?->name,
             'contact' => $contacts->firstWhere('id', (int) ($values['contact'] ?? 0))->name ?? ($values['contact'] ?? null),
             'lines' => $rows('lines')->mapWithKeys(fn (array $line) => [$name($line['item_id']) => $number($line['qty'])])->all(),
             'prices' => $rows('lines')->mapWithKeys(fn (array $line) => [$name($line['item_id']) => $line['price']])->all(),
