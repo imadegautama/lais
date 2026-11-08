@@ -28,7 +28,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $whatsapp_lid
  * @property string|null $telegram_chat_id
  * @property Carbon|null $whatsapp_linked_at
- * @property string $password
+ * @property string|null $password Null for an account made with Google until a password is set in Keamanan.
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at

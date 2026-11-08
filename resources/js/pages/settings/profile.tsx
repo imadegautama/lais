@@ -1,138 +1,132 @@
-import { Form, Head, usePage } from '@inertiajs/react';
-import { Link } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { UserRound } from 'lucide-react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import { Field } from '@/components/app/field';
+import { SectionCard } from '@/components/app/section-card';
 import DeleteUser from '@/components/delete-user';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { settings } from '@/routes';
 import { edit } from '@/routes/profile';
-import type { Auth } from '@/types';
 import { send } from '@/routes/verification';
+import type { Auth } from '@/types';
 
 type PageProps = {
     auth: Auth;
 };
 
+/** Pengaturan > Akun: the owner's own name and email, and leaving Lais. */
 export default function Profile({
     mustVerifyEmail,
+    hasPassword,
     status,
 }: {
     mustVerifyEmail: boolean;
+    hasPassword: boolean;
     status?: string;
 }) {
     const { auth } = usePage<PageProps>().props;
 
     return (
         <>
-            <Head title="Profile settings" />
+            <Head title="Akun" />
 
-            <h1 className="sr-only">Profile settings</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Profile"
-                    description="Update your name and email address"
-                />
-
+            <SectionCard
+                title="Data akun"
+                description="Email ini dipakai untuk masuk dan menerima link reset password."
+                icon={UserRound}
+            >
                 <Form
                     {...ProfileController.update.form()}
                     options={{
                         preserveScroll: true,
                     }}
-                    className="space-y-6"
+                    className="flex flex-col gap-5"
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
-
+                            <Field
+                                label="Nama"
+                                htmlFor="name"
+                                error={errors.name}
+                            >
                                 <Input
                                     id="name"
-                                    className="mt-1 block w-full"
                                     defaultValue={auth.user.name}
                                     name="name"
                                     required
                                     autoComplete="name"
-                                    placeholder="Full name"
+                                    aria-invalid={
+                                        Boolean(errors.name) || undefined
+                                    }
                                 />
+                            </Field>
 
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.name}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-
+                            <Field
+                                label="Email"
+                                htmlFor="email"
+                                error={errors.email}
+                                hint="Ganti email berarti perlu verifikasi ulang lewat link yang dikirim ke email baru."
+                            >
                                 <Input
                                     id="email"
                                     type="email"
-                                    className="mt-1 block w-full"
                                     defaultValue={auth.user.email}
                                     name="email"
                                     required
                                     autoComplete="username"
-                                    placeholder="Email address"
+                                    aria-invalid={
+                                        Boolean(errors.email) || undefined
+                                    }
                                 />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
-                            </div>
+                            </Field>
 
                             {mustVerifyEmail &&
                                 auth.user.email_verified_at === null && (
-                                    <div>
-                                        <p className="-mt-4 text-sm text-muted-foreground">
-                                            Your email address is unverified.{' '}
+                                    <div
+                                        role="status"
+                                        className="rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning"
+                                    >
+                                        <p>
+                                            Email ini belum diverifikasi.{' '}
                                             <Link
                                                 href={send()}
                                                 as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                                className="rounded-sm font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                             >
-                                                Click here to re-send the
-                                                verification email.
+                                                Kirim ulang link verifikasi
                                             </Link>
                                         </p>
-
                                         {status ===
                                             'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been
-                                                sent to your email address.
-                                            </div>
+                                            <p className="mt-1 font-medium">
+                                                Link verifikasi baru sudah
+                                                dikirim ke email kamu.
+                                            </p>
                                         )}
                                     </div>
                                 )}
 
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    disabled={processing}
-                                    data-test="update-profile-button"
-                                >
-                                    Save
-                                </Button>
-                            </div>
+                            <Button
+                                className="w-fit"
+                                disabled={processing}
+                                data-test="update-profile-button"
+                            >
+                                {processing ? 'Menyimpan…' : 'Simpan'}
+                            </Button>
                         </>
                     )}
                 </Form>
-            </div>
+            </SectionCard>
 
-            <DeleteUser />
+            <DeleteUser hasPassword={hasPassword} />
         </>
     );
 }
 
 Profile.layout = {
     breadcrumbs: [
-        {
-            title: 'Profile settings',
-            href: edit(),
-        },
+        { title: 'Pengaturan', href: settings() },
+        { title: 'Akun', href: edit() },
     ],
 };

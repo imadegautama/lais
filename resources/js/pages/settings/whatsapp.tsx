@@ -1,11 +1,12 @@
 import { Head, router, usePoll } from '@inertiajs/react';
-import { CircleCheck, MessageCircle, Unlink } from 'lucide-react';
+import { BellRing, CircleCheck, MessageCircle, Unlink } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
-import Heading from '@/components/heading';
+import { SectionCard } from '@/components/app/section-card';
 import { SwitchRow } from '@/components/app/switch-row';
 import { Button } from '@/components/ui/button';
 import { displayPhone } from '@/features/orders/phone';
 import { formatDate } from '@/lib/format';
+import { settings } from '@/routes';
 import { code, edit, summary, unlink } from '@/routes/whatsapp';
 
 type BotSettingsProps = {
@@ -53,17 +54,13 @@ export default function BotSettings({
     return (
         <>
             <Head title="Bot" />
-            <h1 className="sr-only">Bot</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title={`Bot ${channel}`}
-                    description="Catat transaksi, kelola pesanan, dan terima ringkasan malam lewat chat dengan bot Lais."
-                />
-
+            <SectionCard
+                title={`Bot ${channel}`}
+                description="Catat transaksi, kelola pesanan, dan terima ringkasan malam lewat chat dengan bot Lais."
+                icon={MessageCircle}
+            >
                 {linked ? (
-                    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-card">
+                    <div className="flex flex-col gap-3">
                         <p className="flex items-center gap-2 text-sm font-semibold text-success">
                             <CircleCheck className="size-4" aria-hidden />
                             Terhubung
@@ -106,7 +103,7 @@ export default function BotSettings({
                         ada di docs/{channel.toUpperCase()}.md.
                     </p>
                 ) : (
-                    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-card">
+                    <div className="flex flex-col gap-3">
                         <ol className="flex list-decimal flex-col gap-1 pl-5 text-sm">
                             <li>Buat kode di bawah.</li>
                             <li>
@@ -181,27 +178,34 @@ export default function BotSettings({
                         )}
                     </div>
                 )}
+            </SectionCard>
 
-                <div className="rounded-xl border bg-card p-4 shadow-card">
-                    <SwitchRow
-                        id={`${id}-summary`}
-                        label="Ringkasan harian jam 21.00"
-                        hint="Penjualan, laba, kas, pesanan belum selesai, dan stok yang mau habis, dikirim ke chat bot kamu."
-                        checked={dailySummary}
-                        onChange={(on) =>
-                            router.patch(
-                                summary.url(),
-                                { daily_summary: on },
-                                { preserveScroll: true },
-                            )
-                        }
-                    />
-                </div>
-            </div>
+            <SectionCard
+                title="Ringkasan harian"
+                description="Kabar usaha tiap malam, dikirim bot ke chat kamu."
+                icon={BellRing}
+            >
+                <SwitchRow
+                    id={`${id}-summary`}
+                    label="Ringkasan harian jam 21.00"
+                    hint="Penjualan, laba, kas, pesanan belum selesai, dan stok yang mau habis, dikirim ke chat bot kamu."
+                    checked={dailySummary}
+                    onChange={(on) =>
+                        router.patch(
+                            summary.url(),
+                            { daily_summary: on },
+                            { preserveScroll: true },
+                        )
+                    }
+                />
+            </SectionCard>
         </>
     );
 }
 
 BotSettings.layout = {
-    breadcrumbs: [{ title: 'Bot', href: edit() }],
+    breadcrumbs: [
+        { title: 'Pengaturan', href: settings() },
+        { title: 'Bot', href: edit() },
+    ],
 };

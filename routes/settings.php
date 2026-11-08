@@ -1,23 +1,27 @@
 <?php
 
+use App\Http\Controllers\Settings\BusinessController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use App\Http\Controllers\Settings\WhatsAppController;
-use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth'])->group(function () {
-    Route::redirect('settings', '/settings/profile');
+    // Named, so the sidebar's Pengaturan stays active on every tab.
+    Route::redirect('settings', '/settings/business')->name('settings');
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('settings/business', [BusinessController::class, 'edit'])->name('business.edit');
+    Route::patch('settings/business', [BusinessController::class, 'update'])->name('business.update');
+
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('settings/security', [SecurityController::class, 'edit'])
-        ->middleware(RequirePassword::class)
+        ->middleware('password.confirm')
         ->name('security.edit');
 
     Route::put('settings/password', [SecurityController::class, 'update'])

@@ -59,6 +59,8 @@ class GoogleLoginTest extends TestCase
         $this->assertSame('Rina Wati', $user->name);
         $this->assertSame('google-123', $user->google_id);
         $this->assertTrue($user->hasVerifiedEmail());
+        // Set later in Keamanan; until then nothing can sign in with a password.
+        $this->assertNull($user->password);
     }
 
     public function test_an_existing_email_account_is_joined_not_duplicated(): void

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequirePasswordIfSet;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['webhooks/gowa', 'webhooks/doku']);
         // In Coolify, TLS ends at the reverse proxy; without this the app builds http:// links.
         $middleware->trustProxies(at: '*');
+        // Fortify's two-factor routes use the alias too.
+        $middleware->alias(['password.confirm' => RequirePasswordIfSet::class]);
 
         $middleware->web(append: [
             HandleAppearance::class,

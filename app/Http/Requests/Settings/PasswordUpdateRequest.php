@@ -17,8 +17,9 @@ class PasswordUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
+        // An account made with Google has no old password to give (RequirePasswordIfSet).
         return [
-            'current_password' => $this->currentPasswordRules(),
+            ...($this->user()->password === null ? [] : ['current_password' => $this->currentPasswordRules()]),
             'password' => $this->passwordRules(),
         ];
     }
