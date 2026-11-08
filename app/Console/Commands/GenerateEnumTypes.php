@@ -95,6 +95,7 @@ class GenerateEnumTypes extends Command
             $lines[] = '';
             $lines[] = 'export const '.lcfirst($name)."Labels: Record<{$name}, string> = {";
             foreach ($cases as $case) {
+                assert(method_exists($case, 'label'));
                 $lines[] = '    '.$case->value.': '.self::quote($case->label()).',';
             }
             $lines[] = '};';

@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
         // GOWA signs its webhook with HMAC instead (GowaWebhookController).
         $middleware->validateCsrfTokens(except: ['webhooks/gowa']);
+        // In Coolify, TLS ends at the reverse proxy; without this the app builds http:// links.
+        $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
             HandleAppearance::class,

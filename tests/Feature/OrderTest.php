@@ -326,6 +326,25 @@ class OrderTest extends TestCase
             ->assertSessionHasErrors('photo');
     }
 
+    public function test_shop_photos_follow_the_public_disk_chosen_for_production(): void
+    {
+        config(['filesystems.media_disk' => 'r2-public']);
+        Storage::fake('r2-public');
+        $this->actingAs($this->business->user);
+
+        $this->patch(route('orders.shop'), ['qris' => UploadedFile::fake()->image('qris.png')])->assertSessionHasNoErrors();
+        $this->post(route('items.store'), ['kind' => 'produk', 'name' => 'Kopi Susu', 'unit' => 'gelas', 'price' => 12000, 'photo' => UploadedFile::fake()->image('kopi.jpg')])
+            ->assertSessionHasNoErrors();
+        $qris = $this->business->refresh()->qris_path;
+        $photo = Item::query()->where('name', 'Kopi Susu')->sole()->photo_path;
+
+        Storage::disk('r2-public')->assertExists([$qris, $photo]);
+        // The bucket has its own domain, so the link comes from the disk, not from this host.
+        $this->get(route('shop.show', $this->business->slug))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('shop.qrisUrl', Storage::disk('r2-public')->url($qris)));
+        $this->assertSame(Storage::disk('r2-public')->url($photo), Item::query()->where('name', 'Kopi Susu')->sole()->photoUrl());
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>

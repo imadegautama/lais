@@ -15,13 +15,13 @@ use App\Models\Business;
 use App\Models\Item;
 use App\Services\Catalog;
 use App\Services\Inventory;
+use App\Support\Media;
 use App\Support\TableQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -258,9 +258,9 @@ class ItemController extends Controller
         }
 
         if ($item->photo_path !== null) {
-            Storage::disk('public')->delete($item->photo_path);
+            Media::disk()->delete($item->photo_path);
         }
 
-        $item->update(['photo_path' => $request->hasFile('photo') ? $request->file('photo')->store('produk', 'public') : null]);
+        $item->update(['photo_path' => $request->hasFile('photo') ? $request->file('photo')->store('produk', Media::diskName()) : null]);
     }
 }

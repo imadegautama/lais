@@ -39,8 +39,8 @@ Skenario demo ada di tabel "Mencoba skenario demo" di `docs/WHATSAPP.md`.
 
 ## Di VPS
 
-- `lais:telegram` dan `queue:work` dijalankan supervisor, dan cron menjalankan `php artisan schedule:run` tiap menit.
-- Setelah deploy, restart `lais:telegram`. Perintah `queue:restart` tidak menyentuhnya.
+- Di dalam container produksi, supervisor menjalankan `lais:telegram`, `queue:work`, dan `schedule:work` (`docker/supervisor/supervisord.d/`). Tidak perlu cron.
+- Setiap deploy membuat container baru, jadi poller ikut mulai ulang dengan sendirinya. Jalankan satu replika saja.
 - **Satu token hanya boleh satu poller.** Hentikan `lais:telegram` di laptop sebelum menyalakannya di server.
 
 ## Kalau bermasalah

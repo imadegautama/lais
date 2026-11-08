@@ -1,0 +1,76 @@
+# The image is public on Docker Hub: nothing secret or personal may enter it.
+
+# Dependencies and build output (rebuilt inside the image)
+node_modules/
+vendor/
+public/build/
+public/hot
+public/storage
+bootstrap/ssr/
+resources/js/actions/
+resources/js/routes/
+resources/js/wayfinder/
+
+# Secrets: env comes from Coolify, never from the image
+.env
+.env.*
+!.env.example
+auth.json
+storage/*.key
+
+# Version control and CI
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Developer and agent tooling
+.idea/
+.vscode/
+.zed/
+.cursor/
+.codex/
+.claude/
+.agents/
+.codegraph/
+.ai/
+.mcp.json
+boost.json
+AGENTS.md
+CLAUDE.md
+*.swp
+.DS_Store
+
+# Tests and documentation
+tests/
+phpunit.xml
+.phpunit.cache/
+.phpunit.result.cache
+docs/
+README.md
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+docker/gowa/
+
+# Local data: databases and uploaded files (proofs hold account numbers)
+database/*.sqlite
+database/*.sqlite-journal
+storage/app/private/*
+!storage/app/private/.gitignore
+storage/app/public/*
+!storage/app/public/.gitignore
+
+# Runtime storage
+storage/logs/*
+!storage/logs/.gitignore
+storage/pail/
+storage/framework/cache/*
+!storage/framework/cache/.gitignore
+storage/framework/sessions/*
+!storage/framework/sessions/.gitignore
+storage/framework/views/*
+!storage/framework/views/.gitignore
+bootstrap/cache/*.php

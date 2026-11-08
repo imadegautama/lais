@@ -6,6 +6,7 @@ use App\Enums\ActivityCategory;
 use App\Enums\ActivityEvent;
 use App\Enums\ItemKind;
 use App\Support\Format;
+use App\Support\Media;
 use Database\Factories\ItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -257,6 +258,6 @@ class Item extends Model
      */
     public function photoUrl(): ?string
     {
-        return $this->photo_path === null ? null : asset('storage/'.$this->photo_path);
+        return Media::url($this->photo_path);
     }
 }

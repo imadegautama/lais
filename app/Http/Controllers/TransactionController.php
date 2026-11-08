@@ -36,7 +36,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -276,8 +275,8 @@ class TransactionController extends Controller
     public function proof(Transaction $transaction): StreamedResponse
     {
         Gate::authorize('manage', $transaction);
-        abort_if($transaction->proof_path === null || ! Storage::disk('local')->exists($transaction->proof_path), 404);
+        abort_if($transaction->proof_path === null || ! Proof::disk()->exists($transaction->proof_path), 404);
 
-        return Storage::disk('local')->response($transaction->proof_path, headers: ['Cache-Control' => 'private, max-age=86400']);
+        return Proof::disk()->response($transaction->proof_path, headers: ['Cache-Control' => 'private, max-age=86400']);
     }
 }
