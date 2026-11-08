@@ -28,7 +28,7 @@ class OnboardingTest extends TestCase
 
         $this->post(route('onboarding.store'), $this->wizard($business))
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('dashboard', ['tur' => 1]))
+            ->assertRedirect(route('dashboard'))
             ->assertInertiaFlash('toast.message', 'Pembukuan sudah dibuka.');
 
         $business->refresh();

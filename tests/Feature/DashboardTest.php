@@ -176,6 +176,24 @@ class DashboardTest extends TestCase
         $this->assertSame(['produk' => true, 'jual' => true, 'biaya' => true, 'toko' => true, 'bot' => true], array_column($missions(), 'done', 'key'));
     }
 
+    public function test_the_tour_opens_by_itself_until_the_owner_finishes_or_skips_it(): void
+    {
+        $business = $this->openBooks();
+        $this->actingAs($business->user);
+        $startTour = fn () => $this->get(route('dashboard'))->viewData('page')['props']['startTour'];
+
+        $this->assertTrue($startTour());
+        $this->assertTrue($startTour(), 'Opening the dashboard again does not count as seeing the tour.');
+
+        $this->from(route('dashboard'))->post(route('tour.complete'))->assertRedirect(route('dashboard'));
+        $finished = $business->user->fresh()->tour_completed_at;
+
+        $this->assertFalse($startTour());
+        $this->travel(1)->day();
+        $this->post(route('tour.complete'));
+        $this->assertEquals($finished, $business->user->fresh()->tour_completed_at, 'A replay keeps the first date.');
+    }
+
     /**
      * Opened on 1 October: Rp500.000 cash, Rp1 jt in the bank, a Rp1,5 jt
      * stove, 100 bottles at Rp2.500, and Rp300.000 owed to a supplier.

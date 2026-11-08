@@ -17,6 +17,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\TourController;
 use App\Http\Controllers\TransactionController;
 use App\Support\DemoData;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +51,7 @@ Route::middleware(['guest', 'throttle:10,1'])->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::post('tur-selesai', TourController::class)->name('tour.complete');
 
     Route::get('produk', [ItemController::class, 'index'])->name('items.index');
     Route::get('produk/baru', [ItemController::class, 'create'])->name('items.create');

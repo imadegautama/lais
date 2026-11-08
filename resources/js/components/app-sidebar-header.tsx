@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { PageGuide } from '@/components/app/page-guide';
 import { QuickRecordSheet } from '@/components/app/quick-record-sheet';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ export function AppSidebarHeader({
                     <Breadcrumbs breadcrumbs={breadcrumbs} />
                 </span>
             </div>
+            <PageGuide />
             {/* Phones record from the bottom nav instead. */}
             <div className="hidden lg:block">
                 <QuickRecordSheet

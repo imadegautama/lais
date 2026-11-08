@@ -28,6 +28,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $whatsapp_lid
  * @property string|null $telegram_chat_id
  * @property Carbon|null $whatsapp_linked_at
+ * @property Carbon|null $tour_completed_at
  * @property string|null $password Null for an account made with Google until a password is set in Keamanan.
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -70,6 +71,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return [
             'whatsapp_linked_at' => 'datetime',
+            'tour_completed_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
