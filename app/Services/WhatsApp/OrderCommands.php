@@ -2,6 +2,7 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Models\Order;
 use App\Models\User;
@@ -15,7 +16,10 @@ use Illuminate\Validation\ValidationException;
  * Order replies in the chat (PRD US-09), read without the model:
  * "terima A012", "tolak A012 bahan habis", "A012 siap", "A012 selesai",
  * "batal A012 …", "A012 dp 20rb qris", "A012 lunas". Each goes through
- * Orders, like the buttons on the web.
+ * Orders, like the buttons on the web. On Telegram the next step comes as
+ * a button.
+ *
+ * @phpstan-import-type Button from Buttons
  */
 class OrderCommands
 {
@@ -24,9 +28,12 @@ class OrderCommands
     public function __construct(private Orders $orders, private BotChannel $channel) {}
 
     /**
-     * The reply, or null when the text is not an order command.
+     * The reply with the next step as a button, or null when the text is not
+     * an order command.
+     *
+     * @return array{text: string, buttons: list<Button>}|null
      */
-    public function handle(User $owner, string $text): ?string
+    public function handle(User $owner, string $text): ?array
     {
         $verbs = self::VERBS;
 
@@ -40,19 +47,24 @@ class OrderCommands
         $order = $owner->currentBusiness()->orders()->where('orders.code', $code)->with(['lines', 'business'])->first();
 
         if ($order === null) {
-            return "Pesanan {$code} tidak ditemukan. Cek kodenya di halaman Pesanan.";
+            return ['text' => "Pesanan {$code} tidak ditemukan. Cek kodenya di halaman Pesanan.", 'buttons' => []];
         }
 
         try {
             $done = $this->run($order, $verb, $rest);
         } catch (ValidationException $exception) {
-            return (string) Arr::first(Arr::flatten($exception->errors()));
+            return ['text' => (string) Arr::first(Arr::flatten($exception->errors())), 'buttons' => []];
         }
 
         $order->refresh();
         $paid = $this->orders->paid($order);
+        $next = match ($order->status) {
+            OrderStatus::Diproses => [Buttons::command('Tandai siap', "siap {$code}")],
+            OrderStatus::Siap => [Buttons::command('Selesai', "selesai {$code}")],
+            default => [],
+        };
 
-        return $done."\n\nKabari pelanggan dari WhatsApp kamu:\n".OrderMessages::forwardLink($order, $paid);
+        return ['text' => $done, 'buttons' => [...$next, ['label' => 'Kabari pelanggan lewat WhatsApp', 'url' => OrderMessages::forwardLink($order, $paid)]]];
     }
 
     private function run(Order $order, string $verb, string $rest): string

@@ -5,57 +5,61 @@ namespace App\Services\WhatsApp;
 use App\Support\Format;
 
 /**
- * FormAssistant's reply as WhatsApp text: the draft as lines, what is
- * missing, and how to answer. Links are made absolute so they open from
- * the chat. Uses WhatsApp's own *bold*, nothing else.
+ * FormAssistant's reply as a chat message: the draft as lines, what is
+ * missing, and buttons to answer or open a page (Buttons). Uses WhatsApp's
+ * own *bold*, nothing else; Telegram turns it into HTML.
  *
  * @phpstan-import-type Reply from \App\Services\Ai\FormAssistant
  * @phpstan-import-type Card from \App\Services\Ai\FormAssistant
+ * @phpstan-import-type Button from Buttons
  */
 class Formatter
 {
-    public const CONFIRM = 'Balas *1* untuk simpan, *2* untuk batal.';
+    /** Under a draft that is ready; the buttons (or "Balas 1/2") say how to save it. */
+    public const READY = 'Sudah benar? Kalau ada yang salah, ketik saja koreksinya.';
+
+    /** Under a draft that still lacks something. */
+    public const INCOMPLETE = 'Ketik kekurangannya di sini, nanti saya lengkapi.';
 
     /**
+     * A draft reads like a receipt first, then what to do with it. The web's
+     * own question ("Simpan catatan ini?", "Masih ada yang kurang…") becomes
+     * the closing line and the buttons here.
+     *
      * @param  Reply  $reply
+     * @return array{text: string, buttons: list<Button>}
      */
-    public static function reply(array $reply): string
+    public static function reply(array $reply): array
     {
         $offer = $reply['guide']['offer'] ?? null;
-        $parts = [$reply['reply']];
-
-        if ($reply['guide'] !== null && $reply['guide']['needs'] !== []) {
-            $parts[] = "Yang perlu disiapkan:\n".self::bullets($reply['guide']['needs']);
-        }
-
+        $draft = $reply['card'] !== null;
         // A guide's draft is offered in the chat the way the web shows it as a card to open.
         $card = $reply['card'] ?? $offer['card'] ?? null;
-        $missing = $reply['card'] !== null ? $reply['missing'] : ($offer['missing'] ?? []);
-        $confirm = $reply['card'] !== null ? $reply['confirm'] : (bool) ($offer['confirm'] ?? false);
+        $missing = $draft ? $reply['missing'] : ($offer['missing'] ?? []);
+        $confirm = ($draft ? $reply['confirm'] : (bool) ($offer['confirm'] ?? false)) && $reply['saved'] === null;
+        // Anything else the assistant said about the draft (a refusal, a question) stays.
+        $said = $draft && preg_match('/^(Simpan .+\?|Masih ada yang kurang\..*)$/u', $reply['reply']) === 1 ? '' : $reply['reply'];
+        $needs = $reply['guide'] !== null && $reply['guide']['needs'] !== [] ? "Yang perlu disiapkan:\n".self::bullets($reply['guide']['needs']) : '';
+        $lacking = $missing === [] ? '' : "Masih kurang:\n".self::bullets($missing);
 
-        if ($card !== null) {
-            $parts[] = self::card($card);
-        }
+        $parts = $draft
+            ? [self::card($card), $lacking, $said]
+            : [$said, $needs, $card === null ? '' : self::card($card), $lacking];
+        $parts[] = match (true) {
+            $confirm => self::READY,
+            $card !== null && $missing !== [] && (! $draft || $said === '') => self::INCOMPLETE,
+            default => '',
+        };
 
-        if ($missing !== []) {
-            $parts[] = "Yang masih kurang:\n".self::bullets($missing);
-        }
-
-        if ($reply['options'] !== []) {
-            $parts[] = 'Pilihan: '.implode(' / ', $reply['options']);
-        }
-
-        if ($confirm && $reply['saved'] === null) {
-            $parts[] = self::CONFIRM;
-        }
+        $buttons = [...Buttons::options($reply['options']), ...($confirm ? Buttons::confirm() : [])];
 
         foreach ([$reply['saved'], $reply['link']] as $link) {
             if ($link !== null) {
-                $parts[] = "{$link['label']}: ".url($link['href']);
+                $buttons[] = Buttons::link($link);
             }
         }
 
-        return implode("\n\n", array_filter($parts, fn (string $part) => trim($part) !== ''));
+        return ['text' => implode("\n\n", array_filter($parts, fn (string $part) => trim($part) !== '')), 'buttons' => $buttons];
     }
 
     /**

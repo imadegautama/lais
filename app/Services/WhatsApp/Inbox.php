@@ -17,12 +17,14 @@ use Throwable;
  * Every message to the bot ends here (PRD §4.1). Fixed commands are read
  * without the model; everything else goes to the same FormAssistant as
  * the web's Tanya AI. Replies only ever go back to the owner.
+ *
+ * @phpstan-import-type Button from Buttons
  */
 class Inbox
 {
     private const DRAFT_MINUTES = 15;
 
-    private const HELP = "Ceritakan yang mau dicatat, misalnya \"jual 3 nasi goreng tunai\" atau \"ambil 200rb buat rumah\". Bisa juga kirim foto nota.\n\nPesanan: *terima A012*, *A012 selesai*, *A012 dp 20rb qris*, *A012 lunas*.\n\nTanya juga boleh: *untung bulan ini berapa?*, *utang dicatat di mana?*, *apa itu HPP?*, *es teh worth it?*";
+    private const HELP = "Ceritakan saja yang mau dicatat, seperti ngobrol biasa:\n• jual 3 nasi goreng tunai\n• beli beras 5 kg 70rb\n• ambil 200rb buat rumah\n• atau kirim foto nota belanja\n\nMau tanya juga boleh:\n• untung bulan ini berapa?\n• utang dicatat di mana?\n• apa itu HPP?\n• es teh worth it?\n\nPesanan dari toko online masuk ke sini lengkap dengan tombolnya. Bisa juga diketik, misalnya *terima A012*, *A012 dp 20rb qris*, *A012 lunas*, atau *A012 selesai*.";
 
     public function __construct(private Linking $linking, private FormAssistant $assistant, private OrderCommands $orderCommands, private BotChannel $channel) {}
 
@@ -37,7 +39,7 @@ class Inbox
             $linked = $this->linking->redeem($code[1], $from);
             $this->reply($from->replyTo, is_string($linked)
                 ? $linked
-                : "Bot terhubung ke {$linked->currentBusiness()->name}.\n\n".self::HELP, is_string($linked) ? null : $linked->id);
+                : "Halo! Bot sudah terhubung ke *{$linked->currentBusiness()->name}*.\n\n".self::HELP, is_string($linked) ? null : $linked->id);
 
             return;
         }
@@ -71,7 +73,7 @@ class Inbox
         $command = $this->orderCommands->handle($owner, $text);
 
         if ($command !== null) {
-            $this->reply($from->replyTo, $command, $owner->id);
+            $this->reply($from->replyTo, $command['text'], $owner->id, $command['buttons']);
 
             return;
         }
@@ -80,7 +82,7 @@ class Inbox
 
         if ($text === '2') {
             Cache::forget(self::draftKey($owner));
-            $this->reply($from->replyTo, $draft === null ? 'Tidak ada catatan yang menunggu.' : 'Dibatalkan, tidak ada yang disimpan.', $owner->id);
+            $this->reply($from->replyTo, $draft === null ? 'Belum ada catatan yang menunggu disimpan.' : 'Oke, dibatalkan. Tidak ada yang disimpan.', $owner->id);
 
             return;
         }
@@ -88,6 +90,8 @@ class Inbox
         $photo = null;
 
         if (! empty($message->payload['image'])) {
+            $this->channel->typing($from->replyTo);
+
             try {
                 $photo = $this->channel->downloadImage($message);
             } catch (Throwable $exception) {
@@ -99,10 +103,13 @@ class Inbox
         }
 
         if ($text === '1' && $draft === null && $photo === null) {
-            $this->reply($from->replyTo, 'Tidak ada catatan yang menunggu. Ceritakan yang mau dicatat, misalnya "jual 3 nasi goreng tunai".', $owner->id);
+            $this->reply($from->replyTo, 'Belum ada catatan yang menunggu disimpan. Ceritakan saja yang mau dicatat, misalnya "jual 3 nasi goreng tunai".', $owner->id);
 
             return;
         }
+
+        // Shown until the reply arrives, about five seconds at most; a photo was already a wait of its own.
+        $this->channel->typing($from->replyTo);
 
         try {
             $reply = $this->assistant->reply(
@@ -119,13 +126,14 @@ class Inbox
         } catch (AssistantUnavailable) {
             // Left out of later history, so a retry is not read as a second transaction.
             $message->forceFill(['payload' => [...($message->payload ?? []), 'lais_failed' => true]])->save();
-            $this->reply($from->replyTo, 'AI sedang tidak bisa dipakai. Coba kirim lagi sebentar lagi, atau catat lewat web.', $owner->id);
+            $this->reply($from->replyTo, 'Maaf, AI-nya sedang sibuk. Coba kirim lagi sebentar lagi, atau catat lewat web dulu.', $owner->id);
 
             return;
         }
 
         $this->keepDraft($owner, $reply, $draft, $photo);
-        $this->reply($from->replyTo, Formatter::reply($reply), $owner->id);
+        $answer = Formatter::reply($reply);
+        $this->reply($from->replyTo, $answer['text'], $owner->id, $answer['buttons']);
     }
 
     /**
@@ -211,8 +219,11 @@ class Inbox
         $this->reply($from->replyTo, 'Akun ini belum terhubung ke Lais. Daftar di '.route('register').', lalu buka Pengaturan > Bot untuk menghubungkannya.');
     }
 
-    private function reply(string $to, string $text, ?int $userId = null): void
+    /**
+     * @param  list<Button>  $buttons
+     */
+    private function reply(string $to, string $text, ?int $userId = null, array $buttons = []): void
     {
-        SendWhatsApp::dispatch($to, $text, $userId);
+        SendWhatsApp::dispatch($to, $text, $userId, $buttons);
     }
 }

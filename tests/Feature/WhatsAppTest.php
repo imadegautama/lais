@@ -96,7 +96,7 @@ class WhatsAppTest extends TestCase
         $this->owner->refresh();
         $this->assertSame(['6281234567890', '99887766@lid'], [$this->owner->whatsapp, $this->owner->whatsapp_lid]);
         $this->assertNotNull($this->owner->whatsapp_linked_at);
-        $this->assertSent('6281234567890@s.whatsapp.net', 'Bot terhubung ke Warung Ani');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Bot sudah terhubung ke *Warung Ani*');
         $this->get(route('whatsapp.edit'))->assertInertia(fn (AssertableInertia $page) => $page
             ->where('linked.phone', '6281234567890')
             ->where('pending', null));
@@ -171,7 +171,7 @@ class WhatsAppTest extends TestCase
         $this->assertSame(1, $this->modelCalls());
 
         $this->deliver($this->event('1', id: 'S3'));
-        $this->assertSent('6281234567890@s.whatsapp.net', 'Tidak ada catatan yang menunggu');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Belum ada catatan yang menunggu');
     }
 
     public function test_where_to_find_something_comes_back_with_the_page_address(): void
@@ -197,12 +197,12 @@ class WhatsAppTest extends TestCase
 
         $this->deliver($this->event('jual 2 aqua', id: 'D1'));
         $this->deliver($this->event('2', id: 'D2'));
-        $this->assertSent('6281234567890@s.whatsapp.net', 'Dibatalkan, tidak ada yang disimpan.');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Oke, dibatalkan. Tidak ada yang disimpan.');
 
         $this->deliver($this->event('jual 2 aqua', id: 'D3'));
         $this->travel(16)->minutes();
         $this->deliver($this->event('1', id: 'D4'));
-        $this->assertSent('6281234567890@s.whatsapp.net', 'Tidak ada catatan yang menunggu');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Belum ada catatan yang menunggu');
         $this->assertSame(0, Transaction::query()->where('type', 'penjualan')->count());
     }
 
@@ -216,7 +216,7 @@ class WhatsAppTest extends TestCase
         ], 'finish_reason' => 'tool_calls']]])]);
 
         $this->deliver($this->event('jual 5 nasgor qris', id: 'E1'));
-        $this->assertSent('6281234567890@s.whatsapp.net', 'AI sedang tidak bisa dipakai');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'AI-nya sedang sibuk');
 
         // The failed message is not part of the next one's history.
         $this->deliver($this->event('jual 2 aqua tunai', id: 'E2'));
@@ -236,7 +236,7 @@ class WhatsAppTest extends TestCase
             'lines' => [['item_id' => $water->id, 'qty' => 5]],
         ])->assertSessionHasNoErrors();
         $this->assertSent('6281234567890', "*Pesanan baru A001* dari Bu Sari\n• 5 Air Mineral\nTotal: *Rp20.000*");
-        $this->assertSent('6281234567890', 'Balas *terima A001* atau *tolak A001*.');
+        $this->assertSent('6281234567890', 'Balas *terima A001* untuk terima pesanan, *tolak A001* untuk tolak.');
 
         $this->deliver($this->event('terima a001', id: 'O1'));
         $this->assertSent('6281234567890@s.whatsapp.net', 'Pesanan A001 diterima dan sedang diproses.');
