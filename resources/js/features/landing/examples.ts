@@ -165,73 +165,87 @@ export const appScreens = [
     },
 ] as const;
 
-/**
- * Messages from AssistantEvalTest and what each becomes in the books, so
- * every pair is one the assistant is known to read right. Amounts come from
- * the message or the starter catalog's prices.
- */
-export const sampleRecords: Array<{
+/** The books on the right of the chat diagram, in their order there. */
+export const books = [
+    {
+        id: TransactionType.Penjualan,
+        label: transactionTypeLabels[TransactionType.Penjualan],
+    },
+    {
+        id: TransactionType.Pembelian,
+        label: transactionTypeLabels[TransactionType.Pembelian],
+    },
+    {
+        id: TransactionType.Biaya,
+        label: transactionTypeLabels[TransactionType.Biaya],
+    },
+    {
+        id: TransactionType.UtangPiutang,
+        label: transactionTypeLabels[TransactionType.UtangPiutang],
+    },
+    {
+        id: TransactionType.Modal,
+        label: transactionTypeLabels[TransactionType.Modal],
+    },
+    { id: 'produk', label: 'Produk' },
+] as const;
+
+export type SampleRecord = {
     message: string;
+    book: (typeof books)[number]['id'];
     record: string;
-    detail: string;
     amount: number;
     direction: MoneyDirection;
-}> = [
-    {
-        message: 'jual 3 nasgor 2 es teh qris',
-        record: transactionTypeLabels[TransactionType.Penjualan],
-        detail: 'Non-tunai',
-        amount: 55_000,
-        direction: 'in',
-    },
-    {
-        message: 'bu sari ngutang 2 nasgor',
-        record: 'Piutang Bu Sari',
-        detail: 'Belum dibayar',
-        amount: 30_000,
-        direction: 'none',
-    },
-    {
-        message: 'beli beras 5 kg 70rb di toko makmur',
-        record: transactionTypeLabels[TransactionType.Pembelian],
-        detail: 'Stok beras +5 kg',
-        amount: 70_000,
-        direction: 'out',
-    },
+};
+
+/**
+ * Chats from AssistantEvalTest and the book each lands in, so every pair is
+ * one the assistant is known to read right. Amounts come from the message
+ * or the starter catalog's prices. Their order differs from the books' on
+ * purpose, so the lines cross.
+ */
+export const sampleRecords: SampleRecord[] = [
     {
         message: 'bayar listrik 350rb',
+        book: TransactionType.Biaya,
         record: transactionKindLabels[TransactionKind.ListrikAir],
-        detail: 'Biaya',
         amount: 350_000,
         direction: 'out',
     },
     {
-        message: 'gaji karyawan 1,5jt transfer',
-        record: transactionKindLabels[TransactionKind.Upah],
-        detail: 'Non-tunai',
-        amount: 1_500_000,
-        direction: 'out',
+        message: 'jual 3 nasgor 2 es teh qris',
+        book: TransactionType.Penjualan,
+        record: 'Non-tunai',
+        amount: 55_000,
+        direction: 'in',
     },
     {
         message: 'setor modal 2jt tunai',
+        book: TransactionType.Modal,
         record: transactionKindLabels[TransactionKind.Setor],
-        detail: 'Tunai',
         amount: 2_000_000,
         direction: 'in',
     },
     {
-        message: 'bu sari bayar utangnya 30rb',
-        record: 'Terima bayaran',
-        detail: 'Dari Bu Sari',
-        amount: 30_000,
-        direction: 'in',
+        message: 'beli beras 5 kg 70rb di toko makmur',
+        book: TransactionType.Pembelian,
+        record: 'Stok beras +5 kg',
+        amount: 70_000,
+        direction: 'out',
     },
     {
         message: 'tambah menu mie goreng 14rb pakai telur 1 dan beras 1 ons',
-        record: 'Produk baru: Mie Goreng',
-        detail: 'Resep 2 bahan',
+        book: 'produk',
+        record: 'Mie Goreng + resep',
         amount: 14_000,
         direction: 'none',
+    },
+    {
+        message: 'bu sari bayar utangnya 30rb',
+        book: TransactionType.UtangPiutang,
+        record: 'Bayaran dari Bu Sari',
+        amount: 30_000,
+        direction: 'in',
     },
 ];
 

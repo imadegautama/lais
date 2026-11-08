@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { useRef } from 'react';
 import { AppShowcase } from '@/features/landing/app-showcase';
+import { ChatRouter } from '@/features/landing/chat-router';
 import { LandingFooter } from '@/features/landing/landing-footer';
 import { LandingHeader } from '@/features/landing/landing-header';
 import {
@@ -10,7 +11,6 @@ import {
     ExampleShop,
     Hero,
     Problem,
-    SampleMessages,
     Trust,
 } from '@/features/landing/landing-sections';
 import { useReveal } from '@/features/landing/use-reveal';
@@ -44,7 +44,7 @@ export default function Welcome({ demoShop }: WelcomeProps) {
                 <LandingHeader hasShop={demoShop !== null} />
                 <main id="konten" tabIndex={-1}>
                     <Hero demoShop={demoShop} />
-                    <SampleMessages />
+                    <ChatRouter />
                     <Problem />
                     <Answers />
                     <AppShowcase />

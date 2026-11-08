@@ -47,25 +47,6 @@
     border-radius: 0 2px 2px 0;
 }
 
-/* Messages show left of the middle line, records right of it. */
-.landing-conveyor-belt {
-    mask-image: linear-gradient(
-        to right,
-        transparent,
-        black 8%,
-        black 92%,
-        transparent
-    );
-}
-
-.landing-conveyor-in {
-    clip-path: inset(0 50% 0 0);
-}
-
-.landing-conveyor-out {
-    clip-path: inset(0 0 0 50%);
-}
-
 /* A struck-through problem: the line is drawn, so it can grow (below). */
 .landing-struck {
     background-image: linear-gradient(var(--brand-strong), var(--brand-strong));
@@ -99,6 +80,44 @@
 .landing-steps::after {
     height: calc((100% - 2.25rem) * var(--progress, 0));
     background: var(--brand-strong);
+}
+
+/* The chat diagram: grey routes, and the lit one flows. */
+.landing-route {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 1.5px;
+}
+
+.landing-route.is-active {
+    stroke: var(--brand-strong);
+    stroke-width: 2px;
+    stroke-dasharray: 0.03 0.02;
+}
+
+.landing-node.is-active {
+    border-color: var(--brand-strong);
+    background: var(--brand-soft);
+}
+
+.landing-book.is-active {
+    border-color: var(--brand-strong);
+    box-shadow: var(--shadow-tile);
+}
+
+.landing-drop {
+    background: repeating-linear-gradient(
+        to bottom,
+        var(--brand-strong) 0 4px,
+        transparent 4px 8px
+    );
+}
+
+.landing-reading span {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
 }
 
 /* Four photographers, one mood. */
@@ -235,6 +254,54 @@
         transition: background-size 0.7s var(--landing-ease) 0.15s;
     }
 
+    /* The line reaches the AI first; the book lights a beat later. */
+    .landing-route.is-active {
+        animation: landing-flow 0.9s linear infinite;
+    }
+
+    .landing-route-out.is-active {
+        animation:
+            landing-route-in 0.3s ease-out 0.9s both,
+            landing-flow 0.9s linear 0.9s infinite;
+    }
+
+    .landing-node,
+    .landing-book {
+        transition:
+            border-color 0.3s ease,
+            background-color 0.3s ease,
+            box-shadow 0.3s ease;
+    }
+
+    .landing-book.is-active {
+        transition-delay: 1.1s;
+    }
+
+    .landing-book-record {
+        animation: landing-rise 0.4s var(--landing-ease) 1.1s both;
+    }
+
+    /* On phones the chat itself is new each time. */
+    .landing-node-enter {
+        animation: landing-rise 0.35s var(--landing-ease) both;
+    }
+
+    .landing-drop {
+        animation: landing-drop 0.6s linear infinite;
+    }
+
+    .landing-reading span {
+        animation: landing-reading 1s ease-in-out infinite;
+    }
+
+    .landing-reading span:nth-child(2) {
+        animation-delay: 0.15s;
+    }
+
+    .landing-reading span:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+
     [data-reveal='strike'][data-waiting] .landing-struck {
         background-size: 0% 2px;
     }
@@ -271,18 +338,6 @@
     [data-reveal='words'][data-waiting] .landing-word {
         opacity: 0;
         transform: translateY(0.35em);
-    }
-
-    /* Both lanes run the same clock, so a message turns into its record
-       exactly as it crosses the middle. */
-    .landing-conveyor-track {
-        animation: landing-conveyor 40s linear infinite;
-    }
-
-    .landing-conveyor:hover .landing-conveyor-track,
-    .landing-conveyor:focus-within .landing-conveyor-track,
-    .landing-conveyor:active .landing-conveyor-track {
-        animation-play-state: paused;
     }
 
     @media (min-width: 768px) {
@@ -382,12 +437,6 @@
     }
 }
 
-@keyframes landing-conveyor {
-    from {
-        transform: translateX(-50%);
-    }
-}
-
 @keyframes landing-hero-out {
     to {
         opacity: 0.15;
@@ -404,6 +453,31 @@
 @keyframes landing-laptop-open {
     from {
         transform: perspective(1600px) rotateX(16deg) scale(0.94);
+    }
+}
+
+@keyframes landing-flow {
+    to {
+        stroke-dashoffset: -0.05;
+    }
+}
+
+@keyframes landing-route-in {
+    from {
+        stroke: var(--border);
+    }
+}
+
+@keyframes landing-drop {
+    to {
+        background-position: 0 8px;
+    }
+}
+
+@keyframes landing-reading {
+    50% {
+        opacity: 0.25;
+        transform: translateY(-2px);
     }
 }
 

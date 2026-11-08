@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    ArrowRight,
     BadgeCheck,
     Calculator,
     Check,
@@ -17,7 +16,6 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useRef } from 'react';
 import { LabelBadge, MarginLabel } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { Money } from '@/components/app/money';
 import { LogoWordmark } from '@/components/logo-wordmark';
 import { Button } from '@/components/ui/button';
@@ -27,19 +25,14 @@ import { show as showShop } from '@/routes/shop';
 import type { DemoShop } from '@/types/domain';
 import { businessCategoryLabels } from '@/types/enums';
 import { ChatDemo } from './chat-demo';
-import {
-    businessPhotos,
-    problems,
-    sampleRecords,
-    surveyFacts,
-} from './examples';
+import { businessPhotos, problems, surveyFacts } from './examples';
 import { useActiveStep } from './use-active-step';
 import { delay, WordReveal } from './word-reveal';
 
 const SOURCE_URL =
     'https://www.ocbc.id/id/tentang-ocbc/informasi/siaran-pers/2024/08/19/ocbc-business-fitness-index';
 
-const shell = 'mx-auto w-full max-w-[1280px] px-4 md:px-8';
+export const shell = 'mx-auto w-full max-w-[1280px] px-4 md:px-8';
 const creditLink =
     'underline underline-offset-2 hover:text-foreground pointer-coarse:py-[15px]';
 export const heading =
@@ -119,146 +112,6 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
                 </div>
             </div>
         </section>
-    );
-}
-
-/**
- * Messages ride in from the left, pass the AI in the middle, and leave as
- * records (landing.css): two lanes moving together, each shown on one side.
- */
-export function SampleMessages() {
-    return (
-        <section
-            aria-labelledby="contoh-pesan"
-            className={cn(
-                shell,
-                'flex flex-col gap-3 pt-6 md:flex-row md:items-center md:gap-5',
-            )}
-        >
-            <h2
-                id="contoh-pesan"
-                className="shrink-0 text-sm font-medium text-muted-foreground"
-            >
-                Cukup tulis seperti ini
-            </h2>
-            <div
-                role="region"
-                aria-label="Contoh pesan yang berubah menjadi catatan. Sorot, sentuh, atau fokus untuk berhenti."
-                tabIndex={0}
-                // A tap focuses it, so touch can pause it too (landing.css).
-                onPointerDown={(event) => event.currentTarget.focus()}
-                className="landing-conveyor w-full min-w-0 rounded-2xl outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 motion-reduce:hidden md:flex-1"
-            >
-                <div
-                    aria-hidden
-                    className="flex justify-between px-4 pb-1 text-xs text-muted-foreground"
-                >
-                    <span>Chat masuk</span>
-                    <span>Tercatat</span>
-                </div>
-                <div className="landing-conveyor-belt relative h-20">
-                    <Lane face="message" className="landing-conveyor-in" />
-                    <Lane face="record" className="landing-conveyor-out" />
-                    <span
-                        aria-hidden
-                        className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-border"
-                    />
-                    <span
-                        aria-hidden
-                        className="absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs font-semibold shadow-tile"
-                    >
-                        <AppLogoIcon className="h-3.5" />
-                        AI
-                    </span>
-                </div>
-            </div>
-            <ul className="sr-only motion-reduce:not-sr-only motion-reduce:grid motion-reduce:gap-2 motion-reduce:md:flex-1 motion-reduce:lg:grid-cols-2">
-                {sampleRecords.map((sample) => (
-                    <li
-                        key={sample.message}
-                        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
-                    >
-                        <span className="rounded-2xl rounded-br-md bg-brand-soft px-3 py-1">
-                            {sample.message}
-                        </span>
-                        <ArrowRight
-                            className="size-4 shrink-0 text-muted-foreground"
-                            aria-hidden
-                        />
-                        <span className="sr-only">dicatat sebagai</span>
-                        <span className="font-medium">{sample.record}</span>
-                        <Money
-                            value={sample.amount}
-                            direction={sample.direction}
-                            size="sm"
-                        />
-                    </li>
-                ))}
-            </ul>
-        </section>
-    );
-}
-
-/**
- * One lane of the conveyor, the list twice so the loop closes. Every card is
- * the same width in both lanes, so a message and its record meet at the
- * middle line.
- */
-function Lane({
-    face,
-    className,
-}: {
-    face: 'message' | 'record';
-    className: string;
-}) {
-    return (
-        <div
-            aria-hidden
-            className={cn(
-                'absolute inset-0 flex items-center overflow-hidden',
-                className,
-            )}
-        >
-            <div className="landing-conveyor-track flex w-max">
-                {[...sampleRecords, ...sampleRecords].map((sample, index) => (
-                    <div
-                        key={`${sample.message}-${index}`}
-                        className="w-52 shrink-0 pr-3 md:w-64"
-                    >
-                        {face === 'message' ? (
-                            <p className="flex h-16 items-center rounded-2xl rounded-br-md bg-brand-soft px-3 text-sm">
-                                <span className="line-clamp-2">
-                                    {sample.message}
-                                </span>
-                            </p>
-                        ) : (
-                            <div className="flex h-16 items-center gap-2.5 rounded-2xl border bg-card px-3 shadow-tile">
-                                <CircleCheck
-                                    className="size-5 shrink-0 text-success"
-                                    aria-hidden
-                                />
-                                <span className="min-w-0">
-                                    <span className="block truncate text-sm font-semibold">
-                                        {sample.record}
-                                    </span>
-                                    <span className="flex items-baseline gap-1.5 text-xs text-muted-foreground">
-                                        <Money
-                                            value={sample.amount}
-                                            direction={sample.direction}
-                                            size="sm"
-                                            className="text-xs"
-                                        />
-                                        <span className="truncate">
-                                            {sample.detail}
-                                        </span>
-                                    </span>
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
     );
 }
 
