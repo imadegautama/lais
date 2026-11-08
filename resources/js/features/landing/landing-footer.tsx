@@ -16,7 +16,7 @@ export function LandingFooter({ hasShop }: { hasShop: boolean }) {
                 </a>
                 {hasShop && (
                     <a href="#toko-contoh" className={link}>
-                        Toko contoh
+                        Demo Toko
                     </a>
                 )}
                 <Link href={privacy()} className={link}>

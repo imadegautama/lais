@@ -82,7 +82,7 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
                             {demoShop && (
                                 <Button asChild size="lg" variant="outline">
                                     <Link href={showShop(demoShop.slug)}>
-                                        Lihat toko contoh
+                                        Lihat Demo Toko
                                     </Link>
                                 </Button>
                             )}
@@ -460,8 +460,19 @@ export function Audience() {
                 data-reveal="words"
                 className={cn(shell, heading, 'text-center')}
             >
-                <WordReveal text="Untuk semua usaha yang jualan" />
+                <WordReveal text="Dari gerobak soto sampai penjahit batik" />
             </h2>
+            <p
+                data-reveal="up"
+                style={delay(200)}
+                className={cn(
+                    shell,
+                    'mt-3 max-w-2xl text-center text-balance text-muted-foreground',
+                )}
+            >
+                Apa pun yang kamu jual, caranya sama: cukup chat, lalu
+                penjualan, stok bahan, dan untungnya tercatat sendiri.
+            </p>
             <div
                 role="region"
                 aria-label="Foto jenis usaha. Gerakkan kursor, sentuh, atau fokus untuk berhenti."
@@ -649,7 +660,7 @@ export function ExampleShop({ shop }: { shop: DemoShop }) {
                     style={delay(200)}
                     className="mt-3 text-muted-foreground"
                 >
-                    Coba jadi pelanggan di toko contoh dan lihat alurnya dari
+                    Coba jadi pelanggan di Demo Toko dan lihat alurnya dari
                     awal.
                 </p>
             </div>
