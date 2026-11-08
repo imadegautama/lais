@@ -24,9 +24,7 @@ class Inbox
 {
     private const DRAFT_MINUTES = 15;
 
-    private const HELP = "Ceritakan saja yang mau dicatat, seperti ngobrol biasa:\n• jual 3 nasi goreng tunai\n• beli beras 5 kg 70rb\n• ambil 200rb buat rumah\n• atau kirim foto nota belanja\n\nMau tanya juga boleh:\n• untung bulan ini berapa?\n• utang dicatat di mana?\n• apa itu HPP?\n• es teh worth it?\n\nPesanan dari toko online masuk ke sini lengkap dengan tombolnya. Bisa juga diketik, misalnya *terima A012*, *A012 dp 20rb qris*, *A012 lunas*, atau *A012 selesai*.";
-
-    public function __construct(private Linking $linking, private FormAssistant $assistant, private OrderCommands $orderCommands, private BotChannel $channel) {}
+    public function __construct(private Linking $linking, private FormAssistant $assistant, private OrderCommands $orderCommands, private BotChannel $channel, private DailySummary $summary) {}
 
     public function handle(WaMessage $message): void
     {
@@ -37,9 +35,13 @@ class Inbox
         // "LAIS 123456" typed, or "/start 123456" from Telegram's link.
         if (preg_match('/^(?:lais\s*|\/start\s+)(\d{6})$/i', $text, $code) === 1) {
             $linked = $this->linking->redeem($code[1], $from);
-            $this->reply($from->replyTo, is_string($linked)
-                ? $linked
-                : "Halo! Bot sudah terhubung ke *{$linked->currentBusiness()->name}*.\n\n".self::HELP, is_string($linked) ? null : $linked->id);
+
+            if (is_string($linked)) {
+                $this->reply($from->replyTo, $linked);
+            } else {
+                $welcome = BotGuide::welcome($linked);
+                $this->reply($from->replyTo, "Bot sudah terhubung.\n\n".$welcome['text'], $linked->id, $welcome['buttons']);
+            }
 
             return;
         }
@@ -47,7 +49,7 @@ class Inbox
         $owner = $this->linking->owner($from);
 
         if ($owner === null) {
-            $this->stranger($from);
+            $this->stranger($from, self::command($text) === 'start');
 
             return;
         }
@@ -64,23 +66,34 @@ class Inbox
      */
     private function owner(User $owner, WaMessage $message, Address $from, string $text): void
     {
-        if (preg_match('/^\/(start|help)$/i', $text) === 1) {
-            $this->reply($from->replyTo, self::HELP, $owner->id);
+        $command = self::command($text);
+        $guide = match ($command) {
+            'start', 'help', 'bantuan' => BotGuide::welcome($owner),
+            'catat' => BotGuide::record($owner),
+            'tanya' => BotGuide::ask($owner),
+            'pesanan' => BotGuide::orders($owner),
+            // Tonight's summary now, also for the demo: no waiting until 21.00.
+            'ringkasan' => ['text' => $this->summary->for($owner->currentBusiness()), 'buttons' => []],
+            default => null,
+        };
+
+        if ($guide !== null) {
+            $this->reply($from->replyTo, $guide['text'], $owner->id, $guide['buttons']);
 
             return;
         }
 
-        $command = $this->orderCommands->handle($owner, $text);
+        $order = $this->orderCommands->handle($owner, $text);
 
-        if ($command !== null) {
-            $this->reply($from->replyTo, $command['text'], $owner->id, $command['buttons']);
+        if ($order !== null) {
+            $this->reply($from->replyTo, $order['text'], $owner->id, $order['buttons']);
 
             return;
         }
 
         $draft = $this->draft($owner);
 
-        if ($text === '2') {
+        if ($text === '2' || $command === 'batal') {
             Cache::forget(self::draftKey($owner));
             $this->reply($from->replyTo, $draft === null ? 'Belum ada catatan yang menunggu disimpan.' : 'Oke, dibatalkan. Tidak ada yang disimpan.', $owner->id);
 
@@ -205,18 +218,28 @@ class Inbox
     }
 
     /**
-     * An unknown sender gets one pointer a day, never a conversation (PRD US-06).
+     * "/start", "/catat@LaisHelpBot": the command's name, or null for anything else.
      */
-    private function stranger(Address $from): void
+    private static function command(string $text): ?string
+    {
+        return preg_match('/^\/([a-z]+)(?:@\w+)?$/i', $text, $match) === 1 ? mb_strtolower($match[1]) : null;
+    }
+
+    /**
+     * An unknown sender gets one pointer a day, never a conversation (PRD
+     * US-06). Pressing Mulai always gets it: that is how everyone starts.
+     */
+    private function stranger(Address $from, bool $starting = false): void
     {
         $key = 'wa-stranger:'.($from->phone ?? $from->lid ?? $from->replyTo);
 
-        if (RateLimiter::tooManyAttempts($key, 1)) {
+        if (! $starting && RateLimiter::tooManyAttempts($key, 1)) {
             return;
         }
 
         RateLimiter::hit($key, 86400);
-        $this->reply($from->replyTo, 'Akun ini belum terhubung ke Lais. Daftar di '.route('register').', lalu buka Pengaturan > Bot untuk menghubungkannya.');
+        $guide = BotGuide::stranger($this->channel->name());
+        $this->reply($from->replyTo, $guide['text'], buttons: $guide['buttons']);
     }
 
     /**

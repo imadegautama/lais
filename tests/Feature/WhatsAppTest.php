@@ -96,7 +96,7 @@ class WhatsAppTest extends TestCase
         $this->owner->refresh();
         $this->assertSame(['6281234567890', '99887766@lid'], [$this->owner->whatsapp, $this->owner->whatsapp_lid]);
         $this->assertNotNull($this->owner->whatsapp_linked_at);
-        $this->assertSent('6281234567890@s.whatsapp.net', 'Bot sudah terhubung ke *Warung Ani*');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Bot sudah terhubung.');
         $this->get(route('whatsapp.edit'))->assertInertia(fn (AssertableInertia $page) => $page
             ->where('linked.phone', '6281234567890')
             ->where('pending', null));
@@ -131,7 +131,7 @@ class WhatsAppTest extends TestCase
         $this->deliver($this->event('halo lagi', id: 'B'));
 
         Http::assertSentCount(1);
-        $this->assertSent('6281234567890@s.whatsapp.net', 'belum terhubung ke Lais');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'hubungkan dulu akun Lais kamu');
 
         $this->travel(25)->hours();
         $this->deliver($this->event('halo besok', id: 'C'));

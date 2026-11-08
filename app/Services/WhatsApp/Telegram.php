@@ -65,14 +65,16 @@ class Telegram implements BotChannel
      */
     public static function keyboard(array $buttons): array
     {
-        $short = [];
         $rows = [];
         $written = [];
+        // Buttons keep their order; a short one joins the short one before it, like Simpan and Batal.
+        $pairing = false;
 
         foreach ($buttons as $button) {
             if (isset($button['url'])) {
                 if (str_starts_with($button['url'], 'https://')) {
                     $rows[] = [['text' => $button['label'], 'url' => $button['url']]];
+                    $pairing = false;
                 } else {
                     $written[] = $button;
                 }
@@ -80,28 +82,52 @@ class Telegram implements BotChannel
                 continue;
             }
 
-            // d: answers the draft on screen, so only the latest message counts; c: names its own order.
+            // d: answers the draft on screen, so only the latest message counts; c: stands on its own.
             $data = (($button['command'] ?? false) ? 'c:' : 'd:').($button['send'] ?? '');
 
             if (strlen($data) > self::CALLBACK_BYTES) {
                 $written[] = $button;
-            } elseif (mb_strlen($button['label']) <= self::SHORT_LABEL) {
-                $short[] = ['text' => $button['label'], 'callback_data' => $data];
+
+                continue;
+            }
+
+            $key = ['text' => $button['label'], 'callback_data' => $data];
+            $short = mb_strlen($button['label']) <= self::SHORT_LABEL;
+
+            if ($short && $pairing) {
+                $rows[array_key_last($rows)][] = $key;
+                $pairing = false;
             } else {
-                $rows[] = [['text' => $button['label'], 'callback_data' => $data]];
+                $rows[] = [$key];
+                $pairing = $short;
             }
         }
 
-        return [$short === [] ? $rows : [$short, ...$rows], $written];
+        return [$rows, $written];
     }
 
     /**
-     * Formatter writes WhatsApp's *bold*; Telegram reads it as HTML, where
+     * Bot texts use WhatsApp's *bold* and _italic_; Telegram reads HTML, where
      * anything a person typed must be escaped first.
      */
     public static function html(string $text): string
     {
-        return (string) preg_replace('/\*([^*\n]+)\*/u', '<b>$1</b>', htmlspecialchars($text, ENT_NOQUOTES));
+        $bold = (string) preg_replace('/\*([^*\n]+)\*/u', '<b>$1</b>', htmlspecialchars($text, ENT_NOQUOTES));
+
+        // _italic_ only as a whole phrase, so lais_bot or a link's query stays as it is.
+        return (string) preg_replace('/(?<![\p{L}\p{N}_])_([^_\n]+)_(?![\p{L}\p{N}_])/u', '<i>$1</i>', $bold);
+    }
+
+    /**
+     * The guides in Telegram's Menu button; refreshed each time the poller starts.
+     */
+    public function setCommands(): void
+    {
+        $this->quietly('setMyCommands', ['commands' => array_map(
+            fn (string $command, string $description) => ['command' => $command, 'description' => $description],
+            array_keys(BotGuide::COMMANDS),
+            BotGuide::COMMANDS,
+        )]);
     }
 
     /**
@@ -174,16 +200,22 @@ class Telegram implements BotChannel
         $chatId = (string) $chat['id'];
         $latest = WaMessage::query()->where('direction', 'out')->where('phone', $chatId)->latest('id')->value('payload');
         $stale = $pressed[1] === 'd' && (string) ($latest['gowa_id'] ?? '') !== (string) $message['message_id'];
+        // A guide's menu (/catat, /tanya…) stays to be browsed; any other choice is made once.
+        $menu = $pressed[1] === 'c' && str_starts_with($pressed[2], '/');
 
         $this->quietly('answerCallbackQuery', ['callback_query_id' => $query['id'], ...($stale ? ['text' => 'Pilihan ini sudah lewat. Pakai pesan terbaru, atau ketik saja.'] : [])]);
-        // Pressed once, gone: the same choice cannot be sent twice.
-        $this->quietly('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $message['message_id'], 'reply_markup' => ['inline_keyboard' => []]]);
+
+        if (! $menu) {
+            // Pressed once, gone: the same choice cannot be sent twice.
+            $this->quietly('editMessageReplyMarkup', ['chat_id' => $chatId, 'message_id' => $message['message_id'], 'reply_markup' => ['inline_keyboard' => []]]);
+        }
 
         if ($stale) {
             return;
         }
 
-        $stored = WaMessage::query()->firstOrCreate(['message_id' => "tg:{$chatId}:{$message['message_id']}:tombol"], [
+        $once = $menu ? "tg:tekan:{$query['id']}" : "tg:{$chatId}:{$message['message_id']}:tombol";
+        $stored = WaMessage::query()->firstOrCreate(['message_id' => $once], [
             'direction' => 'in',
             'phone' => $chatId,
             'body' => mb_substr($pressed[2], 0, 2000),
