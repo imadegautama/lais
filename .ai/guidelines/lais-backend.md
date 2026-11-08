@@ -26,6 +26,8 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
     - Akun sistem punya `business_id` null dan terkunci. Usaha hanya bisa menambah akun Beban (mulai 6501) dan Pendapatan (mulai 4201), mengganti nama, dan mengarsipkan; tidak ada hapus.
     - Kode akun usaha bisa sama di dua usaha, jadi pencarian akun wajib lewat `Account::visibleTo($business)`.
     - Semua akun laba rugi berkode 4000 ke atas. `Reports::profit()` dan `profitAndLoss()` membaca rentang kode, jadi akun usaha otomatis ikut laba.
+    - Setiap jenis biaya punya akun beban sistem sendiri (6102 Listrik & air … 6107 Pemasaran, Lain-lain di 6101) lewat `TransactionKind::expenseAccount()`, juga untuk biaya dari AI dan bot. Akun yang dipilih pemilik (`account_id`) tetap menang. `profitAndLoss()['expenses']` dan `expensesByKind()` membaca `Account::OPERATING_EXPENSES` (6101–6107) dan mengelompokkan per `transactions.kind`, jadi biaya lama di 6101 tetap terbaca per jenis. Peta jenis ke kode diekspor ke TS sebagai `transactionKindExpenseAccounts` (`lais:enums`).
+    - Akun usaha dibuat hanya lewat `Account::addTo()` (Daftar akun dan "Akun khusus" di setup).
 - Validasi daftar nilai memakai `Rule::enum(...)`. Untuk subset (cara bayar per jenis), pakai `Rule::in(array_column($type->methods(), 'value'))`, karena `Rule::enum()->only([])` justru meloloskan semuanya.
 - Setelah enum ditambah atau diubah, jalankan `php artisan lais:enums` supaya `resources/js/types/enums.ts` ikut berubah. `VocabularyTest` gagal kalau lupa.
 
@@ -36,7 +38,8 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - `app/Http/Resources`: bentuk data untuk props halaman. Controller memanggil `XResource::make($model)->resolve()` atau `XResource::collection($models)->resolve()`, dan tidak menyusun array model sendiri. `resolve()` dipakai supaya tidak ada pembungkus `data`.
 - Controller hanya mengatur alur: otorisasi, panggil service, render, flash.
 - Produk dan bahan dibuat lewat `App\Services\Catalog::create()` (atau `createMany()`, yang memetakan resep lewat nama bahan). Form produk, wizard onboarding, dan seeder demo memakai jalur yang sama.
-- Pembukuan dibuka lewat `App\Services\Onboarding::complete()`: saldo awal dalam satu DB transaction, bertanggal `started_on`. Batasnya `Onboarding::latestStart()`.
+- Pembukuan dibuka lewat `App\Services\Onboarding::complete()`: saldo awal dalam satu DB transaction, bertanggal `started_on`, ditambah akun khusus (`custom_accounts`) dari langkah Akun. Batasnya `Onboarding::latestStart()`. Langkah wizard di server (`OnboardingRequest::STEPS`), kunci draf (`OnboardingController::update`), dan langkah klien (`STEPS`, `STEP_OF_FIELD` di `features/onboarding/onboarding.ts`) harus selalu sama. Selesai setup mengarah ke `dashboard?tur=1`.
+- Misi pertama di dashboard dihitung dari data di `DashboardController::missions()`, tidak pernah ditandai manual.
 - Angka laporan (laba rugi per periode, prive, modal, cek kesehatan, stok menipis, piutang terbuka, penjualan per hari) dihitung di `App\Services\Reports`, selalu dari jurnal. Dashboard, halaman laporan, dan tool baca AI memakai method yang sama, jadi angkanya tidak pernah berbeda antarlayar.
     - Pembatalan tidak perlu disaring, karena jurnal cerminnya bertanggal sama sehingga nilainya nol dalam periode apa pun. Daftar yang memakai baris transaksi (umur piutang, pemakaian stok) menyaring `TransactionStatus::Posted`.
     - Modal awal sebuah periode dihitung dengan `Reports::openingEquity()`. Di periode saat pembukuan dibuka, nilainya adalah neraca pembukaan (`started_on` 00.00).
