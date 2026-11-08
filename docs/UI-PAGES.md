@@ -596,6 +596,11 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 >
 > `/settings` membuka tab Usaha. Logo, deskripsi, tab Tampilan (aplikasi light-only), dan ganti nomor WA lewat OTP belum dibuat.
 
+> **Catatan implementasi (9 Nov):**
+>
+> - **Pengaturan toko** (dialog Pengaturan di halaman Pesanan) punya **Uang QRIS masuk ke**: pilihan rekening non-tunai, muncul kalau rekening non-tunai lebih dari satu. Tanya AI dan bot memakainya saat pemilik menulis "qris" tanpa menyebut rekening; perintah pesanan ("A001 dp 20rb qris") juga.
+> - **Tab Bot** punya tombol **Kirim ringkasan sekarang** di kartu Ringkasan harian, sama dengan `/ringkasan` di bot.
+
 > **Catatan implementasi (6 Nov):** tab ini sekarang bernama **Bot** (`/settings/bot`) dan mengikuti saluran di `BOT_CHANNEL`. Di Telegram, tombolnya "Buka Telegram": link `t.me/<bot>?start=<kode>` yang menghubungkan akun setelah pemilik menekan Mulai. Catatan 4 Nov di bawah tetap berlaku untuk isi halamannya.
 
 > **Catatan implementasi (4 Nov):** tab **WhatsApp** di Pengaturan (`/settings/whatsapp`) berisi status terhubung, langkah "Buat kode" → "Kirim lewat WhatsApp" (pemilik mengirim `LAIS ######` ke bot; halaman memeriksa setiap 5 detik), tombol Putuskan, dan saklar ringkasan harian 21.00. Jam ringkasan, ringkasan mingguan, peringatan stok terpisah, contekan perintah, dan riwayat pesan belum dibuat; contekan ada di `docs/WHATSAPP.md`.
