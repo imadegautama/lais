@@ -56,7 +56,7 @@ class ShopController extends Controller
         $owner = $business->user;
 
         if ($owner->whatsappAddress() !== null) {
-            SendWhatsApp::dispatch($owner->whatsappAddress(), OrderMessages::arrived($order->load('lines')), $owner->id);
+            SendWhatsApp::dispatch($owner->whatsappAddress(), OrderMessages::arrived($order->load('lines')), $owner->id, OrderMessages::decide($order));
         }
 
         return $request->boolean('pay_online') && Doku::offeredBy($business) ? $this->payPage($order, $doku) : to_route('shop.order', $order->token);

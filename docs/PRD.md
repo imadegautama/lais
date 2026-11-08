@@ -181,6 +181,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 - Pesan dari nomor tidak terdaftar dibalas sekali per 24 jam dengan link pendaftaran. Pesan grup diabaikan.
 - **Status (4 Nov 2026):** sudah jalan lewat GOWA (`App\Services\WhatsApp\Inbox`), memakai `FormAssistant` yang sama dengan Tanya AI web, termasuk foto nota. "1"/"2" tanpa LLM, draf 15 menit di cache, riwayat hanya 15 menit terakhir. Sumber transaksi `wa`. Cara memasang: `docs/WHATSAPP.md`.
 - **Status (8 Nov 2026):** bot dan Tanya AI juga menjawab letak fitur dan tempat mencatat sesuatu, arti istilah, dan layak tidaknya satu produk, semuanya dengan kalimat dan angka dari sistem (UI-PAGES C19). `/help` menyebut contohnya.
+- **Status (8 Nov 2026, Telegram):** bot menampilkan "mengetik…" selama AI membaca, dan memakai tombol: Simpan/Batal di bawah draf, pilihan jawaban, Terima/Tolak dan langkah berikutnya untuk pesanan, serta tombol halaman. Kartu draf tampil lebih dulu, lalu satu kalimat penutup. WhatsApp tetap memakai balasan ketik.
 - **Keputusan sementara (6 Nov 2026):** bot berjalan di Telegram (Bot API resmi) karena nomor bot lewat GOWA berisiko diblokir. Perilaku bot tetap sama dan semua kata "WhatsApp" di alur bot berlaku juga untuk Telegram. Sumber transaksinya `tg`. Saklarnya `BOT_CHANNEL`, dan GOWA tetap bisa dipakai lagi. Kabar ke pelanggan tetap link `wa.me` dari WA pemilik. Cara memasang: `docs/TELEGRAM.md`.
 
 #### M3. Dua Dompet (Uang Usaha vs Pribadi)

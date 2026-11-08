@@ -11,16 +11,19 @@ use Illuminate\Support\Facades\Http;
 /**
  * The bot's WhatsApp number, through GOWA's REST API (docs/WHATSAPP.md).
  * Sends only to the owner: the bot never messages a customer (PRD §5).
+ *
+ * @phpstan-import-type Button from Buttons
  */
 class Gowa implements BotChannel
 {
     /**
      * @param  string  $to  62… for a linked owner, or the JID a message came from
+     * @param  list<Button>  $buttons  written out: WhatsApp gets no buttons through GOWA
      * @return string|null GOWA's id for the sent message
      */
-    public function send(string $to, string $text): ?string
+    public function send(string $to, string $text, array $buttons = []): ?string
     {
-        $id = $this->http()->post('/send/message', ['phone' => $to, 'message' => $text])->throw()->json('results.message_id');
+        $id = $this->http()->post('/send/message', ['phone' => $to, 'message' => Buttons::asText($text, $buttons)])->throw()->json('results.message_id');
 
         return is_string($id) ? $id : null;
     }
@@ -41,6 +44,11 @@ class Gowa implements BotChannel
 
         return ImageData::fromBytes($this->http()->get($url)->throw()->body());
     }
+
+    /**
+     * shortcut: no typing indicator on WhatsApp; add GOWA's chat presence if the bot moves back from Telegram.
+     */
+    public function typing(string $to): void {}
 
     public function source(): TransactionSource
     {

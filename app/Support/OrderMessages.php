@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionStatus;
 use App\Models\Order;
+use App\Services\WhatsApp\Buttons;
 
 /**
  * Words about an order, in one place for the web and the bot: the news the
@@ -87,8 +88,17 @@ Yang dicatat '.Format::rupiah($booked).". Lebihnya {$back} kembalikan ke pelangg
         $when = $order->wanted_at === null ? '' : "\n".$order->fulfillment->label().', '.Format::date($order->wanted_at).' '.$order->wanted_at->format('H:i');
 
         return "*Pesanan baru {$order->code}* dari {$order->customer_name}\n{$lines}\nTotal: *".Format::rupiah($order->total).'*'
-            .$when.($order->note ? "\nCatatan: {$order->note}" : '')
-            ."\n\nBalas *terima {$order->code}* atau *tolak {$order->code}*.";
+            .$when.($order->note ? "\nCatatan: {$order->note}" : '');
+    }
+
+    /**
+     * Accept or refuse, under the new-order note (Buttons; typed on WhatsApp).
+     *
+     * @return list<array{label: string, send?: string, url?: string, command?: bool}>
+     */
+    public static function decide(Order $order): array
+    {
+        return [Buttons::command('Terima pesanan', "terima {$order->code}"), Buttons::command('Tolak', "tolak {$order->code}")];
     }
 
     /**

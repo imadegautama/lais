@@ -12,13 +12,20 @@ use App\Models\WaMessage;
  * shortcut: the bot's classes and tables keep their WhatsApp names while
  * Telegram stands in; rename them to Bot if Telegram stays after the contest.
  */
+/**
+ * @phpstan-import-type Button from Buttons
+ */
 interface BotChannel
 {
     /**
      * @param  string  $to  where the owner is reached (User::whatsappAddress)
+     * @param  list<Button>  $buttons  shown as buttons where the app has them, else written out
      * @return string|null the channel's id for the sent message
      */
-    public function send(string $to, string $text): ?string;
+    public function send(string $to, string $text, array $buttons = []): ?string;
+
+    /** "Sedang mengetik…" while the model reads; never stops the reply when it fails. */
+    public function typing(string $to): void;
 
     /**
      * The photo in a message, as a JPEG data URI for the assistant.

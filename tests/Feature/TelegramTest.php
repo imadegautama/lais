@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\OrderStatus;
 use App\Enums\TransactionSource;
 use App\Models\Activity;
 use App\Models\Business;
 use App\Models\Item;
+use App\Models\Order;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\WaMessage;
@@ -16,6 +18,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Inertia\Testing\AssertableInertia;
 use RuntimeException;
 use Tests\TestCase;
@@ -44,6 +47,9 @@ class TelegramTest extends TestCase
 
     private int $updateId = 100;
 
+    /** Telegram numbers each sent message; the buttons answer by that number. */
+    private int $messageId = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -64,7 +70,7 @@ class TelegramTest extends TestCase
             str_ends_with($request->url(), '/getUpdates') => Http::response(['ok' => true, 'result' => array_shift($this->batches) ?? []]),
             str_ends_with($request->url(), '/getFile') => Http::response(['ok' => true, 'result' => ['file_id' => 'BESAR', 'file_path' => 'photos/nota.png']]),
             str_contains($request->url(), '/file/bot') => Http::response((string) file_get_contents(base_path('tests/Fixtures/nota-belanja.png'))),
-            default => Http::response(['ok' => true, 'result' => ['message_id' => 7]]),
+            default => Http::response(['ok' => true, 'result' => ['message_id' => ++$this->messageId]]),
         });
         $this->owner = Business::factory()->create(['name' => 'Warung Ani'])->user;
     }
@@ -84,10 +90,10 @@ class TelegramTest extends TestCase
         $this->owner->refresh();
         $this->assertSame([(string) self::CHAT, null], [$this->owner->telegram_chat_id, $this->owner->whatsapp]);
         $this->assertSame((string) self::CHAT, $this->owner->whatsappAddress());
-        $this->assertSent('Bot terhubung ke Warung Ani');
+        $this->assertSent('Bot sudah terhubung ke <b>Warung Ani</b>');
 
         $this->receive('/help');
-        $this->assertSent('Ceritakan yang mau dicatat');
+        $this->assertSent('Ceritakan saja yang mau dicatat');
         $this->assertSame(0, $this->modelCalls());
 
         $this->delete(route('whatsapp.unlink'));
@@ -150,8 +156,9 @@ class TelegramTest extends TestCase
 
         $this->receive('jual 2 aqua tunai');
         $this->assertSent('<b>Penjualan</b>');
-        $this->assertSent('Balas <b>1</b> untuk simpan, <b>2</b> untuk batal.');
+        $this->assertKeyboard([[['text' => 'Simpan', 'callback_data' => 'd:1'], ['text' => 'Batal', 'callback_data' => 'd:2']]]);
 
+        // Typing "1" still works next to the buttons.
         $this->receive('1');
         $sale = Transaction::query()->where('type', 'penjualan')->sole();
         $this->assertSame([TransactionSource::Telegram, 8000], [$sale->source, $sale->total]);
@@ -266,7 +273,10 @@ class TelegramTest extends TestCase
             'update_id' => 701,
             'message' => ['chat' => ['id' => self::CHAT, 'type' => 'private'], 'photo' => [['file_id' => 'BESAR', 'width' => 1280, 'height' => 1280]]],
         ]);
-        $this->assertSent('Daftarkan barang yang belum ada');
+        $this->assertKeyboard([
+            [['text' => 'Daftarkan barang yang belum ada', 'callback_data' => 'd:Daftarkan barang yang belum ada']],
+            [['text' => 'Catat yang ada saja', 'callback_data' => 'd:Catat yang ada saja']],
+        ]);
 
         // A draft that still misses goods is not saved by "1".
         $this->receive('1');
@@ -283,6 +293,97 @@ class TelegramTest extends TestCase
         $record = Transaction::query()->where('type', 'pembelian')->sole();
         $this->assertSame(72000, $record->total);
         Storage::disk('local')->assertExists($record->proof_path);
+    }
+
+    public function test_the_bot_types_while_it_reads_and_the_draft_saves_with_a_button(): void
+    {
+        $this->link();
+        $this->catalog();
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'aqua', 'qty' => 2]]]]);
+
+        $this->receive('jual 2 aqua tunai');
+        $calls = Http::recorded()->map(fn (array $pair) => $pair[0]->url())->values();
+        $this->assertLessThan(
+            $calls->search(fn (string $url) => str_starts_with($url, 'http://9router.test')),
+            $calls->search(self::API.'/sendChatAction'),
+            '"mengetik…" shows before the model starts reading.',
+        );
+        // The card comes first, then what to do with it.
+        $this->assertSent("<b>Penjualan</b>\n• 2 botol Air Mineral × Rp4.000 = Rp8.000\nTotal: <b>Rp8.000</b>\nTunai\n");
+        $this->assertSent("\n\nSudah benar? Kalau ada yang salah, ketik saja koreksinya.");
+
+        $draft = $this->lastSentId();
+        $this->press('d:1', $draft);
+        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/answerCallbackQuery' && ! isset($request['text']));
+        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/editMessageReplyMarkup' && $request['message_id'] === $draft && $request['reply_markup'] === ['inline_keyboard' => []]);
+        $this->assertSame(8000, Transaction::query()->where('type', 'penjualan')->sole()->total);
+        $this->assertSent('Penjualan tersimpan.');
+        $this->assertSame(1, $this->modelCalls());
+
+        // The same button again, before its keyboard went away, saves nothing twice.
+        $this->press('d:1', $draft);
+        $this->assertSame(1, Transaction::query()->where('type', 'penjualan')->count());
+    }
+
+    public function test_a_button_on_an_older_draft_saves_nothing(): void
+    {
+        $this->link();
+        $this->catalog();
+        $sale = ['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'aqua', 'qty' => 2]]]];
+        $this->model($sale, ['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'aqua', 'qty' => 5]]]]);
+
+        $this->receive('jual 2 aqua tunai');
+        $older = $this->lastSentId();
+        $this->receive('eh 5 aqua');
+
+        $this->press('d:1', $older);
+        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/answerCallbackQuery' && str_contains((string) $request['text'], 'sudah lewat'));
+        $this->assertSame(0, Transaction::query()->count());
+
+        $this->press('d:1', $this->lastSentId());
+        $this->assertSame(20000, Transaction::query()->where('type', 'penjualan')->sole()->total);
+    }
+
+    public function test_a_new_order_is_accepted_and_moved_on_with_buttons(): void
+    {
+        $this->link();
+        $this->catalog();
+        $business = $this->owner->currentBusiness();
+        $water = Item::query()->where('business_id', $business->id)->where('name', 'Air Mineral')->sole();
+
+        $this->post(route('shop.store', $business->slug), [
+            'customer_name' => 'Bu Sari', 'customer_phone' => '081299990000', 'fulfillment' => 'ambil',
+            'lines' => [['item_id' => $water->id, 'qty' => 5]],
+        ])->assertSessionHasNoErrors();
+        $this->assertKeyboard([[['text' => 'Terima pesanan', 'callback_data' => 'c:terima A001'], ['text' => 'Tolak', 'callback_data' => 'c:tolak A001']]]);
+        $arrived = $this->lastSentId();
+
+        // An order's button names its order, so it works even after other messages.
+        $this->receive('/help');
+        $this->press('c:terima A001', $arrived);
+        $this->assertSame(OrderStatus::Diproses, Order::query()->sole()->status);
+        $this->assertSent('Pesanan A001 diterima dan sedang diproses.');
+        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/sendMessage'
+            && ($request['reply_markup']['inline_keyboard'][0] ?? null) === [['text' => 'Tandai siap', 'callback_data' => 'c:siap A001']]
+            && str_starts_with((string) ($request['reply_markup']['inline_keyboard'][1][0]['url'] ?? ''), 'https://wa.me/6281299990000?text='));
+        $this->assertSame(0, $this->modelCalls());
+    }
+
+    public function test_a_page_opens_from_a_button_on_https_and_stays_text_on_a_laptop(): void
+    {
+        $this->link();
+        $this->model(['artikan', ['istilah' => 'cogs']], ['artikan', ['istilah' => 'cogs']]);
+
+        URL::forceRootUrl('https://lais.web.id');
+        URL::forceScheme('https');
+        $this->receive('apa itu hpp');
+        $this->assertKeyboard([[['text' => 'Buka Laba rugi', 'url' => 'https://lais.web.id/laporan/laba-rugi']]]);
+
+        // Telegram refuses a button to a plain http address, so it is written out.
+        URL::forceRootUrl('http://localhost:8000');
+        URL::forceScheme('http');
+        $this->receive('apa itu hpp lagi');
+        $this->assertSent('Buka Laba rugi: http://localhost:8000/laporan/laba-rugi');
     }
 
     private function catalog(): void
@@ -335,10 +436,37 @@ class TelegramTest extends TestCase
         app(Telegram::class)->receive($this->update($text, $chat));
     }
 
+    private function press(string $data, int $messageId): void
+    {
+        app(Telegram::class)->receive(['update_id' => ++$this->updateId, 'callback_query' => [
+            'id' => "q{$this->updateId}",
+            'data' => $data,
+            'message' => ['message_id' => $messageId, 'chat' => ['id' => self::CHAT, 'type' => 'private']],
+        ]]);
+    }
+
+    /** Telegram's number for the last message the bot sent. */
+    private function lastSentId(): int
+    {
+        return (int) WaMessage::query()->where('direction', 'out')->latest('id')->firstOrFail()->payload['gowa_id'];
+    }
+
+    /**
+     * @param  list<list<array<string, string>>>  $rows
+     */
+    private function assertKeyboard(array $rows): void
+    {
+        $keyboards = Http::recorded(fn (Request $request) => $request->url() === self::API.'/sendMessage')
+            ->map(fn (array $pair) => $pair[0]['reply_markup']['inline_keyboard'] ?? null);
+
+        $this->assertTrue($keyboards->contains($rows), 'Keyboards sent: '.json_encode($keyboards->filter()->values()));
+    }
+
     private function assertSent(string $text): void
     {
-        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/sendMessage'
-            && $request['parse_mode'] === 'HTML'
-            && str_contains((string) $request['text'], $text));
+        $sent = Http::recorded(fn (Request $request) => $request->url() === self::API.'/sendMessage' && $request['parse_mode'] === 'HTML')
+            ->map(fn (array $pair) => (string) $pair[0]['text']);
+
+        $this->assertTrue($sent->contains(fn (string $message) => str_contains($message, $text)), "Not sent: {$text}\nSent:\n".$sent->implode("\n---\n"));
     }
 }

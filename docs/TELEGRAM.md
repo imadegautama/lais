@@ -8,8 +8,14 @@ Yang berubah hanya salurannya. Perintah, draf 15 menit, `1`/`2`, foto nota, dan 
 
 1. `php artisan lais:telegram` menunggu pesan baru lewat `getUpdates` (long polling). Tidak perlu HTTPS, tunnel, atau endpoint publik.
 2. `App\Services\WhatsApp\Telegram::receive()` hanya menerima chat pribadi yang berisi teks, caption, atau foto, lalu menyimpannya ke `wa_messages` sekali per `update_id`.
-3. Job `ProcessWhatsAppMessage` menjalankan `Inbox`, sama seperti WhatsApp.
-4. Job `SendWhatsApp` membalas lewat `sendMessage`.
+3. Job `ProcessWhatsAppMessage` menjalankan `Inbox`, sama seperti WhatsApp. Selama model membaca, bot mengirim `sendChatAction` (`typing`), jadi chat menampilkan "mengetik…".
+4. Job `SendWhatsApp` membalas lewat `sendMessage`, dengan tombol di bawah pesan (`inline_keyboard`) kalau ada:
+    - **Simpan · Batal** di bawah draf, satu tombol per pilihan, **Terima pesanan · Tolak** untuk pesanan baru, lalu **Tandai siap** dan **Selesai**.
+    - Tombol halaman (misalnya **Lihat transaksi**) hanya muncul kalau `APP_URL` memakai https. Telegram menolak tombol ke http atau localhost, jadi di laptop alamatnya ditulis sebagai teks.
+5. Tombol yang ditekan datang sebagai `callback_query`. `Telegram::receive()` menghentikan putaran loading di tombol, menghapus tombol dari pesan itu, lalu menyimpannya seperti pesan yang diketik ("1", "2", pilihan, atau "terima A001").
+    - Tombol draf (`d:`) hanya berlaku di pesan terakhir bot. Tombol draf di pesan lama hanya dijawab "sudah lewat", supaya tidak menyimpan draf lain.
+    - Tombol pesanan (`c:`) menyebut kodenya sendiri, jadi tetap berlaku.
+    - Mengetik "1", "2", atau "terima A001" tetap bisa.
 
 ## Menjalankan di laptop
 
