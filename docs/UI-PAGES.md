@@ -107,8 +107,8 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 - **Contoh pesan:** diagram "Cukup tulis seperti biasa, Lais yang memilah." Enam chat dari eval `AssistantEvalTest` di kiri, simpul AI di tengah, enam buku di kanan. Satu chat menyala bergantian dan garisnya mengalir ke buku yang tepat, lalu catatannya muncul. Di HP disusun tegak. Kursor di atas sebuah chat menampilkan jalurnya dan menghentikan putaran; sentuhan dan fokus keyboard juga menghentikannya. Angkanya berlabel `DemoDataBadge`.
 - **Masalah:** panel oranye. Judul "Usaha jalan terus, tapi untungnya ke mana?", dua angka OCBC Business Fitness Index 2024 sebagai grid 100 titik (46% memisahkan uang usaha dan pribadi, 77% dari yang sudah mencatat masih manual), lalu empat masalah bernomor.
 - **Jawaban Lais** (`#cara-kerja`): empat jawaban dengan nomor dan urutan yang sama, masing-masing dengan potongan tampilan aplikasi. Daftar masalah menempel di kiri, menyala dan tercoret saat digulir.
-- **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan.
-- **Untuk siapa:** kartu foto kuliner, kelontong, fashion, kerajinan, dengan kredit fotografer di bawah tiap kartu.
+- **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan. Tombol tabnya rata tengah, dan kalimat pengantarnya mengarahkan ke tab itu.
+- **Untuk siapa:** judul "Untuk semua usaha yang jualan" (bukan "semua usaha", karena usaha jasa murni belum diuji). Kartu foto kuliner, kelontong, fashion, kerajinan berjalan pelan sebagai carousel, dengan kredit fotografer di bawah tiap kartu. Berhenti saat kursor bergerak di atasnya, saat disentuh, atau saat difokus; saat gerak dikurangi menjadi kisi diam.
 - **Kenapa bisa dipercaya:** AI tidak menyimpan tanpa konfirmasi, angka dari sistem, data tiap usaha terpisah.
 - **Toko contoh:** kartu `warung-bu-rina` dari data asli dengan tombol **Coba pesan**. Kalau toko itu tidak ada atau tidak punya produk yang bisa dipesan, bagian dan tombolnya tidak tampil.
 - **CTA penutup** + footer.

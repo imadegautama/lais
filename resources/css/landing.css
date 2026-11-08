@@ -128,6 +128,71 @@
     }
 }
 
+/* The shop photos: two copies of the cards drift left, the edges fade. */
+.landing-strip {
+    overflow: hidden;
+    mask-image: linear-gradient(
+        to right,
+        transparent,
+        black 6%,
+        black 94%,
+        transparent
+    );
+}
+
+.landing-strip-track {
+    display: flex;
+    width: max-content;
+}
+
+/* The trailing padding equals the gap, so the second copy joins seamlessly. */
+.landing-strip-list {
+    display: flex;
+    gap: 1rem;
+    padding-right: 1rem;
+}
+
+/* Still: one copy, as a grid inside the page width. */
+@media (prefers-reduced-motion: reduce) {
+    .landing-strip {
+        max-width: 1280px;
+        margin-inline: auto;
+        padding-inline: 1rem;
+        mask-image: none;
+    }
+
+    .landing-strip-track {
+        width: auto;
+    }
+
+    .landing-strip-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        row-gap: 1.5rem;
+        padding-right: 0;
+    }
+
+    .landing-strip-list > li {
+        width: auto;
+    }
+
+    .landing-strip-list[inert] {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) and (min-width: 768px) {
+    .landing-strip {
+        padding-inline: 2rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) and (min-width: 1024px) {
+    .landing-strip-list {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
 /* The chat diagram: grey routes, and the lit one flows. */
 .landing-route {
     fill: none;
@@ -307,6 +372,15 @@
 
     .landing-struck {
         transition: background-size 0.7s var(--landing-ease) 0.15s;
+    }
+
+    .landing-strip-track {
+        animation: landing-strip 45s linear infinite;
+    }
+
+    .landing-strip[data-held] .landing-strip-track,
+    .landing-strip:focus-within .landing-strip-track {
+        animation-play-state: paused;
     }
 
     /* The line reaches the AI first; the book lights a beat later. */
@@ -508,6 +582,12 @@
 @keyframes landing-laptop-open {
     from {
         transform: perspective(1600px) rotateX(16deg) scale(0.94);
+    }
+}
+
+@keyframes landing-strip {
+    to {
+        transform: translateX(-50%);
     }
 }
 

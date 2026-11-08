@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { LabelBadge, MarginLabel } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import { Money } from '@/components/app/money';
@@ -447,72 +447,99 @@ export function Answers() {
     );
 }
 
+/**
+ * The kinds of shops as photo cards drifting past (landing.css). Two copies
+ * make the loop and the second is inert. Only a moving cursor holds it: one
+ * resting on the strip while the page scrolls would freeze it for good.
+ */
 export function Audience() {
+    const [held, setHeld] = useState(false);
+
     return (
-        <section
-            aria-labelledby="untuk-siapa"
-            className={cn(shell, 'py-12 md:py-16')}
-        >
+        <section aria-labelledby="untuk-siapa" className="py-12 md:py-16">
             <h2
                 id="untuk-siapa"
                 data-reveal="words"
-                className={cn(heading, 'text-center')}
+                className={cn(shell, heading, 'text-center')}
             >
-                <WordReveal text="Untuk usaha yang punya stok" />
+                <WordReveal text="Untuk semua usaha yang jualan" />
             </h2>
-            <ul className="mt-8 grid grid-cols-2 gap-x-3 gap-y-6 md:gap-x-5 lg:grid-cols-4">
-                {businessPhotos.map((photo, index) => (
-                    <li
-                        key={photo.category}
-                        data-reveal="up"
-                        style={delay(index * 90)}
-                        className="min-w-0"
-                    >
-                        <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-secondary">
-                            <img
-                                data-reveal="zoom"
-                                style={delay(index * 90)}
-                                src={`/images/landing/${photo.file}-800.webp`}
-                                srcSet={`/images/landing/${photo.file}-480.webp 480w, /images/landing/${photo.file}-800.webp 800w`}
-                                sizes="(min-width: 1024px) 290px, 46vw"
-                                width={800}
-                                height={1000}
-                                loading="lazy"
-                                alt={photo.alt}
-                                className="landing-photo size-full object-cover"
-                            />
-                        </div>
-                        <p className="mt-3 font-semibold">
-                            {businessCategoryLabels[photo.category]}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                            {photo.text}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            Foto:{' '}
-                            <a
-                                href={photo.page}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={creditLink}
-                            >
-                                {photo.author}
-                            </a>
-                            ,{' '}
-                            <a
-                                href={photo.licenseUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={creditLink}
-                            >
-                                {photo.license}
-                            </a>
-                            , dipotong
-                        </p>
-                    </li>
-                ))}
-            </ul>
+            <div
+                role="region"
+                aria-label="Foto jenis usaha. Gerakkan kursor, sentuh, atau fokus untuk berhenti."
+                tabIndex={0}
+                data-reveal="up"
+                data-held={held || undefined}
+                onPointerMove={(event) => {
+                    if (event.pointerType === 'mouse') {
+                        setHeld(true);
+                    }
+                }}
+                onPointerLeave={() => setHeld(false)}
+                // A tap focuses it, so touch can hold it too.
+                onPointerDown={(event) => {
+                    if (event.pointerType !== 'mouse') {
+                        event.currentTarget.focus();
+                    }
+                }}
+                className="landing-strip mt-8 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+                <div className="landing-strip-track">
+                    <PhotoList />
+                    <PhotoList copy />
+                </div>
+            </div>
         </section>
+    );
+}
+
+function PhotoList({ copy = false }: { copy?: boolean }) {
+    return (
+        <ul inert={copy} className="landing-strip-list">
+            {businessPhotos.map((photo) => (
+                <li key={photo.category} className="w-64 shrink-0 lg:w-80">
+                    <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-secondary">
+                        <img
+                            src={`/images/landing/${photo.file}-800.webp`}
+                            srcSet={`/images/landing/${photo.file}-480.webp 480w, /images/landing/${photo.file}-800.webp 800w`}
+                            sizes="(min-width: 1024px) 320px, 256px"
+                            width={800}
+                            height={1000}
+                            loading="lazy"
+                            alt={photo.alt}
+                            className="landing-photo size-full object-cover"
+                        />
+                    </div>
+                    <p className="mt-3 font-semibold">
+                        {businessCategoryLabels[photo.category]}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        {photo.text}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Foto:{' '}
+                        <a
+                            href={photo.page}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={creditLink}
+                        >
+                            {photo.author}
+                        </a>
+                        ,{' '}
+                        <a
+                            href={photo.licenseUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={creditLink}
+                        >
+                            {photo.license}
+                        </a>
+                        , dipotong
+                    </p>
+                </li>
+            ))}
+        </ul>
     );
 }
 

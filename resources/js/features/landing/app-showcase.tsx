@@ -25,8 +25,8 @@ export function AppShowcase() {
                         <WordReveal text="Semua angka usahamu di satu layar" />
                     </h2>
                     <p data-reveal="up" style={delay(200)} className="mt-3">
-                        Yang dicatat lewat chat langsung tampil di web. Ini
-                        tampilan aslinya.
+                        Setiap chat yang tersimpan langsung masuk ke dashboard,
+                        stok, dan laporan. Pilih halamannya di bawah.
                     </p>
                 </div>
                 <div
@@ -36,6 +36,7 @@ export function AppShowcase() {
                 >
                     <ChoiceGroup
                         wrap
+                        className="justify-center"
                         label="Halaman aplikasi"
                         value={id}
                         options={appScreens.map(({ id: value, label }) => ({
