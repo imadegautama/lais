@@ -4,7 +4,6 @@ import { AuthDivider } from '@/components/auth-divider';
 import { GoogleSignInButton } from '@/components/google-sign-in-button';
 import InputError from '@/components/input-error';
 import { InputIcon } from '@/components/input-icon';
-import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -41,17 +40,14 @@ export default function Login({
                 </p>
             )}
 
-            {googleLogin ? (
+            {googleLogin && (
                 <div className="mb-6 grid gap-3">
                     <GoogleSignInButton />
                     <InputError message={googleError} />
-                    <PasskeyVerify separator={false} />
                     <div className="mt-3">
                         <AuthDivider />
                     </div>
                 </div>
-            ) : (
-                <PasskeyVerify />
             )}
 
             <Form

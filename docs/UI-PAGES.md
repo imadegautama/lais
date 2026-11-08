@@ -180,7 +180,7 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 ### B3. Masuk `/login`
 
-- Lanjutkan dengan Google dan passkey di atas, lalu "atau dengan email": email, password, **Lupa password?** di kanan bawah field password, "Ingat saya", tautan daftar.
+- Lanjutkan dengan Google di atas (passkey dimatikan di `config/fortify.php`, atas permintaan pemilik), lalu "atau dengan email": email, password, **Lupa password?** di kanan bawah field password, "Ingat saya", tautan daftar.
 - Email Google yang sudah terdaftar disambungkan ke akun itu (hanya kalau Google menandai emailnya terverifikasi). Akun dengan 2FA tetap diminta kode.
 
 ### B4. Lupa & reset password
