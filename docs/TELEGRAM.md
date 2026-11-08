@@ -16,6 +16,13 @@ Yang berubah hanya salurannya. Perintah, draf 15 menit, `1`/`2`, foto nota, dan 
     - Tombol draf (`d:`) hanya berlaku di pesan terakhir bot. Tombol draf di pesan lama hanya dijawab "sudah lewat", supaya tidak menyimpan draf lain.
     - Tombol pesanan (`c:`) menyebut kodenya sendiri, jadi tetap berlaku.
     - Mengetik "1", "2", atau "terima A001" tetap bisa.
+6. **Perintah dan panduan** (`App\Services\WhatsApp\BotGuide`, tanpa AI). Daftarnya juga muncul di tombol **Menu** Telegram, yang dipasang lewat `setMyCommands` setiap kali `lais:telegram` mulai.
+    - `/start` (juga `/bantuan`): sambutan dengan nama usaha, plus tombol **Cara mencatat**, **Cara bertanya**, **Pesanan toko**, dan **Ringkasan**.
+    - `/catat`, `/tanya`, `/pesanan`: panduan per tugas. Panduan mencatat punya tombol **Coba: jual 1 {produk} tunai** yang memakai produk asli dari katalog.
+    - `/ringkasan`: ringkasan hari ini dikirim saat itu juga, tidak perlu menunggu pukul 21.00.
+    - `/batal`: sama dengan "2".
+    - Tombol panduan tetap ada setelah ditekan, jadi bisa dijelajahi. Tombol lain hilang begitu ditekan.
+    - Chat yang belum terhubung dan menekan **Mulai** selalu mendapat cara menghubungkan akun, dengan tombol **Daftar** dan **Masuk**. Pesan lain dari chat itu tetap dibalas sekali sehari.
 
 ## Menjalankan di laptop
 

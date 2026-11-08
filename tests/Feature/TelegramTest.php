@@ -90,10 +90,10 @@ class TelegramTest extends TestCase
         $this->owner->refresh();
         $this->assertSame([(string) self::CHAT, null], [$this->owner->telegram_chat_id, $this->owner->whatsapp]);
         $this->assertSame((string) self::CHAT, $this->owner->whatsappAddress());
-        $this->assertSent('Bot sudah terhubung ke <b>Warung Ani</b>');
+        $this->assertSent('Bot sudah terhubung.');
 
         $this->receive('/help');
-        $this->assertSent('Ceritakan saja yang mau dicatat');
+        $this->assertSent('Pilih panduan di bawah');
         $this->assertSame(0, $this->modelCalls());
 
         $this->delete(route('whatsapp.unlink'));
@@ -144,7 +144,7 @@ class TelegramTest extends TestCase
 
         $this->assertSame(1, WaMessage::query()->where('direction', 'in')->count());
         // A stranger hears once, however many times the update comes.
-        $this->assertSent('belum terhubung ke Lais');
+        $this->assertSent('hubungkan dulu akun Lais kamu');
         Http::assertSentCount(1);
     }
 
@@ -239,6 +239,9 @@ class TelegramTest extends TestCase
         $this->batches = [[$this->update('satu'), $this->update('dua')]];
 
         $this->artisan('lais:telegram', ['--once' => true])->assertSuccessful();
+        // The guides go into Telegram's Menu button each time the poller starts.
+        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/setMyCommands'
+            && array_column($request['commands'], 'command') === ['start', 'catat', 'tanya', 'pesanan', 'ringkasan', 'batal']);
 
         $this->assertSame(['satu', 'dua'], WaMessage::query()->where('direction', 'in')->orderBy('id')->pluck('body')->all());
         // The next call asks past the last update, which is how Telegram learns it arrived.
@@ -384,6 +387,55 @@ class TelegramTest extends TestCase
         URL::forceScheme('http');
         $this->receive('apa itu hpp lagi');
         $this->assertSent('Buka Laba rugi: http://localhost:8000/laporan/laba-rugi');
+    }
+
+    public function test_start_welcomes_the_owner_and_every_guide_is_one_button_away(): void
+    {
+        $this->link();
+        $this->catalog();
+
+        $this->receive('/start');
+        $this->assertSent('asisten pembukuan <b>Warung Ani</b>');
+        $this->assertKeyboard([
+            [['text' => 'Cara mencatat', 'callback_data' => 'c:/catat'], ['text' => 'Cara bertanya', 'callback_data' => 'c:/tanya']],
+            [['text' => 'Pesanan toko', 'callback_data' => 'c:/pesanan'], ['text' => 'Ringkasan', 'callback_data' => 'c:/ringkasan']],
+        ]);
+        $welcome = $this->lastSentId();
+
+        // The guide's example uses a product the owner really sells, and trying it makes a real draft.
+        $this->press('c:/catat', $welcome);
+        $this->assertSent('<b>Cara mencatat</b>');
+        $this->assertSent('<i>bayar listrik 350rb</i>');
+        $this->assertKeyboard([
+            [['text' => 'Coba: jual 1 Air Mineral tunai', 'callback_data' => 'c:jual 1 Air Mineral tunai']],
+            [['text' => 'Cara bertanya', 'callback_data' => 'c:/tanya']],
+        ]);
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'Air Mineral', 'qty' => 1]]]]);
+        $this->press('c:jual 1 Air Mineral tunai', $this->lastSentId());
+        $this->assertSent("<b>Penjualan</b>\n• 1 botol Air Mineral = Rp4.000");
+
+        // Guides on an older message still open: they name what they show.
+        $this->press('c:/pesanan', $welcome);
+        $this->assertSent('<b>Pesanan toko online</b>');
+        $this->receive('/ringkasan');
+        $this->assertSent('<b>Ringkasan Warung Ani, ');
+        $this->receive('/batal');
+        $this->assertSent('Oke, dibatalkan. Tidak ada yang disimpan.');
+        $this->assertSame(1, $this->modelCalls());
+    }
+
+    public function test_a_stranger_pressing_start_always_hears_how_to_link(): void
+    {
+        $sent = fn () => Http::recorded(fn (Request $request) => $request->url() === self::API.'/sendMessage')->count();
+
+        $this->receive('/start');
+        $this->assertSent('hubungkan dulu akun Lais kamu');
+        $this->receive('/start');
+        $this->assertSame(2, $sent());
+
+        // Anything else stays one pointer a day.
+        $this->receive('jual 3 nasgor');
+        $this->assertSame(2, $sent());
     }
 
     private function catalog(): void

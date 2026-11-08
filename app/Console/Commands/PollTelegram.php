@@ -24,6 +24,7 @@ class PollTelegram extends Command
             return self::FAILURE;
         }
 
+        $telegram->setCommands();
         $once = (bool) $this->option('once');
         $offset = 0;
 
