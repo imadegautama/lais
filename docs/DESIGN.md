@@ -181,7 +181,7 @@ Aturan pakai:
 - Batas tabel ke daftar (768) diatur di `AppDataTable`.
 - **Target sentuh:** semua kontrol memakai `pointer-coarse:h-11` (44 px) di perangkat sentuh, dan tetap ringkas saat dipakai dengan mouse.
 - **Bottom nav:** konten diberi `padding-bottom` setinggi bottom nav + `safe-area-inset-bottom`, supaya baris terakhir tidak tertutup.
-- **Tombol Tanya AI** melayang di kanan bawah. Posisinya diatur `--assistant-offset-bottom` di `app.css`: di atas bottom nav (di posisi toast), dan naik ke atas `FormActionBar` kalau halaman punya bar itu (`:root:has([data-slot='form-action-bar'])`). Ruang bawah konten (`--content-pad-bottom`) ikut menyesuaikan, jadi tombol tidak pernah menutup baris terakhir maupun tombol Simpan.
+- **Tombol Tanya AI** melayang di kanan bawah, bulat ikon saja. Sekali per halaman per tab ia memanjang jadi "Yuk tanya AI" selama sekitar 5 detik (juga saat disorot atau difokus): teks memudar `motion-safe`, ukurannya berganti tanpa animasi. Posisinya diatur `--assistant-offset-bottom` di `app.css`: di atas bottom nav (di posisi toast), dan naik ke atas `FormActionBar` kalau halaman punya bar itu (`:root:has([data-slot='form-action-bar'])`). Ruang bawah konten (`--content-pad-bottom`) ikut menyesuaikan, jadi tombol tidak pernah menutup baris terakhir maupun tombol Simpan.
 - **Scroll horizontal:** tidak boleh ada di halaman. Sudah dicek di 360, 768, 1100, dan 1440 px.
 
 ## 5. Katalog komponen

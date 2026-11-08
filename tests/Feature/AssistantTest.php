@@ -15,6 +15,8 @@ use App\Services\Catalog;
 use App\Services\ReportAnswers;
 use App\Services\TransactionService;
 use App\Support\Format;
+use App\Support\ReportRange;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\JsonResponse;
@@ -374,6 +376,42 @@ class AssistantTest extends TestCase
             ->assertJsonPath('confirm', true)
             ->assertJsonPath('options', []);
         $this->assertCount(1, Http::recorded(fn (Request $request) => str_starts_with($request->url(), 'http://9router.test')));
+    }
+
+    public function test_a_question_on_a_report_page_is_answered_from_that_reports_period(): void
+    {
+        $from = CarbonImmutable::now()->subMonthNoOverflow()->startOfMonth();
+        app(TransactionService::class)->record($this->business, ['type' => 'penjualan', 'method' => 'tunai', 'occurred_at' => $from->addDays(2)->format('Y-m-d 10:00'), 'lines' => [['item_id' => $this->item('Air Mineral')->id, 'qty' => 3, 'price' => 4000]]]);
+        $this->model(['tanya_data', ['hal' => 'laporan ini']], ['jawab', ['jawaban' => 'Penjualan di periode ini Rp12.000.']]);
+        $range = ReportRange::between($from, $from->addDays(14));
+
+        $this->actingAs($this->business->user)->postJson(route('assistant.store'), [
+            'message' => 'jelaskan laporan ini',
+            'report' => ['page' => 'reports/profit-and-loss', 'dari' => $from->toDateString(), 'sampai' => $from->addDays(14)->toDateString()],
+        ])->assertOk()->assertJsonPath('reply', 'Penjualan di periode ini Rp12.000.');
+
+        [$picking, $answering] = Http::recorded(fn (Request $request) => str_starts_with($request->url(), 'http://9router.test'))->map(fn (array $pair) => json_encode($pair[0]->data(), JSON_UNESCAPED_UNICODE))->values()->all();
+        $this->assertStringContainsString("Halaman yang dibuka: laporan Laba rugi, {$range->label}", $picking);
+        $this->assertStringContainsString("LAPORAN YANG DIBUKA: Laba rugi, {$range->label}", $answering);
+        $this->assertStringContainsString('Penjualan Rp12.000 dari 1 transaksi', $answering);
+
+        // Only the report pages the panel knows.
+        $this->postJson(route('assistant.store'), ['message' => 'halo', 'report' => ['page' => 'settings/security']])->assertUnprocessable();
+    }
+
+    public function test_a_conversation_remembers_ten_turns_and_a_draft_only_its_last_two(): void
+    {
+        $history = array_map(fn (int $n) => ['role' => $n % 2 ? 'user' : 'assistant', 'text' => "giliran {$n}"], range(1, 14));
+        $this->model(['jawab_singkat', ['jenis' => 'sapaan']], ['jawab_singkat', ['jenis' => 'sapaan']]);
+        $sent = fn () => json_encode(Http::recorded(fn (Request $request) => str_starts_with($request->url(), 'http://9router.test'))->last()[0]->data());
+
+        $this->ask('lalu?', null, history: $history)->assertOk();
+        $this->assertStringContainsString('giliran 5', $sent());
+        $this->assertStringNotContainsString('giliran 4"', $sent());
+
+        $this->ask('lalu?', null, history: $history, draft: ['form' => 'transaksi', 'values' => ['type' => 'penjualan']])->assertOk();
+        $this->assertStringContainsString('giliran 13', $sent());
+        $this->assertStringNotContainsString('giliran 12', $sent());
     }
 
     public function test_where_a_feature_lives_is_answered_with_its_page(): void
@@ -834,9 +872,10 @@ class AssistantTest extends TestCase
      * @param  array{form: string, values: mixed}|null  $draft
      * @return TestResponse<JsonResponse>
      */
-    private function ask(string $message, ?string $form, array $current = [], ?array $draft = null, ?string $photo = null): TestResponse
+    private function ask(string $message, ?string $form, array $current = [], ?array $draft = null, ?string $photo = null, array $history = []): TestResponse
     {
         return $this->actingAs($this->business->user)->postJson(route('assistant.store'), [
+            'history' => $history,
             'message' => $message,
             'form' => $form,
             'current' => $current,

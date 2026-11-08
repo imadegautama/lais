@@ -511,6 +511,15 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 
 ### C19. Asisten AI (panel "Tanya AI")
 
+**Menyatu dengan laporan dan mengingat obrolan (9 Nov):**
+
+- **Halaman laporan:** di bawah kalimat kesimpulan ada baris "Bingung membaca laporan ini? Yuk tanya AI:" dengan 3 chip pertanyaan sesuai laporannya (misalnya Jelaskan laporan ini, Kenapa labanya naik atau turun?, Biaya terbesar apa?). Menekan chip langsung mengirimnya. Toolbar laporan juga punya tombol **Tanya AI**.
+- **Konteks laporan:** setiap pesan dari halaman laporan membawa laporan dan periodenya (`report`), dan jawabannya memakai bagian "LAPORAN YANG DIBUKA" di lembar fakta. Contohnya, Laba rugi 1–15 Okt dijelaskan dengan angka 1–15 Okt.
+- **Tombol mengambang:** biasanya bulat kecil (ikon saja). Saat halaman pertama kali dibuka di tab itu, tombolnya memanjang jadi "Yuk tanya AI" (di laporan: "Yuk tanya AI soal laporan ini") selama sekitar 5 detik, juga saat disorot atau difokus. Hanya teksnya yang memudar; ukurannya langsung berganti (MOTION 1).
+- **Sambutan panel:** "Yuk tanya AI" dengan chip per kelompok (Tentang laporan ini, Catat, Tanya).
+- **Ingatan:** percakapan disimpan di `sessionStorage` per pengguna (30 giliran, tanpa data foto), jadi bertahan saat pindah halaman dan dimuat ulang; Mulai baru menghapusnya. Model membaca 10 giliran terakhir, kecuali saat ada draf (tetap 2).
+- **Format jawaban:** jawaban dari pembukuan berupa satu kalimat kesimpulan, lalu poin "• " per baris, dengan angka penting _tebal_. Panel menampilkan _tebal_ dan _miring_; bot Telegram dan WhatsApp membaca tanda yang sama.
+
 **Paham aplikasi (8 Nov):** Tanya AI dan bot menjawab tiga jenis pertanyaan baru. Model hanya memilih topik, istilah, atau produk; kalimat dan angkanya dari sistem.
 
 - **Di mana fitur atau tempat mencatat sesuatu** ("di mana nyatet COA?", "utang ke supplier dicatat di mana?", "salah catat gimana?"): penjelasan dari `GuideTopic` dengan jalur menunya, plus tombol ke halamannya. Di bot, tombol ditulis sebagai alamat.

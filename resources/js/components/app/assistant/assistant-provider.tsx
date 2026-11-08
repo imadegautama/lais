@@ -1,4 +1,4 @@
-import { router, useHttp } from '@inertiajs/react';
+import { router, useHttp, usePage } from '@inertiajs/react';
 import {
     createContext,
     useCallback,
@@ -10,6 +10,7 @@ import {
     type ReactNode,
 } from 'react';
 import { store } from '@/routes/assistant';
+import { reportContext } from './report-questions';
 
 /** The forms "Tanya AI" drafts (App\Services\Ai\FormAssistant::FORMS). */
 export type AssistantFormName = 'transaksi' | 'produk';
@@ -109,6 +110,8 @@ type AssistantContextValue = {
     /** Goods waiting to be listed have no form to open in. */
     draftHasForm: boolean;
     send: (message: string, photo?: string) => void;
+    /** Opens the panel and sends the question at once (the report pages' chips). */
+    ask: (question: string) => void;
     retry: () => void;
     reset: () => void;
     openInForm: () => void;
@@ -165,10 +168,87 @@ function replyTurn(
  * happens on the server when the owner confirms the draft ("Simpan" or
  * "iya"); "Ubah di form" hands the draft to the form instead.
  */
+/** Turns kept across pages and reloads, like a chat app; photos stay out (they are large). */
+const KEPT_TURNS = 30;
+
+type Kept = { turns: AssistantTurn[]; draft: Draft | null };
+
+function memoryKey(userId: number): string {
+    return `lais-tanya-ai:${userId}`;
+}
+
+/** The tab's own chat; blocked storage just means it starts fresh. */
+function recall(userId: number): Kept | null {
+    try {
+        const raw = window.sessionStorage.getItem(memoryKey(userId));
+
+        return raw ? (JSON.parse(raw) as Kept) : null;
+    } catch {
+        return null;
+    }
+}
+
+function remember(
+    userId: number,
+    turns: AssistantTurn[],
+    draft: Draft | null,
+): void {
+    const kept = turns.slice(-KEPT_TURNS);
+    const offset = turns.length - kept.length;
+
+    try {
+        window.sessionStorage.setItem(
+            memoryKey(userId),
+            JSON.stringify({
+                turns: kept.map((turn) =>
+                    turn.role === 'user' && turn.photo
+                        ? { role: 'user', text: turn.text || 'Foto nota' }
+                        : turn,
+                ),
+                // The receipt photo is not kept, so after a reload the draft saves without its proof.
+                draft:
+                    draft && draft.turn - offset >= 0
+                        ? {
+                              ...draft,
+                              turn: draft.turn - offset,
+                              photo: undefined,
+                          }
+                        : null,
+            } satisfies Kept),
+        );
+    } catch {
+        // Private mode or a full storage: the chat lasts until the page reloads.
+    }
+}
+
 export function AssistantProvider({ children }: { children: ReactNode }) {
+    const page = usePage();
+    const userId = page.props.auth.user.id;
     const [open, setOpen] = useState(false);
     const [turns, setTurns] = useState<AssistantTurn[]>([]);
     const [draft, setDraft] = useState<Draft | null>(null);
+    const recalled = useRef(false);
+    // send() is built once; the page it asks about is read when it sends.
+    const where = useRef({ component: page.component, url: page.url });
+    where.current = { component: page.component, url: page.url };
+
+    // Read after mount, so the server render and the first client render match.
+    useEffect(() => {
+        const kept = recall(userId);
+
+        if (kept) {
+            setTurns(kept.turns);
+            setDraft(kept.draft);
+        }
+
+        recalled.current = true;
+    }, [userId]);
+
+    useEffect(() => {
+        if (recalled.current) {
+            remember(userId, turns, draft);
+        }
+    }, [userId, turns, draft]);
     const [form, setForm] = useState<AssistantFormName | null>(null);
     const registration = useRef<Registration | null>(null);
     const pending = useRef<{
@@ -223,8 +303,12 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
                         role: turn.role,
                         text: turn.text || 'Foto nota',
                     }))
-                    .slice(-12),
+                    .slice(-20),
                 current: current?.values() ?? {},
+                report: reportContext(
+                    where.current.component,
+                    where.current.url,
+                ),
                 draft: shown && {
                     form: shown.form,
                     values: shown.values,
@@ -304,6 +388,10 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             draftTurn: draft?.turn ?? null,
             draftHasForm: draft !== null && draft.form !== 'barang',
             send: (message, photo) => void send(message, photo, turns, draft),
+            ask: (question) => {
+                setOpen(true);
+                void send(question, undefined, turns, draft);
+            },
             // The failed reply and the message before it make way for the new try.
             retry: () => {
                 const last = turns.at(-2);

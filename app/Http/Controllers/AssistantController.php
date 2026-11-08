@@ -24,6 +24,7 @@ class AssistantController extends Controller
             $validated['current'] ?? [],
             $validated['draft'] ?? null,
             $validated['photo'] ?? null,
+            report: $validated['report'] ?? null,
         ));
     }
 }

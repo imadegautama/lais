@@ -9,6 +9,7 @@ use App\Enums\TransactionKind;
 use App\Models\Business;
 use App\Models\Item;
 use App\Support\Format;
+use App\Support\ReportRange;
 use Carbon\CarbonImmutable;
 
 /**
@@ -26,9 +27,14 @@ class BusinessFacts
 
     public function __construct(private Reports $reports, private Ledger $ledger, private Debts $debts, private Depreciation $depreciation) {}
 
-    public function sheet(Business $business): string
+    /**
+     * @param  ReportRange|null  $open  the report the owner has open in the web, read first
+     */
+    public function sheet(Business $business, ?ReportRange $open = null, ?string $openName = null): string
     {
         return implode("\n\n", array_filter([
+            $open === null ? '' : $this->period($business, $open->from, $open->before, $open->priorFrom, $open->priorBefore, "LAPORAN YANG DIBUKA: {$openName}, {$open->label}", $open->priorPhrase()),
+            $open === null ? '' : $this->sold($business, $open->from, $open->before, "PRODUK TERJUAL DI LAPORAN YANG DIBUKA ({$open->label})"),
             $this->position($business),
             $this->month($business, Period::BulanIni, 'BULAN INI (belum penuh)'),
             $this->month($business, Period::BulanLalu, 'BULAN LALU'),
@@ -100,10 +106,19 @@ class BusinessFacts
 
     private function month(Business $business, Period $period, string $title): string
     {
-        [$from, $before] = [$period->start(), $period->end()];
+        $from = $period->start();
+
+        return $this->period($business, $from, $period->end(), $from->subMonthNoOverflow(), $from, $title, 'bulan sebelumnya');
+    }
+
+    /**
+     * One stretch of the books: profit and loss, costs by kind, drawings, and
+     * the change against the stretch before it.
+     */
+    private function period(Business $business, CarbonImmutable $from, ?CarbonImmutable $before, CarbonImmutable $earlierFrom, CarbonImmutable $earlierBefore, string $title, string $earlierName): string
+    {
         $pnl = $this->reports->profitAndLoss($business, $from, $before);
-        $earlierFrom = $from->subMonthNoOverflow();
-        $earlier = $this->reports->profitAndLoss($business, $earlierFrom, $from);
+        $earlier = $this->reports->profitAndLoss($business, $earlierFrom, $earlierBefore);
         $kinds = $this->reports->expensesByKind($business, $from, $before);
         arsort($kinds);
         $costs = implode(', ', array_map(fn (string $kind, int $amount) => (TransactionKind::tryFrom($kind)?->label() ?? $kind).' '.Format::rupiah($amount), array_keys($kinds), $kinds));
@@ -123,7 +138,7 @@ class BusinessFacts
             $pnl['stockDifference'] === 0 ? '' : 'Selisih persediaan '.Format::rupiah($pnl['stockDifference']),
             ($pnl['netProfit'] < 0 ? 'Rugi bersih ' : 'Laba bersih ').Format::rupiah(abs($pnl['netProfit'])),
             'Diambil untuk pribadi '.Format::rupiah($this->reports->drawings($business, $from, $before)),
-            'Dibanding bulan sebelumnya: '.$change('penjualan', $pnl['sales'], $earlier['sales']).', '.$change('laba', $pnl['netProfit'], $earlier['netProfit']),
+            "Dibanding {$earlierName}: ".$change('penjualan', $pnl['sales'], $earlier['sales']).', '.$change('laba', $pnl['netProfit'], $earlier['netProfit']),
         ]));
     }
 
@@ -150,7 +165,12 @@ class BusinessFacts
 
     private function products(Business $business, Period $period, string $title): string
     {
-        $rows = $this->reports->productPerformance($business, $period->start(), $period->end());
+        return $this->sold($business, $period->start(), $period->end(), $title);
+    }
+
+    private function sold(Business $business, CarbonImmutable $from, ?CarbonImmutable $before, string $title): string
+    {
+        $rows = $this->reports->productPerformance($business, $from, $before);
 
         if ($rows === []) {
             return '';

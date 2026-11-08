@@ -88,3 +88,5 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 Untuk pekerjaan UI, copy, aksesibilitas, layout mobile, atau komentar kode, baca skill antislop (core) lalu skill sesuai tugasnya: antislop-ui, antislop-copywriting, antislop-human, antislop-layoutmobile, antislop-code.
 Mode proyek ini: **during** (pilihan pemilik). Umumkan `antislop active: during (session override).` sekali sebelum edit pertama, kecuali pengguna memilih mode lain di sesi itu.
 <!-- antislop:end -->
+
+- Percakapan Tanya AI disimpan di `sessionStorage` dengan kunci per pengguna (`lais-tanya-ai:{userId}`), tanpa data foto, dibaca setelah mount. Balasan dirender lewat `lib/chat-text.ts` (`*tebal*`, `_miring_`), tidak pernah sebagai HTML.
