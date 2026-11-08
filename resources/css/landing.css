@@ -1,3 +1,5 @@
+@import 'lenis/dist/lenis.css';
+
 /*
  * The phone in the hero, drawn rather than a picture: the chat inside stays
  * live and sharp at any size. Its metal is the ink token mixed with white.
@@ -43,6 +45,11 @@
     right: -2px;
     left: auto;
     border-radius: 0 2px 2px 0;
+}
+
+/* Four photographers, one mood. */
+.landing-photo {
+    filter: saturate(0.92) sepia(0.08);
 }
 
 /* The laptop, drawn the same way. The screen holds real screenshots. */
@@ -168,6 +175,14 @@
     [data-reveal='pop'][data-waiting] {
         opacity: 0;
         transform: translateY(1rem) scale(0.9);
+    }
+
+    [data-reveal='zoom'] {
+        transition: transform 1.2s var(--landing-ease) var(--delay, 0ms);
+    }
+
+    [data-reveal='zoom'][data-waiting] {
+        transform: scale(1.2);
     }
 
     [data-reveal='words'] .landing-word {

@@ -8,12 +8,9 @@ import {
     LockKeyhole,
     Pause,
     Play,
-    Scissors,
-    Shirt,
     ShieldCheck,
     Store,
     TriangleAlert,
-    UtensilsCrossed,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -27,15 +24,17 @@ import { cn } from '@/lib/utils';
 import { dashboard, register } from '@/routes';
 import { show as showShop } from '@/routes/shop';
 import type { DemoShop } from '@/types/domain';
-import { BusinessCategory, businessCategoryLabels } from '@/types/enums';
+import { businessCategoryLabels } from '@/types/enums';
 import { ChatDemo } from './chat-demo';
-import { sampleMessages } from './examples';
+import { businessPhotos, sampleMessages } from './examples';
 import { delay, WordReveal } from './word-reveal';
 
 const SOURCE_URL =
     'https://prnewswire.com/apac/news-releases/only-46-of-msmes-fully-separate-their-business-and-personal-finances-ocbc-simplifies-the-process-for-entrepreneurs-to-open-a-business-checking-account-100-digital-302240246.html';
 
 const shell = 'mx-auto w-full max-w-[1280px] px-4 md:px-8';
+const creditLink =
+    'underline underline-offset-2 hover:text-foreground pointer-coarse:py-[15px]';
 export const heading =
     'text-3xl font-semibold tracking-tight text-balance md:text-4xl';
 
@@ -218,7 +217,7 @@ export function Problem() {
                             href={SOURCE_URL}
                             target="_blank"
                             rel="noreferrer"
-                            className="underline underline-offset-2 hover:text-foreground pointer-coarse:py-[13px]"
+                            className="underline underline-offset-2 hover:text-foreground pointer-coarse:py-[14px]"
                         >
                             OCBC Business Fitness Index 2024
                         </a>
@@ -345,65 +344,68 @@ export function HowItWorks() {
     );
 }
 
-const audiences: Array<{
-    category: BusinessCategory;
-    icon: LucideIcon;
-    text: string;
-}> = [
-    {
-        category: BusinessCategory.Kuliner,
-        icon: UtensilsCrossed,
-        text: 'Stok bahan berkurang sesuai resep',
-    },
-    {
-        category: BusinessCategory.Kelontong,
-        icon: Store,
-        text: 'Stok dan utang pembeli terpantau',
-    },
-    {
-        category: BusinessCategory.Fashion,
-        icon: Shirt,
-        text: 'Harga pokok tiap barang terlihat',
-    },
-    {
-        category: BusinessCategory.Kerajinan,
-        icon: Scissors,
-        text: 'Biaya bahan tiap produk terhitung',
-    },
-];
-
 export function Audience() {
     return (
         <section
             aria-labelledby="untuk-siapa"
-            className={cn(shell, 'py-8 md:py-10')}
+            className={cn(shell, 'py-12 md:py-16')}
         >
             <h2
                 id="untuk-siapa"
-                className="text-center text-sm font-medium text-muted-foreground"
+                data-reveal="words"
+                className={cn(heading, 'text-center')}
             >
-                Untuk usaha yang punya stok
+                <WordReveal text="Untuk usaha yang punya stok" />
             </h2>
-            <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 lg:grid-cols-4">
-                {audiences.map(({ category, icon: Icon, text }, index) => (
+            <ul className="mt-8 grid grid-cols-2 gap-x-3 gap-y-6 md:gap-x-5 lg:grid-cols-4">
+                {businessPhotos.map((photo, index) => (
                     <li
-                        key={category}
+                        key={photo.category}
                         data-reveal="up"
-                        style={delay(index * 80)}
-                        className="flex items-start gap-3"
+                        style={delay(index * 90)}
+                        className="min-w-0"
                     >
-                        <Icon
-                            className="mt-0.5 size-5 shrink-0 text-brand-strong"
-                            aria-hidden
-                        />
-                        <span className="min-w-0">
-                            <span className="block font-semibold">
-                                {businessCategoryLabels[category]}
-                            </span>
-                            <span className="block text-sm text-muted-foreground">
-                                {text}
-                            </span>
-                        </span>
+                        <div className="aspect-[4/5] overflow-hidden rounded-2xl bg-secondary">
+                            <img
+                                data-reveal="zoom"
+                                style={delay(index * 90)}
+                                src={`/images/landing/${photo.file}-800.webp`}
+                                srcSet={`/images/landing/${photo.file}-480.webp 480w, /images/landing/${photo.file}-800.webp 800w`}
+                                sizes="(min-width: 1024px) 290px, 46vw"
+                                width={800}
+                                height={1000}
+                                loading="lazy"
+                                alt={photo.alt}
+                                className="landing-photo size-full object-cover"
+                            />
+                        </div>
+                        <p className="mt-3 font-semibold">
+                            {businessCategoryLabels[photo.category]}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            {photo.text}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Foto:{' '}
+                            <a
+                                href={photo.page}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={creditLink}
+                            >
+                                {photo.author}
+                            </a>
+                            ,{' '}
+                            <a
+                                href={photo.licenseUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={creditLink}
+                            >
+                                {photo.license}
+                            </a>
+                            , dipotong
+                        </p>
                     </li>
                 ))}
             </ul>

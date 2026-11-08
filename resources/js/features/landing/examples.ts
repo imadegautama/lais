@@ -1,3 +1,5 @@
+import { BusinessCategory } from '@/types/enums';
+
 /**
  * What the landing page's chat demo plays, with no model behind it. The
  * words follow the bot's real replies (Formatter, ReportAnswers), and
@@ -25,6 +27,53 @@ export type DemoExample = {
 };
 
 export const CONFIRM = 'Balas 1 untuk simpan, 2 untuk batal.';
+
+/**
+ * Real shops, not stock art. Each photo is CC BY-SA, so its credit and the
+ * note that it was cropped stay next to it (DESIGN.md §6).
+ */
+export const businessPhotos = [
+    {
+        category: BusinessCategory.Kuliner,
+        file: 'usaha-kuliner',
+        text: 'Stok bahan berkurang sesuai resep',
+        alt: 'Gerobak soto kaki lima di pinggir jalan Jakarta.',
+        author: 'Gunawan Kartapranata',
+        page: 'https://commons.wikimedia.org/wiki/File:Kakilima_street_vendors_in_Jakarta.jpg',
+        license: 'CC BY-SA 3.0',
+        licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+    },
+    {
+        category: BusinessCategory.Kelontong,
+        file: 'usaha-kelontong',
+        text: 'Stok dan utang pembeli terpantau',
+        alt: 'Warung kelontong dengan rak penuh jajanan, galon air, dan mainan.',
+        author: 'SATELITBM',
+        page: 'https://commons.wikimedia.org/wiki/File:Warung_Kelontong.jpg',
+        license: 'CC BY-SA 4.0',
+        licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
+    {
+        category: BusinessCategory.Fashion,
+        file: 'usaha-fashion',
+        text: 'Harga pokok tiap barang terlihat',
+        alt: 'Penjahit berkaus merah menjahit kain batik di mesin jahit.',
+        author: 'Randy Novian R',
+        page: 'https://commons.wikimedia.org/wiki/File:Penjahit_Pakaian.jpg',
+        license: 'CC BY-SA 4.0',
+        licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
+    {
+        category: BusinessCategory.Kerajinan,
+        file: 'usaha-kerajinan',
+        text: 'Biaya bahan tiap produk terhitung',
+        alt: 'Tangan pembatik menggoreskan canting pada kain batik.',
+        author: 'Bhrigu bayan',
+        page: 'https://commons.wikimedia.org/wiki/File:The_Art_of_Batik.jpg',
+        license: 'CC BY-SA 4.0',
+        licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
+] as const;
 
 /**
  * The real app on the laptop. The pictures come from `public/images/landing`,

@@ -108,7 +108,7 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 - **Masalah:** satu angka bersumber (46%, OCBC Business Fitness Index 2024) dan tiga akibat tanpa angka.
 - **Cara kerja:** satu pembukuan, tiga pintu masuk (chat, web, toko).
 - **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan.
-- **Untuk siapa:** kuliner, kelontong, fashion, kerajinan.
+- **Untuk siapa:** kartu foto kuliner, kelontong, fashion, kerajinan, dengan kredit fotografer di bawah tiap kartu.
 - **Uang terpisah** dan **Laporan:** dua bagian selang-seling.
 - **Kenapa bisa dipercaya:** AI tidak menyimpan tanpa konfirmasi, angka dari sistem, data tiap usaha terpisah.
 - **Toko contoh:** kartu `warung-bu-rina` dari data asli dengan tombol **Coba pesan**. Kalau toko itu tidak ada atau tidak punya produk yang bisa dipesan, bagian dan tombolnya tidak tampil.
@@ -116,7 +116,7 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 > **Perubahan dari rancangan awal (7 Nov):** tata letak mengikuti referensi pemilik. Tiga kartu masalah dengan angka diganti satu angka, karena hanya angka itu yang sumbernya bisa diperiksa. Enam kartu ikon dibuang (DESIGN.md §6). Judul memakai "chat", bukan "WA", karena bot berjalan di Telegram. Tidak ada testimoni, logo mitra, atau jumlah pengguna sampai datanya nyata.
 
-> **Animasi (8 Nov):** gerakan mengikuti referensi pemilik, tanpa library. Aturannya di DESIGN.md §6 poin 16.
+> **Animasi (8 Nov):** gerakan mengikuti referensi pemilik, dengan Lenis untuk roda mouse. Aturannya di DESIGN.md §6 poin 16.
 
 ### A2. Halaman toko `/t/{slug}`
 

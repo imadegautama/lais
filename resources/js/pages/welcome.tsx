@@ -16,12 +16,14 @@ import {
     Trust,
 } from '@/features/landing/landing-sections';
 import { useReveal } from '@/features/landing/use-reveal';
+import { useSmoothScroll } from '@/features/landing/use-smooth-scroll';
 import type { WelcomeProps } from '@/types/domain';
 
 /** The landing page (UI-PAGES A1). */
 export default function Welcome({ demoShop }: WelcomeProps) {
     const page = useRef<HTMLDivElement>(null);
     useReveal(page);
+    useSmoothScroll();
 
     return (
         <>
