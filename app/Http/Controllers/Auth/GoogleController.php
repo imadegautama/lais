@@ -53,11 +53,11 @@ class GoogleController extends Controller
             ?? User::query()->where('email', $email)->first();
         $isNew = $user === null;
 
-        // A random password keeps the column filled; "Lupa password" sets a real one.
+        // No password until the owner sets one in Keamanan (RequirePasswordIfSet lets them in).
         $user ??= User::create([
             'name' => $google->getName() ?: Str::before($email, '@'),
             'email' => $email,
-            'password' => Str::random(40),
+            'password' => null,
         ]);
 
         $user->forceFill(['google_id' => $google->getId()])->save();

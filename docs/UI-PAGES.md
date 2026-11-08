@@ -576,6 +576,15 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
     - ambang peringatan stok (hari)
     - **riwayat 20 pesan terakhir** dengan bot (P2, berguna saat demo dan debugging)
 
+> **Catatan implementasi (8 Nov):** Pengaturan tetap di `/settings/*` (bukan `/pengaturan/*`) dengan empat tab:
+>
+> - **Usaha** (`/settings/business`): nama dan jenis usaha, link toko (salin, buka) dengan status Terima pesanan/Tutup. Slug tidak ikut berubah saat nama diganti. Buka/tutup, nomor WA penjual, QRIS, dan bayar online tetap di `ShopBar` Pesanan dan ditautkan dari sini.
+> - **Akun** (`/settings/profile`): nama, email, dan hapus akun. Teks hapus akun menyebut apa saja yang ikut terhapus.
+> - **Keamanan**: password, verifikasi dua langkah, dan aktivitas akun. Akun dari Google belum punya password: halaman ini terbuka tanpa konfirmasi dan menampilkan "Buat password" tanpa password lama. Hapus akun tetap wajib password.
+> - **Bot**.
+>
+> `/settings` membuka tab Usaha. Logo, deskripsi, tab Tampilan (aplikasi light-only), dan ganti nomor WA lewat OTP belum dibuat.
+
 > **Catatan implementasi (6 Nov):** tab ini sekarang bernama **Bot** (`/settings/bot`) dan mengikuti saluran di `BOT_CHANNEL`. Di Telegram, tombolnya "Buka Telegram": link `t.me/<bot>?start=<kode>` yang menghubungkan akun setelah pemilik menekan Mulai. Catatan 4 Nov di bawah tetap berlaku untuk isi halamannya.
 
 > **Catatan implementasi (4 Nov):** tab **WhatsApp** di Pengaturan (`/settings/whatsapp`) berisi status terhubung, langkah "Buat kode" → "Kirim lewat WhatsApp" (pemilik mengirim `LAIS ######` ke bot; halaman memeriksa setiap 5 detik), tombol Putuskan, dan saklar ringkasan harian 21.00. Jam ringkasan, ringkasan mingguan, peringatan stok terpisah, contekan perintah, dan riwayat pesan belum dibuat; contekan ada di `docs/WHATSAPP.md`.

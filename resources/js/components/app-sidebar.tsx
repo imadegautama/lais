@@ -26,7 +26,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard, settings } from '@/routes';
 import contacts from '@/routes/contacts';
 import debts from '@/routes/debts';
 import activity from '@/routes/activity';
@@ -35,7 +35,6 @@ import moneyAccounts from '@/routes/money-accounts';
 import orders from '@/routes/orders';
 import reports from '@/routes/reports';
 import transactions from '@/routes/transactions';
-import { edit as editProfile } from '@/routes/profile';
 
 // Order follows how often an owner needs each page (UI-PAGES.md).
 const navGroups = (
@@ -91,7 +90,7 @@ const navGroups = (
                 href: activity.index(),
                 icon: ScrollText,
             },
-            { title: 'Pengaturan', href: editProfile(), icon: Settings },
+            { title: 'Pengaturan', href: settings(), icon: Settings },
         ],
     },
 ];

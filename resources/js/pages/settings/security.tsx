@@ -1,41 +1,45 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { History, KeyRound } from 'lucide-react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import { ActivityList } from '@/components/app/activity-list';
-import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/app/field';
+import { SectionCard } from '@/components/app/section-card';
+import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
+import ManageTwoFactor from '@/components/manage-two-factor';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { settings } from '@/routes';
 import { index as activityLog } from '@/routes/activity';
 import { edit } from '@/routes/security';
 import type { ActivityEntry } from '@/types/domain';
-import type { Props as ManageTwoFactorProps } from '@/components/manage-two-factor';
-import ManageTwoFactor from '@/components/manage-two-factor';
 
 // oxfmt-ignore
 type Props = {
     passwordRules: string;
+    /** False for an account made with Google until a password is set here. */
+    hasPassword: boolean;
     activities: ActivityEntry[];
 } & ManageTwoFactorProps;
 
+/** Pengaturan > Keamanan: password, two-step login, and recent sign-ins. */
 export default function Security(props: Props) {
     const passwordInput = useRef<HTMLInputElement>(null);
     const currentPasswordInput = useRef<HTMLInputElement>(null);
 
     return (
         <>
-            <Head title="Security settings" />
+            <Head title="Keamanan" />
 
-            <h1 className="sr-only">Security settings</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Update password"
-                    description="Ensure your account is using a long, random password to stay secure"
-                />
-
+            <SectionCard
+                title={props.hasPassword ? 'Ganti password' : 'Buat password'}
+                description={
+                    props.hasPassword
+                        ? 'Pakai password panjang yang tidak dipakai di tempat lain.'
+                        : 'Akun ini masuk lewat Google. Buat password supaya bisa juga masuk dengan email, dan untuk menghapus akun.'
+                }
+                icon={KeyRound}
+            >
                 <Form
                     {...SecurityController.update.form()}
                     options={{
@@ -56,74 +60,63 @@ export default function Security(props: Props) {
                             currentPasswordInput.current?.focus();
                         }
                     }}
-                    className="space-y-6"
+                    className="flex flex-col gap-5"
                 >
                     {({ errors, processing }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="current_password">
-                                    Current password
-                                </Label>
+                            {props.hasPassword && (
+                                <Field
+                                    label="Password sekarang"
+                                    htmlFor="current_password"
+                                    error={errors.current_password}
+                                >
+                                    <PasswordInput
+                                        id="current_password"
+                                        ref={currentPasswordInput}
+                                        name="current_password"
+                                        autoComplete="current-password"
+                                    />
+                                </Field>
+                            )}
 
-                                <PasswordInput
-                                    id="current_password"
-                                    ref={currentPasswordInput}
-                                    name="current_password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="current-password"
-                                    placeholder="Current password"
-                                />
-
-                                <InputError message={errors.current_password} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="password">New password</Label>
-
+                            <Field
+                                label="Password baru"
+                                htmlFor="password"
+                                error={errors.password}
+                            >
                                 <PasswordInput
                                     id="password"
                                     ref={passwordInput}
                                     name="password"
-                                    className="mt-1 block w-full"
                                     autoComplete="new-password"
-                                    placeholder="New password"
                                     passwordrules={props.passwordRules}
                                 />
+                            </Field>
 
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="password_confirmation">
-                                    Confirm password
-                                </Label>
-
+                            <Field
+                                label="Ulangi password baru"
+                                htmlFor="password_confirmation"
+                                error={errors.password_confirmation}
+                            >
                                 <PasswordInput
                                     id="password_confirmation"
                                     name="password_confirmation"
-                                    className="mt-1 block w-full"
                                     autoComplete="new-password"
-                                    placeholder="Confirm password"
                                     passwordrules={props.passwordRules}
                                 />
+                            </Field>
 
-                                <InputError
-                                    message={errors.password_confirmation}
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    disabled={processing}
-                                    data-test="update-password-button"
-                                >
-                                    Save
-                                </Button>
-                            </div>
+                            <Button
+                                className="w-fit"
+                                disabled={processing}
+                                data-test="update-password-button"
+                            >
+                                {processing ? 'Menyimpan…' : 'Simpan password'}
+                            </Button>
                         </>
                     )}
                 </Form>
-            </div>
+            </SectionCard>
 
             <ManageTwoFactor
                 canManageTwoFactor={props.canManageTwoFactor}
@@ -131,29 +124,28 @@ export default function Security(props: Props) {
                 twoFactorEnabled={props.twoFactorEnabled}
             />
 
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Aktivitas akun"
-                    description="Masuk, keluar, dan perubahan keamanan terbaru. Kalau ada yang tidak kamu kenali, segera ganti password."
-                />
-                <ActivityList entries={props.activities} />
-                <Link
-                    href={activityLog({ query: { kategori: ['akun'] } })}
-                    className="inline-block rounded-sm text-sm font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                    Lihat semua di Log aktivitas
-                </Link>
-            </div>
+            <SectionCard
+                title="Aktivitas akun"
+                description="Masuk, keluar, dan perubahan keamanan terbaru. Kalau ada yang tidak kamu kenali, segera ganti password."
+                icon={History}
+            >
+                <div className="flex flex-col gap-4">
+                    <ActivityList entries={props.activities} />
+                    <Link
+                        href={activityLog({ query: { kategori: ['akun'] } })}
+                        className="w-fit rounded-sm text-sm font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                        Lihat semua di Log aktivitas
+                    </Link>
+                </div>
+            </SectionCard>
         </>
     );
 }
 
 Security.layout = {
     breadcrumbs: [
-        {
-            title: 'Security settings',
-            href: edit(),
-        },
+        { title: 'Pengaturan', href: settings() },
+        { title: 'Keamanan', href: edit() },
     ],
 };

@@ -23,6 +23,7 @@ class SecurityController extends Controller
     {
         $props = [
             'canManageTwoFactor' => Features::canManageTwoFactorAuthentication(),
+            'hasPassword' => $request->user()->password !== null,
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
             // Recent sign-ins and security changes, so the owner spots one they did not make.
             'activities' => ActivityResource::collection(Activity::historyOf($request->user(), 10))->resolve(),
@@ -49,7 +50,7 @@ class SecurityController extends Controller
 
         PasswordUpdatedViaController::dispatch($request->user());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Password disimpan.']);
 
         return back();
     }

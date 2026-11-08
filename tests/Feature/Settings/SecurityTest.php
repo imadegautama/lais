@@ -111,4 +111,48 @@ class SecurityTest extends TestCase
             ->assertSessionHasErrors('current_password')
             ->assertRedirect(route('security.edit'));
     }
+
+    public function test_an_account_made_with_google_opens_security_without_a_password_to_confirm()
+    {
+        $user = User::factory()->create(['password' => null]);
+
+        $this->actingAs($user)
+            ->get(route('security.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('settings/security')
+                ->where('hasPassword', false),
+            );
+    }
+
+    public function test_an_account_made_with_google_sets_its_first_password_without_an_old_one()
+    {
+        $user = User::factory()->create(['password' => null]);
+
+        $this->actingAs($user)
+            ->from(route('security.edit'))
+            ->put(route('user-password.update'), [
+                'password' => 'new-password',
+                'password_confirmation' => 'new-password',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('security.edit'));
+
+        $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
+    }
+
+    public function test_an_account_with_a_password_must_give_it_to_change_it()
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->from(route('security.edit'))
+            ->put(route('user-password.update'), [
+                'password' => 'new-password',
+                'password_confirmation' => 'new-password',
+            ])
+            ->assertSessionHasErrors('current_password');
+
+        $this->assertTrue(Hash::check('password', $user->refresh()->password));
+    }
 }

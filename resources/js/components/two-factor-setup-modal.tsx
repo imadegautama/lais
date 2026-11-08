@@ -3,6 +3,7 @@ import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Check, Copy, ScanLine } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AlertError from '@/components/alert-error';
+import { IconChip } from '@/components/app/section-card';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,36 +19,9 @@ import {
     InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
-import { useAppearance } from '@/hooks/use-appearance';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import { confirm } from '@/routes/two-factor';
-
-function GridScanIcon() {
-    return (
-        <div className="mb-3 rounded-full border border-border bg-card p-0.5 shadow-sm">
-            <div className="relative overflow-hidden rounded-full border border-border bg-muted p-2.5">
-                <div className="absolute inset-0 grid grid-cols-5 opacity-50">
-                    {Array.from({ length: 5 }, (_, i) => (
-                        <div
-                            key={`col-${i + 1}`}
-                            className="border-r border-border last:border-r-0"
-                        />
-                    ))}
-                </div>
-                <div className="absolute inset-0 grid grid-rows-5 opacity-50">
-                    {Array.from({ length: 5 }, (_, i) => (
-                        <div
-                            key={`row-${i + 1}`}
-                            className="border-b border-border last:border-b-0"
-                        />
-                    ))}
-                </div>
-                <ScanLine className="relative z-20 size-6 text-foreground" />
-            </div>
-        </div>
-    );
-}
 
 function TwoFactorSetupStep({
     qrCodeSvg,
@@ -62,7 +36,6 @@ function TwoFactorSetupStep({
     onNextStep: () => void;
     errors: string[];
 }) {
-    const { resolvedAppearance } = useAppearance();
     const [copiedText, copy] = useClipboard();
     const IconComponent = copiedText === manualSetupKey ? Check : Copy;
 
@@ -81,12 +54,6 @@ function TwoFactorSetupStep({
                                         dangerouslySetInnerHTML={{
                                             __html: qrCodeSvg,
                                         }}
-                                        style={{
-                                            filter:
-                                                resolvedAppearance === 'dark'
-                                                    ? 'invert(1) brightness(1.5)'
-                                                    : undefined,
-                                        }}
                                     />
                                 ) : (
                                     <Spinner />
@@ -104,7 +71,7 @@ function TwoFactorSetupStep({
                     <div className="relative flex w-full items-center justify-center">
                         <div className="absolute inset-0 top-1/2 h-px w-full bg-border" />
                         <span className="relative bg-card px-2 py-1">
-                            or, enter the code manually
+                            atau ketik kuncinya di aplikasi
                         </span>
                     </div>
 
@@ -118,15 +85,25 @@ function TwoFactorSetupStep({
                                 <>
                                     <input
                                         type="text"
+                                        aria-label="Kunci pengaturan"
                                         readOnly
                                         value={manualSetupKey}
                                         className="h-full w-full bg-background p-3 text-foreground outline-none"
                                     />
                                     <button
+                                        type="button"
                                         onClick={() => copy(manualSetupKey)}
-                                        className="border-l border-border px-3 hover:bg-muted"
+                                        aria-label={
+                                            copiedText === manualSetupKey
+                                                ? 'Kunci tersalin'
+                                                : 'Salin kunci'
+                                        }
+                                        className="border-l border-border px-3 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none pointer-coarse:px-4"
                                     >
-                                        <IconComponent className="w-4" />
+                                        <IconComponent
+                                            className="w-4"
+                                            aria-hidden
+                                        />
                                     </button>
                                 </>
                             )}
@@ -210,7 +187,7 @@ function TwoFactorVerificationStep({
                                 onClick={onBack}
                                 disabled={processing}
                             >
-                                Back
+                                Kembali
                             </Button>
                             <Button
                                 type="submit"
@@ -219,7 +196,7 @@ function TwoFactorVerificationStep({
                                     processing || code.length < OTP_MAX_LENGTH
                                 }
                             >
-                                Confirm
+                                Konfirmasi
                             </Button>
                         </div>
                     </div>
@@ -262,27 +239,27 @@ export default function TwoFactorSetupModal({
     }>(() => {
         if (twoFactorEnabled) {
             return {
-                title: 'Two-factor authentication enabled',
+                title: 'Verifikasi dua langkah aktif',
                 description:
-                    'Two-factor authentication is now enabled. Scan the QR code or enter the setup key in your authenticator app.',
-                buttonText: 'Close',
+                    'Mulai sekarang, masuk ke Lais meminta kode dari aplikasi authenticator.',
+                buttonText: 'Tutup',
             };
         }
 
         if (showVerificationStep) {
             return {
-                title: 'Verify authentication code',
+                title: 'Masukkan kode',
                 description:
-                    'Enter the 6-digit code from your authenticator app',
-                buttonText: 'Continue',
+                    'Ketik 6 angka yang tampil di aplikasi authenticator.',
+                buttonText: 'Lanjut',
             };
         }
 
         return {
-            title: 'Enable two-factor authentication',
+            title: 'Nyalakan verifikasi dua langkah',
             description:
-                'To finish enabling two-factor authentication, scan the QR code or enter the setup key in your authenticator app',
-            buttonText: 'Continue',
+                'Pindai kode QR dengan aplikasi authenticator (Google Authenticator, Authy), lalu tekan Lanjut.',
+            buttonText: 'Lanjut',
         };
     }, [twoFactorEnabled, showVerificationStep]);
 
@@ -326,7 +303,7 @@ export default function TwoFactorSetupModal({
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader className="flex items-center justify-center">
-                    <GridScanIcon />
+                    <IconChip icon={ScanLine} />
                     <DialogTitle>{modalConfig.title}</DialogTitle>
                     <DialogDescription className="text-center">
                         {modalConfig.description}

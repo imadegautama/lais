@@ -21,6 +21,8 @@ class ProfileController extends Controller
     {
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            // Deleting asks for the password; an account made with Google sets one in Keamanan first.
+            'hasPassword' => $request->user()->password !== null,
             'status' => $request->session()->get('status'),
         ]);
     }
@@ -38,7 +40,7 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Profile updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Data akun disimpan.']);
 
         return to_route('profile.edit');
     }
