@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\BusinessCategory;
 use App\Enums\MoneyAccountKind;
 use App\Enums\TransactionStatus;
+use App\Support\Media;
 use Carbon\CarbonImmutable;
 use Database\Factories\BusinessFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -119,7 +120,7 @@ class Business extends Model
      */
     public function contacts(): HasMany
     {
-        return $this->hasMany(Contact::class);
+        return $this->hasMany(Contact::class)->whereNull('contacts.erased_at');
     }
 
     /**
@@ -145,6 +146,6 @@ class Business extends Model
      */
     public function qrisUrl(): ?string
     {
-        return $this->qris_path === null ? null : asset('storage/'.$this->qris_path);
+        return Media::url($this->qris_path);
     }
 }

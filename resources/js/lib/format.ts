@@ -1,5 +1,4 @@
 const numberId = new Intl.NumberFormat('id-ID');
-const TIME_ZONE = 'Asia/Jakarta';
 const MINUS = '−';
 
 /** Rp15.000 / −Rp15.000. Money is always integer rupiah. */
@@ -59,7 +58,28 @@ const dateFormats: Record<DateStyle, Intl.DateTimeFormatOptions> = {
     },
 };
 
-/** 14 Okt 2026, in WIB regardless of the viewer's device clock. */
+/**
+ * The app's time zone (APP_TIMEZONE), so dates read the same on every
+ * device. app.tsx sets it from the shared `timeZone` prop before each page
+ * renders; until then, and in tests, it is WIB.
+ */
+let timeZone = { name: 'Asia/Jakarta', label: 'WIB' };
+
+export function setTimeZone(zone: { name: string; label: string }): void {
+    timeZone = zone;
+}
+
+/** "Asia/Makassar": for Intl calls outside formatDate. */
+export function appTimeZone(): string {
+    return timeZone.name;
+}
+
+/** "WIB", "WITA", or "WIT", written after a time. */
+export function zoneLabel(): string {
+    return timeZone.label;
+}
+
+/** 14 Okt 2026, in the app time zone regardless of the viewer's device clock. */
 export function formatDate(
     value: string | Date,
     style: DateStyle = 'short',
@@ -68,7 +88,7 @@ export function formatDate(
 
     return new Intl.DateTimeFormat('id-ID', {
         ...dateFormats[style],
-        timeZone: TIME_ZONE,
+        timeZone: timeZone.name,
     }).format(date);
 }
 

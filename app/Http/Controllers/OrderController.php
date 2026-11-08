@@ -15,12 +15,12 @@ use App\Models\Business;
 use App\Models\Order;
 use App\Services\Ledger;
 use App\Services\Orders;
+use App\Support\Media;
 use App\Support\OrderMessages;
 use App\Support\Proof;
 use App\Support\TableQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -150,10 +150,10 @@ class OrderController extends Controller
 
         if ($request->hasFile('qris') || $request->boolean('remove_qris')) {
             if ($business->qris_path !== null) {
-                Storage::disk('public')->delete($business->qris_path);
+                Media::disk()->delete($business->qris_path);
             }
 
-            $data['qris_path'] = $request->hasFile('qris') ? $request->file('qris')->store('qris', 'public') : null;
+            $data['qris_path'] = $request->hasFile('qris') ? $request->file('qris')->store('qris', Media::diskName()) : null;
         }
 
         $business->update($data);

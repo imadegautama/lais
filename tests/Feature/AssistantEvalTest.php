@@ -8,7 +8,11 @@ use App\Models\Contact;
 use App\Models\Item;
 use App\Services\Ai\AssistantUnavailable;
 use App\Services\Ai\FormAssistant;
+use App\Services\Ai\ItemDraft;
+use App\Services\Ai\TransactionDraft;
+use App\Services\BusinessFacts;
 use App\Services\Catalog;
+use App\Services\TransactionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -17,8 +21,10 @@ use Tests\TestCase;
 
 /**
  * PRD §3.2 "Pembacaan pesan": owner sentences through the real model
- * (9Router, .env LLM_*). Excluded from the normal run (phpunit.xml); run it
- * after changing the prompt or the model with `php artisan test --group=llm`.
+ * Excluded from the normal run (phpunit.xml), which also pins the gateway
+ * driver. After changing the prompt or the model, run it with
+ * `LLM_DRIVER=claude LOG_CHANNEL=single php artisan test --group=llm`; this
+ * spends credit, and the tokens of each call land in laravel.log.
  * Each run writes its report to storage/eval/.
  */
 #[Group('llm')]
@@ -71,16 +77,7 @@ class AssistantEvalTest extends TestCase
     {
         // The eval measures reading, not 9Router's slow moments; each case's time is in the report.
         config(['services.llm.timeout' => 60, 'services.llm.vision_timeout' => 90]);
-        $business = Business::factory()->create();
-        app(Catalog::class)->createMany($business, [
-            ['name' => 'Beras', 'kind' => 'bahan', 'unit' => 'kg', 'opening_stock' => 10, 'opening_cost' => 14000],
-            ['name' => 'Telur', 'kind' => 'bahan', 'unit' => 'butir', 'opening_stock' => 30, 'opening_cost' => 2000],
-            ['name' => 'Air Mineral', 'kind' => 'produk', 'unit' => 'botol', 'price' => 4000, 'aliases' => ['aqua'], 'opening_stock' => 24, 'opening_cost' => 2500],
-            ['name' => 'Es Teh', 'kind' => 'produk', 'unit' => 'gelas', 'price' => 5000, 'opening_stock' => 40, 'opening_cost' => 1500],
-            ['name' => 'Nasi Goreng', 'kind' => 'komposisi', 'unit' => 'porsi', 'price' => 15000, 'aliases' => ['nasgor'], 'recipe' => [['name' => 'Beras', 'qty' => 0.15], ['name' => 'Telur', 'qty' => 1]]],
-        ]);
-        $business->contacts()->create(['type' => ContactType::Pelanggan, 'name' => 'Bu Sari']);
-        $business->contacts()->create(['type' => ContactType::Supplier, 'name' => 'Toko Makmur']);
+        $business = self::business();
         $items = $business->items()->get();
         $contacts = $business->contacts()->get();
 
@@ -117,7 +114,7 @@ class AssistantEvalTest extends TestCase
         $fields = 1 - array_sum(array_map(fn (array $row) => count($row['wrong']), $rows)) / array_sum(array_column($rows, 'fields'));
         $report = storage_path('eval/asisten-'.now()->format('Ymd-His').'.json');
         File::put($report, (string) json_encode([
-            'model' => config('services.llm.model'),
+            'model' => config('services.llm.driver') === 'claude' ? config('services.llm.claude.model') : config('services.llm.model'),
             'intent' => round($intent, 3),
             'fields' => round($fields, 3),
             'average_seconds' => round(array_sum(array_column($rows, 'seconds')) / count($rows), 1),
@@ -126,6 +123,139 @@ class AssistantEvalTest extends TestCase
 
         $this->assertGreaterThanOrEqual(0.95, $intent, "Intent below 95%, see {$report}");
         $this->assertGreaterThanOrEqual(0.90, $fields, "Fields below 90%, see {$report}");
+    }
+
+    /**
+     * Follow-ups: what the owner means depends on the draft on screen and on
+     * the turns before it. The first case is the owner's own conversation of
+     * 7 Nov, where an older message in the history pulled the model away.
+     */
+    public function test_the_assistant_follows_up_on_the_draft_on_screen(): void
+    {
+        config(['services.llm.timeout' => 60]);
+        $business = self::business();
+        $items = $business->items()->get();
+        $contacts = $business->contacts()->get();
+        $moneyAccounts = $business->moneyAccounts()->get();
+        $assistant = app(FormAssistant::class);
+        $record = TransactionDraft::fill(['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'metode_bayar' => 'tunai', 'baris' => [
+            ['item' => 'Air Mineral', 'qty' => 1, 'total' => 4000],
+            ['item' => 'Cimory hazelnut', 'qty' => 1, 'total' => 8000],
+            ['item' => 'Frestea madu', 'qty' => 1, 'total' => 6000],
+            ['item' => 'Ice cream aice', 'qty' => 1, 'total' => 5000],
+            ['item' => 'Kanzler', 'qty' => 1, 'total' => 10000],
+        ]], [], $items, $contacts, $moneyAccounts)['values'];
+        $older = [
+            ['role' => 'user', 'text' => 'tambah menu mie goreng 14rb, pakai telur 1 dan beras 1 ons'],
+            ['role' => 'assistant', 'text' => 'Masih ada yang kurang. Balas di sini atau lengkapi di form.'],
+            ['role' => 'user', 'text' => 'Coba catat ini dong'],
+            ['role' => 'assistant', 'text' => 'Masih ada yang kurang. Balas di sini atau lengkapi di form.'],
+        ];
+        $onRecord = ['form' => 'transaksi', 'values' => $record];
+        $ask = fn (string $message, array $history, ?array $draft) => $assistant->reply($business->user, $message, null, $history, [], $draft);
+        $goods = fn (array $reply) => array_column($reply['values']['items'] ?? [], 'name');
+        $failures = [];
+        $check = function (string $case, bool $passed, array $reply) use (&$failures) {
+            if (! $passed) {
+                $failures[] = "{$case}: form={$reply['form']} reply={$reply['reply']} values=".json_encode($reply['values'], JSON_UNESCAPED_UNICODE);
+            }
+        };
+
+        $all = $ask('Bisa ngga kamu buatkan yang kurang ke daftar produk dulu?', $older, $onRecord);
+        $check('yang kurang', $all['form'] === 'barang' && $goods($all) === ['Cimory hazelnut', 'Frestea madu', 'Ice cream aice', 'Kanzler'], $all);
+
+        $named = $ask('Yang kurang kan kayak cimory hazelnut frestea dll', $older, $onRecord);
+        $check('menyebut nama', $named['form'] === 'barang' && in_array('Frestea madu', $goods($named), true), $named);
+
+        $sold = $ask('Semua dijual lagi', $older, ['form' => 'barang', 'values' => $all['values'] ?? []]);
+        $check('semua dijual', array_unique(array_column($sold['values']['items'] ?? [], 'kind')) === ['produk'], $sold);
+
+        $priced = $ask('cimory 12rb, frestea 8rb, aice 7rb, kanzler 15rb', $older, ['form' => 'barang', 'values' => $sold['values'] ?? []]);
+        $check('harga jual', array_column($priced['values']['items'] ?? [], 'price') === [12000, 8000, 7000, 15000] && $priced['confirm'] === true, $priced);
+
+        $method = $ask('bayarnya transfer', $older, $onRecord);
+        $check('koreksi draf', $method['form'] === 'transaksi' && ($method['values']['method'] ?? '') === 'non_tunai' && count($method['values']['unknown'] ?? []) === 4, $method);
+
+        $fixed = $ask('air mineralnya jadi 2 botol', $older, $onRecord);
+        $check('koreksi baris', $fixed['form'] === 'transaksi' && count($fixed['values']['unknown'] ?? []) === 4, $fixed);
+
+        $draft = ['form' => 'produk', 'values' => ItemDraft::fill(['jenis' => 'produk', 'nama' => 'Es Jeruk', 'harga' => 14000], [], $items)['values']];
+        $other = $ask('Yogurt Hazelnut sebagai produk baru', [], $draft);
+        $check('produk lain', ($other['values']['name'] ?? '') === 'Yogurt Hazelnut' && ($other['values']['price'] ?? null) === null, $other);
+
+        $period = $ask('kalau bulan lalu?', [['role' => 'user', 'text' => 'untung bulan ini berapa?'], ['role' => 'assistant', 'text' => 'Laba bersih bulan ini Rp0.']], null);
+        $check('periode lanjutan', str_starts_with($period['reply'], 'Laba bersih bulan lalu'), $period);
+
+        $this->assertSame([], $failures, implode("\n", $failures));
+    }
+
+    /**
+     * Questions no fixed metric covers, read from the fact sheet. An answer
+     * must quote what the sheet says, and one it refuses counts as a miss.
+     */
+    public function test_the_assistant_answers_from_the_fact_sheet(): void
+    {
+        config(['services.llm.timeout' => 60]);
+        $business = self::business();
+        $service = app(TransactionService::class);
+        $teh = $business->items()->where('items.name', 'Es Teh')->sole();
+        $air = $business->items()->where('items.name', 'Air Mineral')->sole();
+        $lastMonth = now()->subMonthNoOverflow()->startOfMonth()->addDays(9)->format('Y-m-d 09:00');
+        $service->record($business, ['type' => 'modal', 'kind' => 'setor', 'method' => 'tunai', 'amount' => 3000000, 'occurred_at' => $lastMonth]);
+        $service->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'occurred_at' => $lastMonth, 'lines' => [['item_id' => $teh->id, 'qty' => 30, 'price' => 5000], ['item_id' => $air->id, 'qty' => 10, 'price' => 4000]]]);
+        $service->record($business, ['type' => 'biaya', 'kind' => 'sewa', 'method' => 'tunai', 'amount' => 50000, 'occurred_at' => $lastMonth]);
+        $service->record($business, ['type' => 'biaya', 'kind' => 'pemasaran', 'method' => 'tunai', 'amount' => 10000, 'occurred_at' => $lastMonth]);
+        $sheet = app(BusinessFacts::class)->sheet($business);
+        $on = function (string $pattern) use ($sheet) {
+            preg_match($pattern, $sheet, $match);
+
+            return $match[1] ?? '(tidak ada di lembar)';
+        };
+        $cases = [
+            'berapa BEP usaha saya?' => $on('/BEP penjualan (Rp[\d.]+)/'),
+            'bep es teh berapa gelas sebulan?' => $on('/Es Teh: ([\d.,]+ gelas) sebulan/'),
+            'modal saya berapa sekarang?' => $on('/Modal pemilik \(aset dikurangi kewajiban\) (Rp[\d.]+)/'),
+            'aset saya berapa?' => $on('/Total aset (Rp[\d.]+)/'),
+            'stok beras tinggal berapa?' => '10 kg',
+            'produk paling laris apa?' => 'Es Teh',
+            'kenapa untung bulan ini turun?' => '',
+            'biaya apa yang bisa dihemat?' => '',
+            'hari apa paling ramai?' => '',
+        ];
+        $failures = [];
+
+        foreach ($cases as $question => $expected) {
+            $reply = app(FormAssistant::class)->reply($business->user, $question, null, [], [])['reply'];
+
+            if (str_starts_with($reply, 'Angkanya belum') || str_starts_with($reply, 'Datanya belum') || ! str_contains($reply, $expected)) {
+                $failures[] = "{$question} => mau \"{$expected}\", dapat: {$reply}";
+            }
+        }
+
+        $unknown = app(FormAssistant::class)->reply($business->user, 'harga beras di pasar hari ini berapa?', null, [], [])['reply'];
+
+        // Declining in any words is right; a price from nowhere is not.
+        if (preg_match('/\d/', str_replace('Rp100', '', $unknown)) === 1 && ! str_contains($unknown, 'jual 3 nasi goreng')) {
+            $failures[] = "harga pasar => dapat: {$unknown}";
+        }
+
+        $this->assertSame([], $failures, implode("\n", $failures));
+    }
+
+    private static function business(): Business
+    {
+        $business = Business::factory()->create();
+        app(Catalog::class)->createMany($business, [
+            ['name' => 'Beras', 'kind' => 'bahan', 'unit' => 'kg', 'opening_stock' => 10, 'opening_cost' => 14000],
+            ['name' => 'Telur', 'kind' => 'bahan', 'unit' => 'butir', 'opening_stock' => 30, 'opening_cost' => 2000],
+            ['name' => 'Air Mineral', 'kind' => 'produk', 'unit' => 'botol', 'price' => 4000, 'aliases' => ['aqua'], 'opening_stock' => 24, 'opening_cost' => 2500],
+            ['name' => 'Es Teh', 'kind' => 'produk', 'unit' => 'gelas', 'price' => 5000, 'opening_stock' => 40, 'opening_cost' => 1500],
+            ['name' => 'Nasi Goreng', 'kind' => 'komposisi', 'unit' => 'porsi', 'price' => 15000, 'aliases' => ['nasgor'], 'recipe' => [['name' => 'Beras', 'qty' => 0.15], ['name' => 'Telur', 'qty' => 1]]],
+        ]);
+        $business->contacts()->create(['type' => ContactType::Pelanggan, 'name' => 'Bu Sari']);
+        $business->contacts()->create(['type' => ContactType::Supplier, 'name' => 'Toko Makmur']);
+
+        return $business;
     }
 
     /**

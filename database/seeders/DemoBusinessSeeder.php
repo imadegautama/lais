@@ -39,9 +39,9 @@ class DemoBusinessSeeder extends Seeder
         $business->moneyAccounts()->firstOrCreate(['name' => 'GoPay'], ['kind' => MoneyAccountKind::NonTunai]);
 
         // Opened the way the onboarding wizard does: cash per rekening, then the kuliner starter catalog.
-        $openedAt = today();
+        $openedAt = today()->subDays(DemoHistorySeeder::DAYS);
 
-        foreach (['Kas tunai' => 500_000, 'BCA' => 2_000_000] as $name => $amount) {
+        foreach (['Kas tunai' => 1_500_000, 'BCA' => 6_000_000] as $name => $amount) {
             $transactions->record($business, [
                 'type' => 'saldo_awal', 'kind' => 'saldo_kas', 'amount' => $amount, 'occurred_at' => $openedAt->toDateTimeString(),
                 'money_account_id' => $business->moneyAccounts()->where('name', $name)->value('id'),

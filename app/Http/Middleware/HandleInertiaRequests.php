@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\OrderStatus;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -45,6 +46,11 @@ class HandleInertiaRequests extends Middleware
             // Shown on the Pesanan menu; read on every page, so one indexed count.
             'pendingOrders' => fn () => $request->user()?->business?->orders()->where('orders.status', OrderStatus::Menunggu)->count() ?? 0,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            // Dates on screen use the server's zone (APP_TIMEZONE), not the device's.
+            'timeZone' => [
+                'name' => config('app.timezone'),
+                'label' => CarbonImmutable::now(config('app.timezone'))->format('T'),
+            ],
         ];
     }
 }

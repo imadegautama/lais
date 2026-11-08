@@ -44,6 +44,7 @@ import {
 
 export default function TransactionCreate({
     initialType,
+    initialKind,
     now,
     items,
     contacts,
@@ -55,7 +56,7 @@ export default function TransactionCreate({
     const form = useForm<RecordFormData>(
         initial ?? {
             type: initialType,
-            kind: DEFAULT_KIND[initialType],
+            kind: initialKind ?? DEFAULT_KIND[initialType],
             account_id: '',
             useful_life_years: '4',
             method: PaymentMethod.Tunai,

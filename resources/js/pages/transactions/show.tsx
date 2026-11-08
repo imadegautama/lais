@@ -26,7 +26,7 @@ import { CancelDialog } from '@/features/transactions/cancel-dialog';
 import { JournalCard } from '@/features/transactions/journal-card';
 import { ProofCard } from '@/features/transactions/proof-card';
 import { contactTypeFor } from '@/features/transactions/record';
-import { formatDate, formatQty, formatRupiah } from '@/lib/format';
+import { formatDate, formatQty, formatRupiah, zoneLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { show as showOrder } from '@/routes/orders';
 import { edit, index, show } from '@/routes/transactions';
@@ -64,7 +64,7 @@ export default function TransactionShow({
                             <CategoryBadge type={transaction.type} />
                         )
                     }
-                    description={`${formatDate(transaction.occurredAt, 'long')}, ${formatDate(transaction.occurredAt, 'time')} WIB`}
+                    description={`${formatDate(transaction.occurredAt, 'long')}, ${formatDate(transaction.occurredAt, 'time')} ${zoneLabel()}`}
                     actions={
                         !transaction.voided &&
                         !transaction.orderCode && (
@@ -249,7 +249,7 @@ export default function TransactionShow({
                         <SectionCard
                             title="Ringkasan"
                             tone="focus"
-                            className="lg:sticky lg:top-18"
+                            className="lg:last:sticky lg:last:top-18"
                         >
                             <div className="flex flex-col divide-y">
                                 <MetricInline

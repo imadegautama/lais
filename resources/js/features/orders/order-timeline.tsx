@@ -1,5 +1,5 @@
 import { Ban, Check } from 'lucide-react';
-import { formatDate, formatRupiah } from '@/lib/format';
+import { formatDate, formatRupiah, zoneLabel } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { PublicOrder } from '@/types/domain';
 import { orderSteps, stepIndex } from './vocabulary';
@@ -92,7 +92,7 @@ export function OrderTimeline({ order }: { order: PublicOrder }) {
                             </p>
                             <p className="text-xs text-muted-foreground">
                                 {at
-                                    ? `${formatDate(at, 'datetime')} WIB`
+                                    ? `${formatDate(at, 'datetime')} ${zoneLabel()}`
                                     : skipped
                                       ? 'Dilewati'
                                       : active

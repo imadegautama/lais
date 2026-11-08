@@ -47,7 +47,7 @@ export function ImpactPanel({
             title="Dampak catatan ini"
             description="Dihitung langsung dari isian di kiri."
             tone="focus"
-            className="lg:sticky lg:top-18"
+            className="lg:last:sticky lg:last:top-18"
         >
             <div className="flex flex-col gap-4" aria-live="polite">
                 <div className="flex flex-col divide-y">

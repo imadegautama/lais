@@ -159,7 +159,7 @@ const swatches: Array<{
     {
         token: 'wash',
         hex: '#FAE3BD',
-        use: 'Atas gradien halaman (bg-page-wash), pilihan pemilik',
+        use: 'Atas gradien halaman (bg-page-wash) dan panel landing (bg-landing-glow), pilihan pemilik',
         ratio: 'Teks muted 4,65:1. Tanpa teks oranye',
     },
     {

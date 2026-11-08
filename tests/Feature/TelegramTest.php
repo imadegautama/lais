@@ -251,6 +251,40 @@ class TelegramTest extends TestCase
         $this->artisan('lais:telegram')->assertFailed();
     }
 
+    public function test_a_receipt_keeps_its_photo_while_its_goods_are_listed_from_the_chat(): void
+    {
+        Storage::fake('local');
+        $this->link();
+        $this->catalog();
+        $this->model(
+            ['tulis_nota', ['bukan_nota' => false, 'cara_bayar' => 'tunai', 'baris' => [['nama' => 'Telur', 'jumlah' => 30, 'total' => 60000], ['nama' => 'Frestea', 'jumlah' => 2, 'total' => 12000]]]],
+            ['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'Telur', 'qty' => 30, 'total' => 60000], ['item' => 'Frestea', 'qty' => 2, 'total' => 12000]]]],
+            ['tambah_ke_daftar', ['barang' => [['nama' => 'Frestea', 'jenis' => 'bahan', 'satuan' => 'botol']]]],
+        );
+
+        app(Telegram::class)->receive([
+            'update_id' => 701,
+            'message' => ['chat' => ['id' => self::CHAT, 'type' => 'private'], 'photo' => [['file_id' => 'BESAR', 'width' => 1280, 'height' => 1280]]],
+        ]);
+        $this->assertSent('Daftarkan barang yang belum ada');
+
+        // A draft that still misses goods is not saved by "1".
+        $this->receive('1');
+        $this->assertSent('Belum bisa disimpan');
+        $this->assertSame(0, Transaction::query()->where('type', 'pembelian')->count());
+
+        $this->receive('daftarkan yang kurang');
+        $this->assertSent('Tambah ke daftar produk');
+
+        $this->receive('1');
+        $this->assertSent('1 barang masuk daftar produk');
+
+        $this->receive('1');
+        $record = Transaction::query()->where('type', 'pembelian')->sole();
+        $this->assertSame(72000, $record->total);
+        Storage::disk('local')->assertExists($record->proof_path);
+    }
+
     private function catalog(): void
     {
         app(Catalog::class)->createMany($this->owner->currentBusiness(), [

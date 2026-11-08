@@ -65,7 +65,8 @@ return [
     |
     */
 
-    'timezone' => 'Asia/Jakarta',
+    // WIB by default; a shop in Bali sets APP_TIMEZONE=Asia/Makassar (WITA).
+    'timezone' => env('APP_TIMEZONE', 'Asia/Jakarta'),
 
     /*
     |--------------------------------------------------------------------------

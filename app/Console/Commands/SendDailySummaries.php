@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 
 /**
  * Sends the evening summary (PRD M8) to every owner who linked the bot
- * and left it on. Scheduled at 21.00 WIB (routes/console.php); --usaha
+ * and left it on. Scheduled at 21.00 app time (routes/console.php); --usaha
  * sends one now, for a demo, whatever the switch says.
  */
 #[Signature('lais:ringkasan {--usaha= : Kirim hanya ke usaha ini, sekarang}')]

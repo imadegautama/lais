@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'vite-plus/test';
-import { formatNameList, formatRupiahCompact, parseMoney } from './format';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
+import {
+    appTimeZone,
+    formatDate,
+    formatNameList,
+    formatRupiahCompact,
+    parseMoney,
+    setTimeZone,
+    zoneLabel,
+} from './format';
 
 describe('parseMoney', () => {
     it.each([
@@ -42,5 +50,25 @@ describe('formatNameList', () => {
         expect(formatNameList(['Beras', 'Telur'], 5)).toBe(
             'Beras, Telur, dan 3 lainnya',
         );
+    });
+});
+
+describe('time zone', () => {
+    afterEach(() => setTimeZone({ name: 'Asia/Jakarta', label: 'WIB' }));
+
+    // 13.00 UTC is 20.00 WIB and 21.00 WITA, whatever the test machine's clock says.
+    const moment = '2026-11-08T13:00:00Z';
+
+    it('formats in WIB until the server says otherwise', () => {
+        expect(formatDate(moment, 'time')).toBe('20.00');
+        expect(zoneLabel()).toBe('WIB');
+    });
+
+    it('follows the zone the server sends', () => {
+        setTimeZone({ name: 'Asia/Makassar', label: 'WITA' });
+
+        expect(formatDate(moment, 'time')).toBe('21.00');
+        expect(appTimeZone()).toBe('Asia/Makassar');
+        expect(zoneLabel()).toBe('WITA');
     });
 });

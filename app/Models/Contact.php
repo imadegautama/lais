@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ActivityCategory;
 use App\Enums\ActivityEvent;
 use App\Enums\ContactType;
+use Carbon\CarbonImmutable;
 use Database\Factories\ContactFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +23,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property ContactType $type
  * @property string $name
  * @property string|null $phone
+ * @property CarbonImmutable|null $erased_at the person's data was removed; the row only holds the books together
  */
 #[Fillable(['type', 'name', 'phone'])]
 class Contact extends Model
@@ -33,7 +35,8 @@ class Contact extends Model
     {
         return LogOptions::defaults()
             ->useLogName(ActivityCategory::Kontak)
-            ->logOnly(['type', 'name', 'phone'])
+            // Not the phone: the log is append-only, so a number written here could never be removed.
+            ->logOnly(['type', 'name'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->setDescriptionForEvent(fn (string $event) => ActivityEvent::from($event)->verb()." kontak {$this->name}");
@@ -48,6 +51,7 @@ class Contact extends Model
     {
         return [
             'type' => ContactType::class,
+            'erased_at' => 'immutable_datetime',
         ];
     }
 

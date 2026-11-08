@@ -53,6 +53,19 @@ class ProofTest extends TestCase
             ->assertSessionHasErrors('proof');
     }
 
+    public function test_proofs_follow_the_private_disk_chosen_for_production(): void
+    {
+        config(['filesystems.proof_disk' => 'r2-private']);
+        Storage::fake('r2-private');
+
+        $this->post(route('transactions.store'), $this->expense(['proof' => UploadedFile::fake()->image('tf.png')]))->assertSessionHasNoErrors();
+        $transaction = Transaction::query()->latest('id')->firstOrFail();
+
+        Storage::disk('r2-private')->assertExists($transaction->proof_path);
+        Storage::disk('local')->assertMissing($transaction->proof_path);
+        $this->get(route('transactions.proof', $transaction))->assertOk();
+    }
+
     public function test_ubah_carries_the_proof_over_unless_it_is_replaced_or_removed(): void
     {
         $this->post(route('transactions.store'), $this->expense(['proof' => UploadedFile::fake()->image('tf.png')]));

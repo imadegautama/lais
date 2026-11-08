@@ -8,6 +8,7 @@ use App\Enums\TransactionType;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\Transaction;
+use App\Services\Ai\FormAssistant;
 use App\Services\Catalog;
 use App\Services\ReportAnswers;
 use App\Services\TransactionService;
@@ -16,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -427,6 +429,265 @@ class AssistantTest extends TestCase
             ->assertJsonPath('values.method', 'tunai')
             ->assertJsonPath('values.lines.0.item_id', '')
             ->assertJsonPath('missing.0', '"Kopi Susu Tetangga" tidak ada di daftar produk.');
+    }
+
+    public function test_goods_that_are_not_listed_stop_the_draft_from_being_saved_by_saying_iya(): void
+    {
+        $this->model(['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'metode_bayar' => 'tunai', 'baris' => [
+            ['item' => 'Beras', 'qty' => 5, 'total' => 70000],
+            ['item' => 'Frestea Madu', 'qty' => 2, 'total' => 12000],
+        ]]]);
+        $draft = $this->ask('Dari foto nota: Beras dan Frestea', null)->assertOk()->assertJsonPath('confirm', false)->json('values');
+
+        $this->ask('iya', null, draft: ['form' => 'transaksi', 'values' => $draft])->assertOk()
+            ->assertJsonPath('reply', 'Belum bisa disimpan. Lengkapi dulu yang kurang.')
+            ->assertJsonPath('missing.0', '"Frestea Madu" tidak ada di daftar produk.');
+
+        $this->assertSame(0, Transaction::query()->count());
+    }
+
+    public function test_goods_that_are_not_listed_stay_on_the_card_so_the_total_matches_the_receipt(): void
+    {
+        $this->model(['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'metode_bayar' => 'tunai', 'baris' => [
+            ['item' => 'Beras', 'qty' => 5, 'total' => 70000],
+            ['item' => 'Frestea Madu', 'qty' => 2, 'total' => 12000],
+        ]]]);
+
+        $response = $this->ask('Dari foto nota: Beras dan Frestea', null)->assertOk();
+
+        $this->assertSame(['name' => 'Frestea Madu', 'qty' => 2, 'unit' => null, 'price' => 6000, 'amount' => 12000], $response->json('card.lines.1'));
+        $response->assertJsonPath('card.total.amount', 82000)
+            ->assertJsonPath('options', ['Daftarkan barang yang belum ada', 'Catat yang ada saja'])
+            ->assertJsonPath('values.unknown.0.name', 'Frestea Madu');
+    }
+
+    public function test_the_next_message_is_told_what_the_draft_holds_and_what_is_not_listed(): void
+    {
+        $this->model(
+            ['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'baris' => [
+                ['item' => 'Beras', 'qty' => 5, 'total' => 70000],
+                ['item' => 'Frestea Madu', 'qty' => 2, 'total' => 12000],
+            ]]],
+            ['tanya_balik', ['pertanyaan' => 'Yang mana?']],
+        );
+        $draft = $this->ask('Dari foto nota: Beras dan Frestea', null)->json('values');
+
+        $this->ask('buatkan yang kurang', null, draft: ['form' => 'transaksi', 'values' => $draft])->assertOk();
+
+        $system = Http::recorded()[1][0]['messages'][0]['content'];
+        $this->assertStringContainsString('Barang di draf: Beras', $system);
+        $this->assertStringContainsString('Belum ada di daftar: Frestea Madu', $system);
+    }
+
+    public function test_with_a_draft_open_older_requests_do_not_reach_the_model(): void
+    {
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'non_tunai']]);
+        $draft = ['form' => 'transaksi', 'values' => ['type' => 'penjualan']];
+        $history = [
+            ['role' => 'user', 'text' => 'tambah menu mie goreng 14rb'],
+            ['role' => 'assistant', 'text' => 'Masih ada yang kurang.'],
+            ['role' => 'user', 'text' => 'jual 1 nasgor'],
+            ['role' => 'assistant', 'text' => 'Simpan catatan ini?'],
+        ];
+
+        $this->actingAs($this->business->user)->postJson(route('assistant.store'), ['message' => 'bayarnya transfer', 'history' => $history, 'draft' => $draft])->assertOk();
+
+        $sent = Http::recorded()[0][0]['messages'];
+        $this->assertSame(['jual 1 nasgor', 'Simpan catatan ini?', 'bayarnya transfer'], array_column(array_slice($sent, 1), 'content'));
+    }
+
+    public function test_only_the_owner_can_drop_goods_that_are_not_listed(): void
+    {
+        $this->model(
+            ['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'metode_bayar' => 'tunai', 'baris' => [
+                ['item' => 'Beras', 'qty' => 5, 'total' => 70000],
+                ['item' => 'Frestea Madu', 'qty' => 2, 'total' => 12000],
+            ]]],
+            // A correction that leaves it out must not lose it.
+            ['isi_transaksi', ['jenis' => 'pembelian', 'baris' => [['item' => 'Beras', 'qty' => 6, 'total' => 84000]]]],
+        );
+        $values = $this->ask('Dari foto nota', null)->json('values');
+
+        $values = $this->ask('berasnya 6 kg', null, draft: ['form' => 'transaksi', 'values' => $values])->assertOk()
+            ->assertJsonPath('values.unknown.0.name', 'Frestea Madu')
+            ->assertJsonPath('confirm', false)
+            ->json('values');
+
+        foreach (['Catat yang ada saja', 'yang belum ada tidak usah, catat yang ada aja', 'yg kurang gak usah'] as $words) {
+            $this->assertTrue(FormAssistant::skipsMissing($words), $words);
+        }
+        foreach (['Yang kurang kan kayak cimory hazelnut frestea dll', 'daftarkan yang kurang', 'beras ada 5 kg'] as $words) {
+            $this->assertFalse(FormAssistant::skipsMissing($words), $words);
+        }
+
+        Http::fake();
+        $this->ask('Catat yang ada saja', null, draft: ['form' => 'transaksi', 'values' => $values])->assertOk()
+            ->assertJsonPath('values.unknown', [])
+            ->assertJsonPath('card.total.amount', 84000)
+            ->assertJsonPath('confirm', true);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_draft_of_only_unlisted_goods_does_not_ask_to_pick_lines(): void
+    {
+        $this->model(['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'baris' => [['item' => 'Kopi Uji', 'qty' => 3, 'total' => 9000]]]]);
+
+        $this->ask('beli kopi uji', null)->assertOk()
+            ->assertJsonPath('missing', ['"Kopi Uji" tidak ada di daftar produk.'])
+            ->assertJsonPath('card.total.amount', 9000);
+    }
+
+    public function test_goods_from_a_draft_are_listed_on_one_card_and_the_record_comes_back_whole(): void
+    {
+        $this->model(
+            ['isi_transaksi', ['jenis' => 'pembelian', 'jenis_biaya' => 'barang', 'metode_bayar' => 'tunai', 'baris' => [
+                ['item' => 'Beras', 'qty' => 5, 'total' => 70000],
+                ['item' => 'Frestea Madu', 'qty' => 2, 'total' => 12000],
+                ['item' => 'Gula Pasir', 'qty' => 1, 'total' => 15000],
+            ]]],
+            ['tambah_ke_daftar', ['barang' => [['nama' => 'Frestea Madu'], ['nama' => 'Gula Pasir']]]],
+            ['tambah_ke_daftar', ['barang' => [['nama' => 'Frestea Madu', 'jenis' => 'produk', 'satuan' => 'botol'], ['nama' => 'Gula Pasir', 'jenis' => 'bahan', 'satuan' => 'kg']]]],
+            ['tambah_ke_daftar', ['barang' => [['nama' => 'frestea', 'harga_jual' => 8000]]]],
+        );
+        $record = $this->ask('Dari foto nota', null)->json('values');
+
+        $asked = $this->ask('Daftarkan barang yang belum ada', null, draft: ['form' => 'transaksi', 'values' => $record])->assertOk()
+            ->assertJsonPath('form', 'barang')
+            ->assertJsonPath('confirm', false)
+            ->assertJsonPath('options', ['Semua dijual lagi', 'Semua bahan baku']);
+        $sorted = $this->ask('frestea dijual, gula bahan', null, draft: ['form' => 'barang', 'values' => $asked->json('values')])->assertOk()
+            ->assertJsonPath('reply', 'Berapa harga jualnya? Tulis saja, misalnya "frestea madu 8rb".')
+            ->assertJsonPath('confirm', false);
+        $priced = $this->ask('frestea 8rb', null, draft: ['form' => 'barang', 'values' => $sorted->json('values')])->assertOk()
+            ->assertJsonPath('confirm', true)
+            ->assertJsonPath('card.lines.0.amount', 8000);
+        $this->assertSame(0, Item::query()->whereIn('name', ['Frestea Madu', 'Gula Pasir'])->count());
+
+        $back = $this->ask('Simpan', null, draft: ['form' => 'barang', 'values' => $priced->json('values')])->assertOk()
+            ->assertJsonPath('form', 'transaksi')
+            ->assertJsonPath('reply', '2 barang masuk daftar produk. Simpan catatan ini?')
+            ->assertJsonPath('card.total.amount', 97000)
+            ->assertJsonPath('confirm', true)
+            ->assertJsonPath('values.unknown', []);
+        $this->assertSame(['bahan', 'botol', 8000], [$this->item('Gula Pasir')->kind->value, $this->item('Frestea Madu')->unit, $this->item('Frestea Madu')->price]);
+
+        $this->ask('iya', null, draft: ['form' => 'transaksi', 'values' => $back->json('values')])->assertOk()
+            ->assertJsonPath('reply', 'Belanja tersimpan.');
+
+        $this->assertSame(97000, Transaction::query()->sole()->total);
+        $this->assertEquals(2, $this->item('Frestea Madu')->fresh()->stock);
+    }
+
+    public function test_a_goods_draft_is_saved_whole_or_not_at_all(): void
+    {
+        $values = ['record' => ['type' => 'pembelian', 'kind' => 'barang'], 'items' => [
+            ['name' => 'Frestea Madu', 'kind' => 'bahan', 'unit' => 'botol', 'price' => null],
+            ['name' => 'Beras', 'kind' => 'bahan', 'unit' => 'kg', 'price' => null],
+        ]];
+        Http::fake();
+
+        $this->ask('simpan', null, draft: ['form' => 'barang', 'values' => $values])->assertOk()
+            ->assertJsonPath('reply', 'Belum bisa disimpan. Lengkapi dulu yang kurang.')
+            ->assertJsonPath('missing.0', '"Beras": Nama ini sudah dipakai produk lain.');
+
+        $this->assertSame(0, Item::query()->where('name', 'Frestea Madu')->count());
+        Http::assertNothingSent();
+    }
+
+    public function test_goods_for_sale_need_a_price_and_only_goods_of_the_draft_can_be_named(): void
+    {
+        $values = ['record' => ['type' => 'pembelian', 'kind' => 'barang'], 'items' => [
+            ['name' => 'Frestea Madu', 'kind' => 'produk', 'unit' => 'botol', 'price' => null],
+        ]];
+        $this->model(['tambah_ke_daftar', ['barang' => [['nama' => 'Mie Goreng', 'jenis' => 'produk', 'harga_jual' => 14000]]]]);
+
+        $this->ask('tambah mie goreng', null, draft: ['form' => 'barang', 'values' => $values])->assertOk()
+            ->assertJsonCount(1, 'values.items')
+            ->assertJsonPath('values.items.0.price', null)
+            ->assertJsonPath('confirm', false)
+            ->assertJsonPath('missing.0', '"Frestea Madu": Harga jual wajib diisi.');
+    }
+
+    public function test_without_a_draft_there_are_no_goods_to_list(): void
+    {
+        $this->model(['tambah_ke_daftar', ['barang' => [['nama' => 'Mie Goreng']]]]);
+
+        $this->ask('daftarkan yang kurang', null)->assertOk()
+            ->assertJsonPath('form', null)
+            ->assertJsonPath('reply', 'Tidak ada barang yang menunggu didaftarkan. Kirim dulu nota atau catatan belanjanya.');
+    }
+
+    public function test_another_product_does_not_inherit_the_price_of_the_last_draft(): void
+    {
+        $this->model(
+            ['isi_produk', ['jenis' => 'produk', 'nama' => 'Es Jeruk', 'harga' => 14000]],
+            ['isi_produk', ['jenis' => 'produk', 'nama' => 'Yogurt Hazelnut', 'produk_lain' => true]],
+            ['isi_produk', ['nama' => 'Es Jeruk Peras']],
+        );
+        $first = $this->ask('tambah es jeruk 14rb', null)->json('values');
+
+        $this->ask('yogurt hazelnut sebagai produk baru', null, draft: ['form' => 'produk', 'values' => $first])->assertOk()
+            ->assertJsonPath('values.name', 'Yogurt Hazelnut')
+            ->assertJsonPath('values.price', null);
+
+        // Renaming the same product keeps what it had.
+        $this->ask('ganti namanya es jeruk peras', null, draft: ['form' => 'produk', 'values' => $first])->assertOk()
+            ->assertJsonPath('values.price', 14000);
+    }
+
+    public function test_a_question_about_the_business_is_answered_from_the_fact_sheet(): void
+    {
+        $this->model(['tanya_data', []], ['jawab', ['jawaban' => 'Stok beras 10 kg.']]);
+
+        $this->ask('stok beras tinggal berapa?', null)->assertOk()
+            ->assertJsonPath('reply', 'Stok beras 10 kg.')
+            ->assertJsonPath('link.href', '/laporan');
+
+        $recorded = Http::recorded();
+        $this->assertStringNotContainsString('LEMBAR FAKTA', $recorded[0][0]['messages'][0]['content']);
+        $this->assertStringContainsString('LEMBAR FAKTA', $recorded[1][0]['messages'][0]['content']);
+        $this->assertStringContainsString('Beras: 10 kg', $recorded[1][0]['messages'][0]['content']);
+        $this->assertSame('stok beras tinggal berapa?', $recorded[1][0]['messages'][1]['content']);
+    }
+
+    public function test_an_answer_with_a_figure_that_is_not_on_the_sheet_is_not_shown(): void
+    {
+        $this->model(['tanya_data', []], ['jawab', ['jawaban' => 'Untung Anda Rp9.876.543.']]);
+
+        $response = $this->ask('untung kira-kira berapa?', null)->assertOk()
+            ->assertJsonPath('reply', 'Angkanya belum bisa saya pastikan, jadi tidak saya sebutkan. Cek langsung di Laporan.');
+
+        $this->assertStringNotContainsString('9.876.543', (string) $response->getContent());
+    }
+
+    public function test_a_question_the_sheet_cannot_answer_says_so(): void
+    {
+        $this->model(['tanya_data', []], ['jawab', ['jawaban' => '', 'tidak_ada' => true]]);
+
+        $this->ask('harga beras di pasar berapa?', null)->assertOk()
+            ->assertJsonPath('reply', 'Datanya belum ada di pembukuan, jadi belum bisa saya jawab. Coba lihat di Laporan.');
+    }
+
+    public function test_recording_a_sale_never_carries_the_fact_sheet(): void
+    {
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'tunai', 'baris' => [['item' => 'Nasi Goreng', 'qty' => 1]]]]);
+
+        $this->ask('jual 1 nasgor tunai', 'transaksi')->assertOk();
+
+        Http::assertSentCount(1);
+        $this->assertStringNotContainsString('LEMBAR FAKTA', Http::recorded()[0][0]['messages'][0]['content']);
+    }
+
+    public function test_a_business_past_its_daily_limit_stops_reaching_the_model(): void
+    {
+        foreach (range(1, 200) as $call) {
+            RateLimiter::hit("asisten-harian:{$this->business->id}", 86400);
+        }
+        Http::fake();
+
+        $this->ask('jual 1 nasgor', 'transaksi')->assertServiceUnavailable();
+
+        Http::assertNothingSent();
     }
 
     public function test_when_the_model_fails_the_owner_is_told_to_fill_the_form_by_hand(): void

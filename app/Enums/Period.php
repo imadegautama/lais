@@ -7,7 +7,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
- * Period filter on lists, counted in the app time zone (WIB).
+ * Period filter on lists, counted in the app time zone (APP_TIMEZONE).
  */
 enum Period: string
 {

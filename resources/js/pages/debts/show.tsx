@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { RemindDialog } from '@/features/debts/remind-dialog';
 import { ageLabel, ageTone, tabCopy } from '@/features/debts/vocabulary';
 import { formatDate, formatRupiah } from '@/lib/format';
+import { show as showContact } from '@/routes/contacts';
 import { index, pay } from '@/routes/debts';
 import { show as showOrder } from '@/routes/orders';
 import { show as showTransaction } from '@/routes/transactions';
@@ -67,6 +68,11 @@ export default function DebtShow({
                     }
                     actions={
                         <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" asChild>
+                                <Link href={showContact(contact.id)}>
+                                    Lihat kontak
+                                </Link>
+                            </Button>
                             <PaymentDialog
                                 title={`${tabCopy[tab].pay}: ${contact.name}`}
                                 description={`Sisa ${formatRupiah(balance)}. Tagihan paling lama dilunasi lebih dulu.`}

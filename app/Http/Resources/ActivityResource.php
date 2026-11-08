@@ -153,7 +153,7 @@ class ActivityResource extends JsonResource
     }
 
     /**
-     * "17 Okt 2026, 20.26" in WIB.
+     * "17 Okt 2026, 20.26" in the app time zone.
      */
     private static function dateTime(mixed $value): string
     {

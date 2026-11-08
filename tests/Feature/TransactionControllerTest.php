@@ -373,6 +373,18 @@ class TransactionControllerTest extends TestCase
     /**
      * @param  array<string, mixed>  $data
      */
+    public function test_the_form_can_open_on_a_choice_inside_a_tab(): void
+    {
+        $this->actingAs(Business::factory()->create()->user);
+
+        $this->get(route('transactions.create', ['jenis' => 'pembelian', 'kategori' => 'peralatan']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('initialType', 'pembelian')->where('initialKind', 'peralatan'));
+
+        // A choice of another tab is ignored.
+        $this->get(route('transactions.create', ['jenis' => 'biaya', 'kategori' => 'peralatan']))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('initialType', 'biaya')->where('initialKind', null));
+    }
+
     private function record(Business $business, array $data): Transaction
     {
         return app(TransactionService::class)->record($business, $data);

@@ -3,25 +3,22 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
      */
     public function run(): void
     {
-        // Temporary login for the frontend phase. Phone + OTP login replaces
-        // email in backend milestone M0 (PRD US-01).
-        User::factory()->create([
+        // Not a factory: Faker is not installed on the server. The account is
+        // for judges, so it needs no email to confirm.
+        User::query()->firstOrCreate(['email' => 'demo@lais.test'], [
             'name' => 'Bu Rina',
-            'email' => 'demo@lais.test',
-        ]);
+            'password' => config('services.demo.password'),
+        ])->markEmailAsVerified();
 
-        $this->call(DemoBusinessSeeder::class);
+        $this->call([DemoBusinessSeeder::class, DemoHistorySeeder::class]);
     }
 }

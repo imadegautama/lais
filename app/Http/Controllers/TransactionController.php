@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\PaymentMethod;
 use App\Enums\Period;
+use App\Enums\TransactionKind;
 use App\Enums\TransactionSource;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
@@ -35,7 +36,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -80,14 +80,18 @@ class TransactionController extends Controller
     }
 
     /**
-     * Record form (UI-PAGES C3). `?jenis=` opens the matching tab.
+     * Record form (UI-PAGES C3). `?jenis=` opens the matching tab, and
+     * `?kategori=` a choice inside it, such as peralatan under pembelian.
      */
     public function create(Request $request, Ledger $ledger): Response
     {
         $business = $request->user()->currentBusiness();
+        $type = TransactionType::tryFrom((string) $request->query('jenis')) ?? TransactionType::Penjualan;
+        $kind = TransactionKind::tryFrom((string) $request->query('kategori'));
 
         return Inertia::render('transactions/create', [
-            'initialType' => TransactionType::tryFrom((string) $request->query('jenis')) ?? TransactionType::Penjualan,
+            'initialType' => $type,
+            'initialKind' => $kind?->type() === $type ? $kind : null,
             ...$this->formOptions($business, $ledger),
         ]);
     }
@@ -271,8 +275,8 @@ class TransactionController extends Controller
     public function proof(Transaction $transaction): StreamedResponse
     {
         Gate::authorize('manage', $transaction);
-        abort_if($transaction->proof_path === null || ! Storage::disk('local')->exists($transaction->proof_path), 404);
+        abort_if($transaction->proof_path === null || ! Proof::disk()->exists($transaction->proof_path), 404);
 
-        return Storage::disk('local')->response($transaction->proof_path, headers: ['Cache-Control' => 'private, max-age=86400']);
+        return Proof::disk()->response($transaction->proof_path, headers: ['Cache-Control' => 'private, max-age=86400']);
     }
 }

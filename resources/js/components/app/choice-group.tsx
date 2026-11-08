@@ -9,6 +9,7 @@ export function ChoiceGroup<V extends string>({
     options,
     onChange,
     wrap = false,
+    className,
 }: {
     label?: string;
     labelledBy?: string;
@@ -17,6 +18,7 @@ export function ChoiceGroup<V extends string>({
     onChange: (value: V) => void;
     /** Many options wrap as chips; a few fill the row as equal buttons. */
     wrap?: boolean;
+    className?: string;
 }) {
     return (
         <ToggleGroup
@@ -31,6 +33,7 @@ export function ChoiceGroup<V extends string>({
                 wrap
                     ? 'flex-wrap justify-start'
                     : 'grid grid-cols-2 sm:auto-cols-fr sm:grid-flow-col',
+                className,
             )}
         >
             {options.map((option) => (

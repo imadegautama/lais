@@ -19,7 +19,7 @@ export function OpeningStockPanel({
             title="Nilai stok awal"
             tone="focus"
             description={`Jumlah × harga beli per ${unit || 'satuan'}.`}
-            className="lg:sticky lg:top-18"
+            className="lg:last:sticky lg:last:top-18"
         >
             <div aria-live="polite" className="flex flex-col gap-2">
                 {value === null ? (

@@ -126,7 +126,7 @@ class OnboardingTest extends TestCase
         $balances = app(Ledger::class)->moneyBalances($business);
         $this->assertNotNull($business->onboarded_at);
         $this->assertSame(count(StarterCatalog::for(BusinessCategory::Kuliner)), $business->items()->count());
-        $this->assertSame([500_000, 2_000_000, 0], $business->moneyAccounts()->orderBy('id')->get()->map(fn ($account) => $balances[$account->id] ?? 0)->all());
+        $this->assertSame([1_500_000, 6_000_000, 0], $business->moneyAccounts()->orderBy('id')->get()->map(fn ($account) => $balances[$account->id] ?? 0)->all());
     }
 
     /**

@@ -58,7 +58,7 @@ Starter kit tinggal disesuaikan. Login diganti ke nomor WA (Fortify `username` �
 | C21   | Log aktivitas                 | `/log-aktivitas`                      | Pemilik              | P1                    | §4.5              |
 | C22   | Kas & rekening                | `/rekening`                           | Pemilik              | P1                    | US-07             |
 | **D** | **Sistem**                    |                                       |                      |                       |                   |
-| D1    | Halaman error & kosong        | 404, 403, 500, toko tutup             | Semua                | P2                    |                   |
+| D1    | Halaman error & kosong        | 403, 404, 419, 500, 503, toko tutup   | Semua                | P2                    |                   |
 
 Totalnya sekitar 30 layar. Sebanyak 19 di antaranya P0.
 
@@ -101,15 +101,21 @@ Satu kolom, maksimal 640 px, dioptimalkan untuk HP. Header berisi logo dan nama 
 
 ### A1. Landing page `/`
 
-Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik.
+Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya ada di `resources/js/features/landing`.
 
-- **Hero:** judul nilai utama ("Catat usaha cukup lewat chat WA"), subjudul, tombol **Daftar gratis** dan **Lihat toko contoh**.
-- **Mockup:** HP berisi percakapan WA (jual 3 nasgor → konfirmasi → tersimpan) di samping cuplikan dashboard.
-- **Masalah:** 3 kartu, yaitu uang tercampur, stok tidak terkontrol, dan tidak sempat mencatat. Masing-masing dengan satu angka data.
-- **Cara kerja:** 3 langkah sesuai tiga saluran (WA, dashboard, halaman toko).
-- **Fitur utama:** 6 kartu ikon.
-- **Untuk siapa:** kuliner, kelontong, fashion, kerajinan (dua mode produk).
+- **Hero:** judul "Cukup chat, pembukuan usahamu tersusun sendiri.", tombol **Daftar gratis** dan **Lihat toko contoh**, lalu demo chat: empat contoh pesan yang bisa dipilih, HP berisi percakapan, dan kartu Stok, Kas, Laba, Jurnal yang ikut berubah. Demo tidak memanggil AI.
+- **Contoh pesan:** diagram "Cukup tulis seperti biasa, Lais yang memilah." Enam chat dari eval `AssistantEvalTest` di kiri, simpul AI di tengah, enam buku di kanan. Satu chat menyala bergantian dan garisnya mengalir ke buku yang tepat, lalu catatannya muncul. Di HP disusun tegak. Kursor di atas sebuah chat menampilkan jalurnya dan menghentikan putaran; sentuhan dan fokus keyboard juga menghentikannya. Angkanya berlabel `DemoDataBadge`.
+- **Masalah:** panel oranye. Judul "Usaha jalan terus, tapi untungnya ke mana?", dua angka OCBC Business Fitness Index 2024 sebagai grid 100 titik (46% memisahkan uang usaha dan pribadi, 77% dari yang sudah mencatat masih manual), lalu empat masalah bernomor.
+- **Jawaban Lais** (`#cara-kerja`): empat jawaban dengan nomor dan urutan yang sama, masing-masing dengan potongan tampilan aplikasi. Daftar masalah menempel di kiri, menyala dan tercoret saat digulir.
+- **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan. Tombol tabnya rata tengah, dan kalimat pengantarnya mengarahkan ke tab itu.
+- **Untuk siapa:** judul "Untuk semua usaha yang jualan" (bukan "semua usaha", karena usaha jasa murni belum diuji). Kartu foto kuliner, kelontong, fashion, kerajinan berjalan pelan sebagai carousel, dengan kredit fotografer di bawah tiap kartu. Berhenti saat kursor bergerak di atasnya, saat disentuh, atau saat difokus; saat gerak dikurangi menjadi kisi diam.
+- **Kenapa bisa dipercaya:** AI tidak menyimpan tanpa konfirmasi, angka dari sistem, data tiap usaha terpisah.
+- **Toko contoh:** kartu `warung-bu-rina` dari data asli dengan tombol **Coba pesan**. Kalau toko itu tidak ada atau tidak punya produk yang bisa dipesan, bagian dan tombolnya tidak tampil.
 - **CTA penutup** + footer.
+
+> **Perubahan dari rancangan awal (7 Nov):** tata letak mengikuti referensi pemilik. Tiga kartu masalah dengan angka diganti satu angka, karena hanya angka itu yang sumbernya bisa diperiksa. Enam kartu ikon dibuang (DESIGN.md §6). Judul memakai "chat", bukan "WA", karena bot berjalan di Telegram. Tidak ada testimoni, logo mitra, atau jumlah pengguna sampai datanya nyata.
+
+> **Animasi (8 Nov):** gerakan mengikuti referensi pemilik, dengan Lenis untuk roda mouse. Aturannya di DESIGN.md §6 poin 16.
 
 ### A2. Halaman toko `/t/{slug}`
 
@@ -407,6 +413,10 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 
 ### C12. Kontak `/kontak`, `/kontak/{id}`
 
+**Status (7 Nov):** sudah jadi, dengan Tambah dan Ubah kontak. Pembayaran tetap di C11; detail kontak hanya menautkannya.
+
+**Hapus data kontak:** ditolak selama masih ada sisa tagihan atau pesanan berjalan. Kontak tanpa riwayat dihapus sungguhan. Kontak berriwayat dianonimkan menjadi "Kontak terhapus #id" dan salinan datanya di pesanan dibersihkan, sehingga pembukuan tidak berubah. Nama di keterangan jurnal lama dan log aktivitas tetap ada sebagai jejak audit, dan dialognya menyatakan ini.
+
 - **Daftar:**
     - tab Pelanggan / Supplier
     - kolom: nama, nomor WA, total transaksi, terakhir bertransaksi, sisa piutang/utang
@@ -432,6 +442,7 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 - Buku kas, Buku besar, dan Neraca saldo memakai `AppDataTable` (Buku kas dan Buku besar 20 baris per halaman). Cetak selalu memuat semua baris lewat `usePrinting`.
 - C13 berisi tiga daftar laporan (Kesehatan usaha, Uang dan produk, Pembukuan), bukan kartu seragam. Tiap baris berisi nama, satu kalimat, dan angka kunci.
 - Grafik waterfall di C17 belum dibuat. Jembatan laba ke kas memakai `BreakdownBars`.
+- Tambahan 7 Nov: `/laporan/jurnal` (Jurnal umum) menampilkan semua pencatatan per rentang tanggal, dengan link ke transaksi asalnya. Debit dan kredit diberi penjelasan istilah.
 
 - **Pemilih periode global**, yang terbawa ke semua sub-laporan.
 - **Daftar laporan per kelompok:** setiap baris berisi nama, angka kunci, dan satu kalimat penjelasan.
@@ -481,6 +492,13 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 - **Tabel margin semua produk:** HPP, harga, margin, terjual, kontribusi laba. Baris dengan margin rendah ditandai.
 
 ### C19. Asisten AI (panel "Tanya AI")
+
+**Pertanyaan usaha (7 Nov):** selain angka yang sudah ada, pemilik bisa menanyakan modal, aset, stok, produk terlaris, BEP, perbandingan, dan alasan naik turun. Jawabannya selalu disertai link Laporan. Angka yang tidak ada di lembar fakta tidak pernah ditampilkan; pemilik diarahkan ke Laporan.
+
+**Barang yang belum terdaftar (7 Nov):** baris draf yang tidak ada di daftar tetap tampil di kartu dengan jumlah dan harganya, sehingga total sesuai nota, dan draf belum bisa disimpan. Di bawah kartu ada dua pilihan:
+
+- **Daftarkan barang yang belum ada:** AI menanyakan dijual lagi atau bahan baku, lalu harga jual kalau dijual. Semua barang tampil di satu kartu "Tambah ke daftar produk" dengan satu konfirmasi, lalu draf belanja kembali utuh dan foto nota tetap ikut sebagai bukti. Kartu ini tidak punya "Ubah di form".
+- **Catat yang ada saja:** membuang baris yang belum terdaftar, tanpa memanggil AI.
 
 **Status pembuatan (slice 6): mencatat dengan konfirmasi.** Asisten berbentuk panel, tidak punya halaman sendiri.
 
