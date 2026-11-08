@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\ContactType;
 use App\Enums\ItemKind;
+use App\Enums\MarginLevel;
 use App\Enums\Period;
 use App\Enums\ReportMetric;
 use App\Enums\TransactionKind;
@@ -119,6 +120,68 @@ class ReportAnswers
         }
 
         return ['reply' => implode("\n", $lines), 'link' => $link];
+    }
+
+    /** Days of sales a product is judged on. */
+    public const VERDICT_DAYS = 30;
+
+    /**
+     * "Is it worth it?": a verdict from the product's margin and its last 30
+     * days of sales, by fixed rules (MarginLevel), never by the model. Fixed
+     * costs such as rent are not spread over products, and the reply says so.
+     *
+     * @return array{reply: string, link: array{label: string, href: string}}
+     */
+    public function productVerdict(Business $business, Item $item): array
+    {
+        $item->loadMissing('recipeLines.material');
+        $product = ['label' => 'Buka produk', 'href' => route('items.edit', $item, absolute: false)];
+
+        if (! $item->kind->isSold()) {
+            return ['reply' => "{$item->name} adalah bahan yang tidak dijual, jadi yang dinilai adalah produk yang memakainya.", 'link' => $product];
+        }
+
+        $cost = $item->unitCost();
+
+        if (! $item->price || $cost <= 0) {
+            $missing = ! $item->price ? 'harga jualnya' : ($item->kind === ItemKind::Komposisi ? 'resepnya' : 'modalnya (catat belanjanya)');
+
+            return ['reply' => "{$item->name} belum bisa dinilai karena {$missing} belum ada. Lengkapi dulu, lalu tanya lagi.", 'link' => $product];
+        }
+
+        $percent = (float) $item->marginPercent();
+        $level = MarginLevel::of($percent);
+        $sold = $this->reports->productPerformance($business, now()->subDays(self::VERDICT_DAYS));
+        $rank = array_search($item->id, array_column($sold, 'id'), true);
+        $row = $rank === false ? null : $sold[$rank];
+        $days = self::VERDICT_DAYS;
+
+        $lines = [match (true) {
+            $level === MarginLevel::Rugi => "{$item->name} belum layak: setiap {$item->unit} terjual malah rugi.",
+            $row === null => "{$item->name} belum laku: tidak terjual dalam {$days} hari terakhir."
+                .($item->kind === ItemKind::Produk && $item->stock > 0 ? ' Stoknya '.Format::qty($item->stock)." {$item->unit} senilai ".Format::rupiah($item->stock_value).' masih tertahan.' : ''),
+            $level === MarginLevel::Tipis => "{$item->name} masih untung, tapi tipis.",
+            default => "{$item->name} layak dipertahankan.",
+        }];
+
+        $lines[] = 'Harga jual '.Format::rupiah($item->price).', modal '.Format::rupiah($cost)." per {$item->unit}: "
+            .($percent < 0 ? 'rugi '.Format::rupiah($cost - $item->price) : 'untung '.Format::rupiah($item->price - $cost))
+            .' (margin '.Format::decimalInput($percent).'%, '.mb_strtolower($level->label()).').';
+
+        if ($row !== null) {
+            $total = array_sum(array_map(fn (array $line) => max(0, $line['profit']), $sold));
+            $share = $total > 0 ? ', '.Format::decimalInput(round(max(0, $row['profit']) / $total * 100, 1)).'% dari semua laba kotor' : '';
+            $lines[] = "{$days} hari terakhir terjual ".Format::qty($row['qty'])." {$item->unit}, laba kotor ".Format::rupiah($row['profit'])
+                .$share.' (peringkat '.($rank + 1).' dari '.count($sold).' produk).';
+        }
+
+        if ($level === MarginLevel::Rugi || $level === MarginLevel::Tipis) {
+            $lines[] = 'Supaya margin '.MarginLevel::HEALTHY.'%, harga jual minimal '.Format::rupiah(Item::priceForMargin($cost, MarginLevel::HEALTHY)).'.';
+        }
+
+        $lines[] = 'Penilaian ini belum menghitung biaya tetap seperti sewa, gas, dan upah.';
+
+        return ['reply' => implode("\n", $lines), 'link' => ['label' => 'Buka laporan Produk', 'href' => route('reports.products', absolute: false)]];
     }
 
     private function expenses(Business $business, Period $period, string $when): string
