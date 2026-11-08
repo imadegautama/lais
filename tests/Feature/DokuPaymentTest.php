@@ -150,7 +150,8 @@ class DokuPaymentTest extends TestCase
         $this->get(route('shop.order', $order->token));
         Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/orders/v1/status/'));
 
-        $this->travel(2)->minutes();
+        // Paid just before the page expired, and the notification never came.
+        $this->travel(2)->hours();
         $this->get(route('shop.order', $order->token))->assertInertia(fn (AssertableInertia $page) => $page
             ->where('order.status', 'diproses')
             ->where('order.paymentStatus', 'lunas')

@@ -80,6 +80,13 @@ export default function Privacy() {
                     <strong>Google:</strong> kalau kamu memilih masuk dengan
                     Google.
                 </li>
+                <li>
+                    <strong>DOKU:</strong> memproses bayar online di toko. Kalau
+                    pelanggan memilih bayar online, nama, nomor WA, dan nominal
+                    pesanannya dikirim ke DOKU untuk membuat halaman pembayaran.
+                    Data kartu atau rekening diisi langsung di halaman DOKU dan
+                    tidak pernah sampai ke kami.
+                </li>
             </ul>
 
             <h2>Cookie</h2>

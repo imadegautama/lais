@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ItemKind;
+use App\Enums\OnlinePaymentStatus;
 use App\Enums\OrderStatus;
 use App\Enums\TransactionSource;
 use App\Http\Requests\OrderRequest;
@@ -80,7 +81,8 @@ class ShopController extends Controller
         $waiting = $order->onlinePayments()->latest('id')->first();
 
         // DOKU asks for a minute before Check Status; the notification usually comes first.
-        if ($waiting?->isOpen() && $waiting->created_at->lt(now()->subMinute())) {
+        // Asked until DOKU gives a final word, so a page paid just before it expired is not missed.
+        if ($waiting?->status === OnlinePaymentStatus::Menunggu && $waiting->created_at->lt(now()->subMinute())) {
             $doku->refresh($waiting);
             $order->refresh();
         }
