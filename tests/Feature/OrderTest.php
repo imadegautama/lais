@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\MoneyAccountKind;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\StockReason;
@@ -327,6 +328,16 @@ class OrderTest extends TestCase
     {
         Storage::fake('public');
         $this->actingAs($this->business->user);
+
+        // QRIS lands in one of the shop's own non-cash rekening, never cash or another shop's.
+        $gopay = $this->business->moneyAccounts()->create(['kind' => MoneyAccountKind::NonTunai, 'name' => 'GoPay']);
+        $this->patch(route('orders.shop'), ['qris_money_account_id' => $gopay->id])->assertSessionHasNoErrors();
+        $this->get(route('orders.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('shop.qrisMoneyAccountId', $gopay->id));
+        $this->patch(route('orders.shop'), ['qris_money_account_id' => $this->business->cashBox()->id])->assertSessionHasErrors('qris_money_account_id');
+        $other = Business::factory()->create()->moneyAccounts()->where('kind', MoneyAccountKind::NonTunai)->sole();
+        $this->patch(route('orders.shop'), ['qris_money_account_id' => $other->id])->assertSessionHasErrors('qris_money_account_id');
+        $this->patch(route('orders.shop'), ['qris_money_account_id' => ''])->assertSessionHasNoErrors();
+        $this->assertNull($this->business->refresh()->qris_money_account_id);
 
         $this->patch(route('orders.shop'), ['accepting_orders' => false, 'whatsapp' => '0812-3456-7890', 'qris' => UploadedFile::fake()->image('qris.png')])
             ->assertSessionHasNoErrors();

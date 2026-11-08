@@ -4,11 +4,13 @@ namespace Tests\Feature;
 
 use App\Enums\ContactType;
 use App\Enums\GuideTopic;
+use App\Enums\MoneyAccountKind;
 use App\Enums\TransactionType;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\Transaction;
 use App\Services\Ai\FormAssistant;
+use App\Services\Ai\TransactionDraft;
 use App\Services\Catalog;
 use App\Services\ReportAnswers;
 use App\Services\TransactionService;
@@ -342,6 +344,25 @@ class AssistantTest extends TestCase
         // Bahan are not sold: their cost, with no price to suggest.
         $this->ask('modal beras berapa', null)->assertJsonPath('reply', 'Biaya rata-rata Beras Rp14.000 per kg.');
         $this->ask('hpp martabak', null)->assertJsonPath('reply', '"Martabak" tidak ada di daftar produk.');
+    }
+
+    public function test_a_rekening_left_to_pick_is_offered_and_taken_without_the_model(): void
+    {
+        $gopay = $this->business->moneyAccounts()->create(['kind' => MoneyAccountKind::NonTunai, 'name' => 'GoPay']);
+        $this->business->update(['qris_money_account_id' => $gopay->id]);
+        $this->model(['isi_transaksi', ['jenis' => 'penjualan', 'metode_bayar' => 'non_tunai', 'baris' => [['item' => 'aqua', 'qty' => 1]]]]);
+
+        $draft = $this->ask('jual 1 aqua transfer', null)->assertOk()
+            ->assertJsonPath('missing', [TransactionDraft::PICK_ACCOUNT])
+            ->assertJsonPath('options', ['Rekening', 'GoPay']);
+        // The model is told where QRIS lands, so "qris" alone needs no rekening named.
+        Http::assertSent(fn (Request $request) => str_contains(json_encode($request['messages']), 'GoPay (non_tunai, QRIS masuk ke sini)'));
+
+        $this->ask('gopay', null, [], ['form' => 'transaksi', 'values' => $draft->json('values')])
+            ->assertJsonPath('values.money_account_id', (string) $gopay->id)
+            ->assertJsonPath('confirm', true)
+            ->assertJsonPath('options', []);
+        $this->assertCount(1, Http::recorded(fn (Request $request) => str_starts_with($request->url(), 'http://9router.test')));
     }
 
     public function test_where_a_feature_lives_is_answered_with_its_page(): void

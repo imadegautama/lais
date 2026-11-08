@@ -760,7 +760,12 @@ export type OwnerOrder = PublicOrder & {
 };
 
 /** The shop on the owner's pages: its link, and whether DOKU keys are set so bayar online can be offered. */
-export type OwnerShop = ShopInfo & { url: string; onlinePaymentReady: boolean };
+export type OwnerShop = ShopInfo & {
+    url: string;
+    onlinePaymentReady: boolean;
+    /** The rekening QRIS money lands in, so "qris" needs no rekening named. */
+    qrisMoneyAccountId: number | null;
+};
 
 export type ShopShowProps = { shop: ShopInfo; items: ShopItem[] };
 

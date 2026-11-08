@@ -40,7 +40,7 @@ class OrderController extends Controller
         $status = OrderStatus::tryFrom((string) (is_array($requested) ? ($requested[0] ?? '') : $requested)) ?? OrderStatus::Menunggu;
 
         return Inertia::render('orders/index', [
-            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug), 'onlinePaymentReady' => Doku::ready()],
+            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug), 'onlinePaymentReady' => Doku::ready(), 'qrisMoneyAccountId' => $business->qris_money_account_id],
             'status' => $status,
             'counts' => collect(OrderStatus::cases())->mapWithKeys(fn (OrderStatus $option) => [$option->value => (int) ($counts[$option->value] ?? 0)]),
             'orders' => TableQuery::paginate(
@@ -84,7 +84,7 @@ class OrderController extends Controller
         $order = $this->find($business, $code);
 
         return Inertia::render('orders/show', [
-            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug), 'onlinePaymentReady' => Doku::ready()],
+            'shop' => [...ShopController::shop($business), 'url' => route('shop.show', $business->slug), 'onlinePaymentReady' => Doku::ready(), 'qrisMoneyAccountId' => $business->qris_money_account_id],
             'order' => OrderResource::make($order->load(['lines']))->resolve(),
             'notaUrl' => route('shop.order', $order->token),
             // The same words the bot links to (OrderMessages), so web and WhatsApp never differ.
@@ -147,7 +147,7 @@ class OrderController extends Controller
     public function updateShop(ShopSettingsRequest $request): RedirectResponse
     {
         $business = $request->user()->currentBusiness();
-        $data = $request->safe()->only(['accepting_orders', 'whatsapp', 'online_payment']);
+        $data = $request->safe()->only(['accepting_orders', 'whatsapp', 'online_payment', 'qris_money_account_id']);
 
         if ($request->hasFile('qris') || $request->boolean('remove_qris')) {
             if ($business->qris_path !== null) {

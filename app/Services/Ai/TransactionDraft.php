@@ -23,6 +23,9 @@ use Throwable;
  */
 final class TransactionDraft
 {
+    /** Listed while a non-cash draft has more than one rekening to go to; answered by naming one. */
+    public const PICK_ACCOUNT = 'Pilih rekeningnya.';
+
     /** Types the assistant fills; transfers and opening balances stay by hand. */
     public const TYPES = [
         TransactionType::Penjualan,
@@ -75,7 +78,7 @@ final class TransactionDraft
 
         // TransactionService picks the rekening only when there is just one.
         if ($values['method'] === PaymentMethod::NonTunai->value && $values['money_account_id'] === '' && $moneyAccounts->where('kind', MoneyAccountKind::NonTunai)->count() !== 1) {
-            $notes[] = 'Pilih rekeningnya.';
+            $notes[] = self::PICK_ACCOUNT;
         }
 
         if (self::text($args['tanggal'] ?? null) !== '') {

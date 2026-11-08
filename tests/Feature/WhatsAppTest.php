@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\MoneyAccountKind;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\TransactionSource;
@@ -224,6 +225,40 @@ class WhatsAppTest extends TestCase
         $this->assertStringNotContainsString('jual 5 nasgor qris', json_encode($last['messages']));
     }
 
+    public function test_a_chat_payment_lands_in_the_rekening_it_names_or_the_qris_one(): void
+    {
+        $this->link();
+        $this->catalog();
+        $business = $this->owner->currentBusiness();
+        $bank = $business->moneyAccounts()->where('kind', MoneyAccountKind::NonTunai)->sole();
+        $gopay = $business->moneyAccounts()->create(['kind' => MoneyAccountKind::NonTunai, 'name' => 'GoPay']);
+        $water = Item::query()->where('business_id', $business->id)->where('name', 'Air Mineral')->sole();
+        $this->post(route('shop.store', $business->slug), [
+            'customer_name' => 'Bu Sari', 'customer_phone' => '081299990000', 'fulfillment' => 'ambil',
+            'lines' => [['item_id' => $water->id, 'qty' => 5]],
+        ])->assertSessionHasNoErrors();
+        $this->deliver($this->event('terima A001', id: 'Q1'));
+        $landed = fn () => Transaction::query()->latest('id')->first()?->money_account_id;
+
+        // Two rekening and nothing to go by: the owner is asked, nothing is recorded yet.
+        $this->deliver($this->event('A001 dp 2rb qris', id: 'Q2'));
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Pembayaran Rp2.000 untuk A001 masuk ke rekening mana?');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Balas *A001 dp 2rb qris rekening* untuk rekening, *A001 dp 2rb qris gopay* untuk gopay.');
+        $this->assertSame(0, app(Orders::class)->paid(Order::query()->sole()));
+
+        $this->deliver($this->event('A001 dp 2rb qris gopay', id: 'Q3'));
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Pembayaran Rp2.000 (Non-tunai ke GoPay) untuk A001 dicatat.');
+        $this->assertSame($gopay->id, $landed());
+
+        // Once the shop says where QRIS lands, "qris" alone is enough; a named rekening still wins.
+        $business->update(['qris_money_account_id' => $gopay->id]);
+        $this->deliver($this->event('A001 dp 3rb qris', id: 'Q4'));
+        $this->assertSame($gopay->id, $landed());
+        $this->deliver($this->event('A001 dp 4rb rekening', id: 'Q5'));
+        $this->assertSame($bank->id, $landed());
+        $this->assertSame(9000, app(Orders::class)->paid(Order::query()->sole()));
+    }
+
     public function test_orders_run_from_the_chat_and_the_owner_hears_of_new_ones(): void
     {
         $this->link();
@@ -243,7 +278,7 @@ class WhatsAppTest extends TestCase
         $this->assertSent('6281234567890@s.whatsapp.net', 'https://wa.me/6281299990000?text=');
 
         $this->deliver($this->event('A001 dp 8rb qris', id: 'O2'));
-        $this->assertSent('6281234567890@s.whatsapp.net', 'Pembayaran Rp8.000 (Non-tunai) untuk A001 dicatat. Sisa Rp12.000.');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Pembayaran Rp8.000 (Non-tunai ke Rekening) untuk A001 dicatat. Sisa Rp12.000.');
         // Recorded from the bot, so it says so in the history.
         $this->assertSame(TransactionSource::Wa, Order::query()->sole()->transactions()->sole()->source);
 

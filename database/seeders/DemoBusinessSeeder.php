@@ -37,7 +37,9 @@ class DemoBusinessSeeder extends Seeder
 
         // The rekening a warung typically has: its bank and an e-wallet for QRIS.
         $business->moneyAccounts()->where('kind', MoneyAccountKind::NonTunai)->first()?->update(['name' => 'BCA']);
-        $business->moneyAccounts()->firstOrCreate(['name' => 'GoPay'], ['kind' => MoneyAccountKind::NonTunai]);
+        $gopay = $business->moneyAccounts()->firstOrCreate(['name' => 'GoPay'], ['kind' => MoneyAccountKind::NonTunai]);
+        // "jual … qris" in the demo lands here without naming it.
+        $business->update(['qris_money_account_id' => $gopay->id]);
 
         // Opened the way the onboarding wizard does: cash per rekening, then the kuliner starter catalog.
         $openedAt = today()->subDays(DemoHistorySeeder::DAYS);
