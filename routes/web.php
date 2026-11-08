@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
@@ -31,6 +32,12 @@ Route::get('p/{token}', [ShopController::class, 'order'])->name('shop.order');
 Route::post('webhooks/gowa', GowaWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('webhooks.gowa');
+
+// Masuk atau daftar dengan Google (GoogleController). A full page visit, not an Inertia one.
+Route::middleware(['guest', 'throttle:10,1'])->group(function () {
+    Route::get('auth/google', [GoogleController::class, 'redirect'])->name('google.redirect');
+    Route::get('auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');

@@ -166,9 +166,10 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 ### B1. Daftar `/register`
 
-- Field: nama, nomor WA, password, konfirmasi password.
-- Penjelasan: "Kode verifikasi akan dikirim ke WA Anda".
-- Tautan ke halaman masuk. Layout auth bertipe _split_: kiri form, kanan ilustrasi atau cuplikan chat WA.
+- **Lanjutkan dengan Google** di atas form (`GoogleController`, tampil hanya kalau `GOOGLE_CLIENT_ID` diisi), lalu "atau daftar dengan email".
+- Field: nama, email, password (minimal 8 karakter, dengan tombol lihat). Tanpa konfirmasi password.
+- Daftar email lanjut ke verifikasi email; daftar Google langsung terverifikasi dan masuk ke onboarding.
+- Tautan ke halaman masuk. Layout auth _split_ untuk semua halaman auth: kiri form putih dengan logo sejajar field, kanan (mulai 1024 px) panel oranye `bg-auth-panel` berisi judul, cuplikan chat, dan "Cocok untuk" jenis usaha. Tanpa testimoni atau logo pihak lain.
 
 ### B2. Verifikasi OTP `/verify-phone`
 
@@ -179,7 +180,8 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 ### B3. Masuk `/login`
 
-- Nomor WA, password, "Ingat saya", tautan **Lupa password**, tautan daftar.
+- Lanjutkan dengan Google dan passkey di atas, lalu "atau dengan email": email, password, **Lupa password?** di kanan bawah field password, "Ingat saya", tautan daftar.
+- Email Google yang sudah terdaftar disambungkan ke akun itu (hanya kalau Google menandai emailnya terverifikasi). Akun dengan 2FA tetap diminta kode.
 
 ### B4. Lupa & reset password
 

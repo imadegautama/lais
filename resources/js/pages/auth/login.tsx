@@ -1,5 +1,10 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
+import { Lock, Mail } from 'lucide-react';
+import { AuthDivider } from '@/components/auth-divider';
+import { GoogleSignInButton } from '@/components/google-sign-in-button';
 import InputError from '@/components/input-error';
+import { InputIcon } from '@/components/input-icon';
+import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -10,19 +15,44 @@ import { Spinner } from '@/components/ui/spinner';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import PasskeyVerify from '@/components/passkey-verify';
 
 type Props = {
     status?: string;
     canResetPassword: boolean;
+    /** The Google button shows only once GOOGLE_CLIENT_ID is set. */
+    googleLogin: boolean;
 };
 
-export default function Login({ status, canResetPassword }: Props) {
+export default function Login({
+    status,
+    canResetPassword,
+    googleLogin,
+}: Props) {
+    // Set by GoogleController when the sign-in comes back refused.
+    const googleError = usePage().props.errors.google;
+
     return (
         <>
             <Head title="Masuk" />
 
-            <PasskeyVerify />
+            {status && (
+                <p className="mb-6 text-sm font-medium text-success">
+                    {status}
+                </p>
+            )}
+
+            {googleLogin ? (
+                <div className="mb-6 grid gap-3">
+                    <GoogleSignInButton />
+                    <InputError message={googleError} />
+                    <PasskeyVerify separator={false} />
+                    <div className="mt-3">
+                        <AuthDivider />
+                    </div>
+                </div>
+            ) : (
+                <PasskeyVerify />
+            )}
 
             <Form
                 {...store.form()}
@@ -34,56 +64,49 @@ export default function Login({ status, canResetPassword }: Props) {
                         <div className="grid gap-6">
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="email@example.com"
-                                />
+                                <InputIcon icon={Mail}>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        name="email"
+                                        required
+                                        autoComplete="email"
+                                        placeholder="nama@email.com"
+                                    />
+                                </InputIcon>
                                 <InputError message={errors.email} />
                             </div>
 
                             <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
-                                    {canResetPassword && (
-                                        <TextLink
-                                            href={request()}
-                                            className="ml-auto text-sm"
-                                            tabIndex={5}
-                                        >
-                                            Lupa password?
-                                        </TextLink>
-                                    )}
-                                </div>
-                                <PasswordInput
-                                    id="password"
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Password"
-                                />
+                                <Label htmlFor="password">Password</Label>
+                                <InputIcon icon={Lock}>
+                                    <PasswordInput
+                                        id="password"
+                                        name="password"
+                                        required
+                                        autoComplete="current-password"
+                                        placeholder="Password"
+                                    />
+                                </InputIcon>
                                 <InputError message={errors.password} />
+                                {canResetPassword && (
+                                    <TextLink
+                                        href={request()}
+                                        className="ml-auto text-sm"
+                                    >
+                                        Lupa password?
+                                    </TextLink>
+                                )}
                             </div>
 
                             <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
+                                <Checkbox id="remember" name="remember" />
                                 <Label htmlFor="remember">Ingat saya</Label>
                             </div>
 
                             <Button
                                 type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
+                                className="mt-2 w-full"
                                 disabled={processing}
                                 data-test="login-button"
                             >
@@ -92,26 +115,18 @@ export default function Login({ status, canResetPassword }: Props) {
                             </Button>
                         </div>
 
-                        <div className="text-center text-sm text-muted-foreground">
+                        <p className="text-center text-sm text-muted-foreground">
                             Belum punya akun?{' '}
-                            <TextLink href={register()} tabIndex={5}>
-                                Daftar
-                            </TextLink>
-                        </div>
+                            <TextLink href={register()}>Daftar gratis</TextLink>
+                        </p>
                     </>
                 )}
             </Form>
-
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
         </>
     );
 }
 
 Login.layout = {
-    title: 'Masuk ke akunmu',
-    description: 'Isi email dan password untuk masuk.',
+    title: 'Masuk ke Lais',
+    description: 'Lanjutkan dengan Google atau email.',
 };

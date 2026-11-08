@@ -81,4 +81,11 @@ return [
         'bot_number' => env('GOWA_BOT_NUMBER'),
     ],
 
+    // Masuk dengan Google. The button only shows when client_id is set.
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', rtrim((string) env('APP_URL', 'http://localhost'), '/').'/auth/google/callback'),
+    ],
+
 ];

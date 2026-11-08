@@ -1,11 +1,15 @@
 import { Head } from '@inertiajs/react';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { AuthDivider } from '@/components/auth-divider';
+import { GoogleSignInButton } from '@/components/google-sign-in-button';
+import { InputIcon } from '@/components/input-icon';
 import { LogoWordmark } from '@/components/logo-wordmark';
 import {
     CircleCheck,
     CircleX,
     Coins,
     HandCoins,
+    Mail,
     Package,
     Plus,
     Search,
@@ -562,6 +566,27 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                             >
                                 Halaman belum ada
                             </ActionButton>
+                        </div>
+                    </Panel>
+                </Section>
+
+                <Section
+                    id="masuk"
+                    title="Masuk dan daftar"
+                    intro="Halaman auth memakai layout split: form di kolom putih dengan logo sejajar field, panel oranye bg-auth-panel di kanan mulai 1024 px. Tombol Google di atas form; logo G memakai warna merek Google, satu-satunya hex di luar token."
+                >
+                    <Panel className="flex max-w-md flex-col gap-4">
+                        <GoogleSignInButton />
+                        <AuthDivider />
+                        <div className="grid gap-2">
+                            <Label htmlFor="ds-email">Email</Label>
+                            <InputIcon icon={Mail}>
+                                <Input
+                                    id="ds-email"
+                                    type="email"
+                                    placeholder="nama@email.com"
+                                />
+                            </InputIcon>
                         </div>
                     </Panel>
                 </Section>

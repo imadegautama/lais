@@ -12,23 +12,24 @@ export default function VerifyEmail({ status }: { status?: string }) {
             <Head title="Verifikasi email" />
 
             {status === 'verification-link-sent' && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
+                <div className="mb-6 text-sm font-medium text-success">
                     Link verifikasi baru sudah kami kirim ke emailmu.
                 </div>
             )}
 
-            <Form {...send.form()} className="space-y-6 text-center">
+            <Form {...send.form()} className="flex flex-col gap-4">
                 {({ processing }) => (
                     <>
-                        <Button disabled={processing} variant="secondary">
+                        <Button
+                            disabled={processing}
+                            variant="secondary"
+                            className="w-full"
+                        >
                             {processing && <Spinner />}
                             Kirim ulang email verifikasi
                         </Button>
 
-                        <TextLink
-                            href={logout()}
-                            className="mx-auto block text-sm"
-                        >
+                        <TextLink href={logout()} className="mx-auto text-sm">
                             Keluar
                         </TextLink>
                     </>

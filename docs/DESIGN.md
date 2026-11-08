@@ -97,7 +97,12 @@ Oranye hanya muncul di:
 4. Kartu fokus, satu per layar.
 5. Wash halaman `bg-page-wash` di layout, sebagai satu-satunya latar berwarna (keputusan pemilik, §2). Landing page memakai `bg-landing-glow` pada panelnya, bukan pada halaman.
 
-Satu pengecualian di landing page: panel masalah memakai `bg-primary` penuh dengan teks putih penuh (4,66:1, tanpa transparansi), supaya masalahnya langsung menonjol. Hanya satu panel itu.
+Dua pengecualian, keduanya `bg-primary` penuh dengan teks putih penuh (4,66:1, tanpa transparansi):
+
+- Panel masalah di landing page, supaya masalahnya langsung menonjol.
+- Panel kanan halaman masuk dan daftar (`bg-auth-panel`), dengan cahaya lembut di pojok kanan atas. Di titik paling terang cahaya itu teks putih turun ke 3,6:1, jadi hanya judul besar yang boleh melewatinya; teks kecil berada di separuh bawah yang lebih gelap. Logo tidak pernah di panel ini, hanya di kolom putih.
+
+Logo G di tombol **Lanjutkan dengan Google** memakai warna merek Google (aturan merek mereka), satu-satunya hex di luar token.
 
 Oranye tidak dipakai untuk ikon biasa, garis dekoratif, atau latar section lain selain wash halaman. **Teks oranye selalu memakai `text-primary-text`**, dan ikon oranye memakai `text-brand-strong`. Jangan pakai `text-primary` untuk teks.
 

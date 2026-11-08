@@ -30,11 +30,18 @@ class RegistrationTest extends TestCase
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
-            'password_confirmation' => 'password',
         ]);
 
         $this->assertAuthenticated();
         // A new owner opens the books first (onboarding wizard).
         $response->assertRedirect(route('onboarding.show', absolute: false));
+    }
+
+    public function test_the_password_needs_eight_characters_and_no_repeat_field(): void
+    {
+        $this->post(route('register.store'), ['name' => 'Rina', 'email' => 'rina@example.com', 'password' => 'pendek7'])
+            ->assertSessionHasErrors('password');
+
+        $this->assertGuest();
     }
 }
