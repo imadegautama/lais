@@ -122,6 +122,13 @@ export type DashboardProps = {
     /** No record yet besides the saldo awal. */
     isEmpty: boolean;
     business: { name: string; ownerName: string };
+    /** "Misi pertama", ticked from the data (DashboardController::missions). */
+    missions: Array<{
+        key: 'produk' | 'jual' | 'biaya' | 'toko' | 'bot';
+        done: boolean;
+    }>;
+    /** Just out of the setup: run the tour once. */
+    startTour: boolean;
     period: Period;
     periods: Array<Pick<Period, 'key' | 'label'>>;
     summary: {
@@ -571,7 +578,6 @@ export type ChartAccount = {
 
 export type ChartProps = ReportFrame & {
     accounts: ChartAccount[];
-    expensesByKind: Partial<Record<TransactionKind, Rupiah>>;
 };
 
 export type JournalEntryRow = {

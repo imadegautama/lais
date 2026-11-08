@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vite-plus/test';
 import {
+    chartGroups,
+    earnedBadges,
     emptyAmountRow,
     emptyProductRow,
     firstStepWithError,
     initialDraft,
     openingBalance,
+    readiness,
     resumeIndex,
+    STEPS,
     toPayload,
     withExamples,
+    type ChartAccount,
     type OnboardingDraft,
     type StarterRow,
 } from './onboarding';
@@ -141,5 +146,92 @@ describe('resuming and errors', () => {
             'usaha',
         );
         expect(firstStepWithError({})).toBeNull();
+    });
+});
+
+describe('setup progress', () => {
+    it('counts the steps behind, and gives one badge per step done', () => {
+        expect(readiness(0)).toBe(0);
+        expect(readiness(STEPS.length - 1)).toBe(100);
+        expect(earnedBadges(0)).toEqual([]);
+        expect(earnedBadges(2)).toEqual(['Usaha terdaftar', 'Kas tercatat']);
+        // On the summary every step before it has its badge.
+        expect(earnedBadges(STEPS.length - 1)).toHaveLength(STEPS.length - 1);
+    });
+});
+
+describe('the Akun step', () => {
+    const chart: ChartAccount[] = [
+        { code: '1101', name: 'Kas Tunai', type: 'aset' },
+        { code: '1102', name: 'Kas Non-Tunai', type: 'aset' },
+        { code: '2101', name: 'Utang Usaha', type: 'kewajiban' },
+        { code: '3101', name: 'Modal Pemilik', type: 'ekuitas' },
+        { code: '4101', name: 'Penjualan', type: 'pendapatan' },
+        { code: '6104', name: 'Beban Sewa', type: 'beban' },
+    ];
+
+    it('shows the opening balances on the fixed accounts and the own ones as new', () => {
+        const groups = chartGroups(
+            chart,
+            draft({
+                accounts: [
+                    {
+                        id: 1,
+                        kind: 'tunai',
+                        name: 'Kas tunai',
+                        balance: 300_000,
+                    },
+                    {
+                        id: 2,
+                        kind: 'non_tunai',
+                        name: 'BCA',
+                        balance: 1_000_000,
+                    },
+                ],
+                debts: [{ name: 'Toko Sumber', amount: 200_000 }],
+                custom_accounts: [
+                    { type: 'beban', name: 'Beban Kemasan' },
+                    { type: 'pendapatan', name: '  ' },
+                ],
+            }),
+            0,
+        );
+        const group = (type: string) =>
+            groups.find((candidate) => candidate.type === type)!.accounts;
+
+        expect(group('aset').map((account) => account.amount)).toEqual([
+            300_000, 1_000_000,
+        ]);
+        expect(group('kewajiban')[0].amount).toBe(200_000);
+        // Modal awal = 1.300.000 − 200.000.
+        expect(group('ekuitas')[0].amount).toBe(1_100_000);
+        // Income and costs fill in as the business records.
+        expect(group('pendapatan')).toEqual([
+            { code: '4101', name: 'Penjualan', amount: null },
+        ]);
+        expect(group('beban')).toEqual([
+            { code: '6104', name: 'Beban Sewa', amount: null },
+            { code: null, name: 'Beban Kemasan', amount: null },
+        ]);
+    });
+
+    it('sends the named own accounts and points their errors to the Akun step', () => {
+        const payload = toPayload(
+            draft({
+                custom_accounts: [
+                    { type: 'beban', name: ' Beban Kemasan ' },
+                    { type: 'pendapatan', name: '' },
+                ],
+            }),
+        );
+
+        expect(payload.custom_accounts).toEqual([
+            { type: 'beban', name: 'Beban Kemasan' },
+        ]);
+        expect(
+            firstStepWithError({
+                'custom_accounts.0.name': 'Nama ini sudah dipakai akun lain.',
+            }),
+        ).toBe('akun');
     });
 });

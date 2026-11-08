@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { PrintHeader } from '@/features/reports/print-header';
 import { ReportLead } from '@/features/reports/report-lead';
 import { ReportToolbar } from '@/features/reports/report-toolbar';
-import { TermHint } from '@/features/reports/term-hint';
+import { TermHint } from '@/components/app/term-hint';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { parseDecimal } from '@/lib/number';
 import { index, update } from '@/routes/fixed-assets';

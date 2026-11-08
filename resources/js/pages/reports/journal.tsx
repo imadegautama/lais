@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { PrintHeader } from '@/features/reports/print-header';
 import { ReportLead } from '@/features/reports/report-lead';
 import { ReportToolbar } from '@/features/reports/report-toolbar';
-import { TermHint } from '@/features/reports/term-hint';
+import { TermHint } from '@/components/app/term-hint';
 import { usePrinting } from '@/features/reports/use-printing';
 import { formatDate } from '@/lib/format';
 import reports from '@/routes/reports';

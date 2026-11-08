@@ -3,6 +3,7 @@
 namespace App\Enums;
 
 use App\Concerns\EnumValues;
+use App\Models\Account;
 
 /**
  * Sub-kind of a transaction: what was bought, which expense, which way a debt
@@ -64,6 +65,24 @@ enum TransactionKind: string
             self::SaldoPeralatan => 'Peralatan',
             self::SaldoUtang => 'Utang ke supplier',
             self::SaldoPiutang => 'Piutang pelanggan',
+        };
+    }
+
+    /**
+     * The fixed expense account a biaya of this kind posts to, unless the
+     * owner picks an account of their own. Null for kinds that are not biaya.
+     */
+    public function expenseAccount(): ?string
+    {
+        return match ($this) {
+            self::ListrikAir => Account::UTILITIES,
+            self::GasBbm => Account::FUEL,
+            self::Sewa => Account::RENT,
+            self::Upah => Account::WAGES,
+            self::Transport => Account::TRANSPORT,
+            self::Pemasaran => Account::MARKETING,
+            self::Lain => Account::EXPENSES,
+            default => null,
         };
     }
 

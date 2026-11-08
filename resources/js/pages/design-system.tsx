@@ -49,12 +49,14 @@ import { MoneyInput } from '@/components/app/money-input';
 import { PageHeader } from '@/components/app/page-header';
 import { PeriodPicker } from '@/components/app/period-picker';
 import { QtyStepper } from '@/components/app/qty-stepper';
+import { TermHint } from '@/components/app/term-hint';
 import { QuickRecordSheet } from '@/components/app/quick-record-sheet';
 import { ReceiptCard } from '@/components/app/receipt-card';
 import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { SearchSelect } from '@/components/app/search-select';
 import { EmptyState, ErrorState, LoadingBlock } from '@/components/app/states';
+import { SetupProgress } from '@/features/onboarding/setup-progress';
 import { ProductRow } from '@/features/orders/product-row';
 import { ShopIntro } from '@/features/orders/shop-intro';
 import { BreakdownBars } from '@/features/reports/breakdown-bars';
@@ -98,6 +100,7 @@ const sections = [
     ['tombol', 'Tombol'],
     ['form', 'Form'],
     ['toko', 'Toko'],
+    ['setup', 'Setup'],
     ['badge', 'Badge'],
     ['angka', 'Angka'],
     ['kartu', 'Kartu'],
@@ -829,6 +832,24 @@ export default function DesignSystem({ transactions, salesChart }: Props) {
                                 />
                             ))}
                         </ul>
+                    </div>
+                </Section>
+
+                <Section
+                    id="setup"
+                    title="Setup"
+                    intro="Setup awal: meter kesiapan dengan langkah yang menjadi hijau, dan chip istilah yang menjelaskan dengan satu kalimat. Gerak di setup hanya motion-safe."
+                >
+                    <div className="flex flex-col gap-3">
+                        <SetupProgress current={3} />
+                        <div className="flex flex-wrap gap-2">
+                            <TermHint
+                                term="chartOfAccounts"
+                                label="Daftar akun"
+                                chip
+                            />
+                            <TermHint term="receivables" label="Piutang" chip />
+                        </div>
                     </div>
                 </Section>
 

@@ -119,7 +119,8 @@ class TransactionServiceTest extends TestCase
 
         $expense = $this->record($business, ['type' => 'biaya', 'kind' => 'listrik_air', 'method' => 'pribadi', 'amount' => 120000, 'note' => 'token Oktober']);
 
-        $this->assertSame([3101 => -120000, 6101 => 120000], $this->journal($expense));
+        // Listrik & air has its own expense account (6102).
+        $this->assertSame([3101 => -120000, 6102 => 120000], $this->journal($expense));
         $this->assertSame(0, $expense->cash_flow);
         $this->assertSame('Listrik & air · token Oktober', $expense->description);
     }

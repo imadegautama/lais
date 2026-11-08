@@ -198,7 +198,7 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 
 ### B5. Onboarding wizard `/onboarding`
 
-- **Tampilan:** halaman sendiri tanpa sidebar. Di header ada logo dan link **Lewati, nanti saja**. Stepper di atas; di HP hanya "Langkah 2 dari 6".
+- **Tampilan:** halaman sendiri tanpa sidebar, berjudul **Siapkan buku usahamu**. Di header ada logo dan link **Lewati, nanti saja**. Di atas ada meter **Buku usahamu N% siap** dengan baris langkah yang menjadi hijau saat selesai. Setiap langkah berjudul pertanyaan sehari-hari ("Ada uang usaha berapa sekarang?"), satu kalimat kenapa perlu, dan chip **Apa itu …?** untuk istilahnya.
 - **Navigasi:** tombol **Kembali / Lanjut**. Setiap kali Lanjut ditekan, langkah itu diperiksa lalu disimpan sebagai draf, jadi wizard bisa dilanjutkan nanti dari langkah berikutnya.
 - **Masuk ke wizard:** setelah daftar, pengguna langsung diarahkan ke sini. Selama belum selesai, dashboard dan Kas & rekening menampilkan kartu **Saldo awal belum diisi → Lanjutkan pengisian**. Setelah selesai, `/onboarding` mengalihkan ke dashboard.
 - **Langkah:**
@@ -214,10 +214,12 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
         - produk resep dari contoh tampil dengan ringkasan resepnya
         - bisa dilewati
     5. **Utang & piutang:** utang ke supplier dan kasbon pelanggan, masing-masing nama + sisa. Bisa dilewati.
-    6. **Ringkasan neraca awal:**
+    6. **Akun (COA):** "Ini daftar akun usahamu". Daftar akun sistem dalam lima kelompok (Aset, Kewajiban, Modal, Pendapatan, Beban) dengan kode, nama, dan saldo awal dari langkah sebelumnya; tiap kelompok punya ⓘ penjelasan. Di bawahnya **Akun khusus (boleh dilewati)**: chip saran per jenis usaha (misalnya Beban Kemasan, Pendapatan Jasa antar) dan isian nama bebas dengan pilihan pengeluaran/pemasukan. Akun baru tampil di kelompoknya dengan badge Baru dan bisa dihapus; kodenya (6501…, 4201…) diberikan saat disimpan.
+    7. **Ringkasan neraca awal:**
+        - kotak "Semua langkah beres" dengan lencana yang terkumpul (Usaha terdaftar, Kas tercatat, Peralatan tercatat, Stok siap, Utang-piutang rapi, Akun siap)
         - kas & rekening, peralatan, persediaan, piutang, total aset, utang
         - **Modal awal kamu** = aset − utang, dengan badge "Seimbang"
-        - tombol **Simpan dan mulai**
+        - tombol **Simpan dan mulai**, yang membuka dashboard dan memulai tur singkat
 - **Saat disimpan:** semuanya dicatat sebagai jenis **Saldo awal** pada tanggal mulai, dalam satu langkah. Kalau ada yang salah, wizard kembali ke langkah yang bermasalah.
 - **Menyusul di slicenya masing-masing:** slug toko, logo, gambar QRIS (M4), dan kartu Hubungkan WhatsApp (GOWA).
 
@@ -241,7 +243,8 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 - **Pesanan aktif:** 5 pesanan terbaru (kode, nama, waktu, status), tautan ke C9.
 - **Utang & piutang:** dua angka total dengan tautan ke C11.
 - **Aktivitas terbaru:** 10 transaksi terakhir, lengkap dengan ikon sumber (WA / web / toko).
-- **Empty state pengguna baru:** checklist "Langkah pertama", yaitu tambah produk, catat penjualan pertama, hubungkan WA, dan bagikan link toko.
+- **Misi pertama:** kartu di atas ringkasan selama ada misi yang belum selesai: tambah produk, catat penjualan pertama, catat biaya pertama, atur toko online (nomor WA penjual atau QRIS), dan hubungkan bot. Setiap misi tercentang sendiri dari data (`DashboardController::missions`), dengan progres "n dari 5" dan tombol ke tempatnya. Kartu hilang setelah semua selesai.
+- **Tur singkat:** setelah setup (`/dashboard?tur=1`) tur React Joyride menunjuk Catat, Tanya AI, Pesanan, Laporan, dan Misi. Hanya langkah yang tampil di layar (di HP, Laporan ada di menu sehingga dilewati), sekali per perangkat (`localStorage`), dan bisa diulang dari **Ulangi tur singkat** di kartu Misi.
 - **Status pembuatan (slice 5):** semua angka sudah dihitung dari jurnal lewat `App\Services\Reports`.
     - Baris 4 kartu ringkasan (`MetricTile`, 2×2 di HP) mengikuti pemilih periode. Setiap kartu berisi angka, naik/turun, dan satu baris penjelasan:
         - **Penjualan:** membuka `/transaksi` dengan saringan penjualan dan periode yang sama

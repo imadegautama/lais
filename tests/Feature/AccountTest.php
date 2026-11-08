@@ -84,6 +84,31 @@ class AccountTest extends TestCase
         $this->assertSame(0, $reports->cashReconciliation($this->business, now()->startOfMonth())['difference']);
     }
 
+    public function test_each_kind_of_biaya_lands_on_its_own_expense_account_and_reports_read_them_together(): void
+    {
+        $this->opening(500000);
+        $spend = fn (string $kind, int $amount) => $this->post(route('transactions.store'), ['type' => 'biaya', 'kind' => $kind, 'method' => 'tunai', 'amount' => $amount])->assertSessionHasNoErrors();
+
+        $spend('sewa', 300000);
+        $spend('listrik_air', 50000);
+        $spend('lain', 20000);
+
+        $posted = fn (string $code) => (int) JournalLine::query()->whereHas('account', fn ($query) => $query->whereNull('accounts.business_id')->where('accounts.code', $code))->sum('journal_lines.debit');
+        $this->assertSame([300000, 50000, 20000], [$posted(Account::RENT), $posted(Account::UTILITIES), $posted(Account::EXPENSES)]);
+
+        // A biaya from before the per-kind accounts sits on 6101 and still counts under its kind.
+        $old = JournalLine::query()->whereHas('account', fn ($query) => $query->where('accounts.code', Account::RENT))->sole();
+        $old->forceFill(['account_id' => Account::query()->whereNull('accounts.business_id')->where('accounts.code', Account::EXPENSES)->value('id')])->save();
+
+        $reports = app(Reports::class);
+        $from = now()->startOfMonth();
+        $pnl = $reports->profitAndLoss($this->business, $from);
+        $this->assertSame([370000, 0, -370000], [$pnl['expenses'], $pnl['otherExpenses'], $pnl['netProfit']]);
+        $this->assertEqualsCanonicalizing(['sewa' => 300000, 'listrik_air' => 50000, 'lain' => 20000], $reports->expensesByKind($this->business, $from));
+        $this->assertTrue($reports->balanceSheet($this->business, now())['balanced']);
+        $this->assertSame(0, $reports->cashReconciliation($this->business, $from)['difference']);
+    }
+
     public function test_other_income_is_recorded_on_its_account_and_can_be_cancelled(): void
     {
         $income = $this->own($this->business, 'Pendapatan Hibah', 'pendapatan');

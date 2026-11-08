@@ -77,7 +77,7 @@ class ReportStoryTest extends TestCase
             ->where('previousLabel', 'Periode sebelumnya'));
         $this->get(route('reports.cash-book', $dates))->assertInertia(fn (AssertableInertia $page) => $page->where('book.totalOut', 40000));
         $this->get(route('reports.notes', $dates))->assertInertia(fn (AssertableInertia $page) => $page->where('expensesByKind.sewa', 40000)->missing('expensesByKind.upah'));
-        $this->get(route('reports.ledger', ['code' => '6101'] + $dates))->assertInertia(fn (AssertableInertia $page) => $page->where('ledger.closing', 40000));
+        $this->get(route('reports.ledger', ['code' => '6104'] + $dates))->assertInertia(fn (AssertableInertia $page) => $page->where('ledger.closing', 40000));
         $this->get(route('reports.index', $dates))->assertInertia(fn (AssertableInertia $page) => $page->where('netProfit', -40000));
     }
 

@@ -116,6 +116,7 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
     - peralatan (nama dan nilai)
     - produk dan bahan dengan stok awal, dengan tombol "Pakai contoh" per jenis usaha
     - utang awal ke supplier dan piutang awal pelanggan (opsional)
+    - daftar akun (COA) dengan saldo awalnya, plus akun khusus pendapatan/beban (opsional)
     - ringkasan neraca awal
 
     Slug toko, logo, dan gambar QRIS ditambahkan ke wizard bersama halaman toko (M4), dan kartu "Hubungkan WhatsApp" bersama GOWA.
@@ -650,11 +651,15 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 
 **Garis potong (jika terlambat di akhir minggu 2):** v1.1 dibatalkan seluruhnya. Ringkasan mingguan dihapus, ringkasan harian tetap. PDF hanya untuk Laba Rugi dan Neraca. `bandingkan_periode` dihapus.
 
-**Fase akhir (9–10 Nov, setelah UI stabil):** tur pengenalan singkat yang menyorot tombol-tombol utama. Pilihan utamanya driver.js; navigasi keyboard dan kontrasnya dicek sebelum dipasang.
+**Fase akhir (9–10 Nov, setelah UI stabil):** tur pengenalan singkat yang menyorot tombol-tombol utama. **Status (8 Nov 2026):** dibangun dengan React Joyride 3 (bukan driver.js) karena tooltipnya bisa memakai komponen Lais; dijalankan sekali setelah setup, bersama kartu Misi pertama dan setup terpandu (pertanyaan sehari-hari, chip "Apa itu …?", meter progres, lencana, langkah Akun/COA). Bagan akun sistem sekarang punya akun beban per jenis (6102–6107), jadi biaya otomatis masuk akun jenisnya.
 
 **v1.1 (minggu 3 jika sempat, atau setelah lomba):** US-16 foto nota, US-17 pengingat piutang & pelanggan lama, US-18 peringatan margin, konversi satuan beli, dan upload bukti bayar oleh pelanggan.
 
-**v2.0 (bab Rencana Pengembangan di proposal):** voice note, nomor pencatat tambahan untuk keluarga/karyawan, asisten konten promosi, multi-outlet, QRIS dinamis / payment gateway, penyusutan aset dan Catatan atas Laporan Keuangan SAK EMKM lengkap, mode offline (PWA).
+**v2.0 (bab Rencana Pengembangan di proposal):** voice note, nomor pencatat tambahan untuk keluarga/karyawan, asisten konten promosi, multi-outlet, QRIS dinamis / payment gateway, penyusutan aset dan Catatan atas Laporan Keuangan SAK EMKM lengkap, mode offline (PWA). Ditambah dari pematangan 8 Nov:
+
+- **Akun bawaan per jenis biaya yang bisa diganti pemilik** (misalnya semua biaya Sewa ke akun buatan sendiri). Ditunda karena rincian per jenis, BEP, dan jawaban AI harus ikut membaca akun itu.
+- **DOKU Sub Account per toko:** uang bayar online langsung ke saldo toko masing-masing (`additional_info.account.id`), lalu ditarik ke rekening pemilik lewat Transfer Inquiry/Payment. Di Lais, penarikan tetap dicatat sebagai Pindah dana dari Saldo DOKU, dan biaya admin sebagai beban.
+- **Tanya AI di setup** untuk pertanyaan "apa itu X?" dengan jawaban teks tetap per istilah.
 
 ### 5.2 Technical Risks
 

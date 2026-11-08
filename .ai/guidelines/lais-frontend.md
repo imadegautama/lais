@@ -51,6 +51,13 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 - `types/enums.ts` **dibuat otomatis** oleh `php artisan lais:enums` dari `app/Enums`. Jangan diubah manual. Nilai ditulis lewat konstantanya (`TransactionType.Penjualan`), label lewat `transactionTypeLabels` dan sejenisnya, bukan string tulisan tangan. `badges.tsx` hanya menambahkan ikon.
 - Hitungan yang meniru server (HPP, rata-rata, biaya resep, efek kas) memakai `lib/stock.ts` atau `features/*`, dengan test yang memakai angka dari test PHP.
 
+## Setup awal dan tur
+
+- Istilah akuntansi dijelaskan dari satu sumber: `terms` dan `TermHint` di `components/app/term-hint.tsx` (ⓘ di laporan, chip "Apa itu …?" di setup). Istilah baru ditambahkan di sana, satu kalimat sehari-hari.
+- Setup (`/onboarding`) adalah pengecualian gerak kedua setelah landing: transisi langkah, lencana, dan meter progres saja, semuanya `motion-safe:` dari `tw-animate-css`, transform dan opacity. Aplikasi lain tetap MOTION 1.
+- Gamifikasi hanya progres, lencana, dan misi yang tercentang dari data. Tanpa poin, level, atau konfeti.
+- Tur dashboard lewat `components/app/product-tour.tsx` (React Joyride 3). Target diberi `data-tour` atau dicari lewat link yang tampil di layar; langkah yang targetnya tidak tampil dibuang sebelum tur mulai. Tooltip memakai komponen Lais, bukan gaya bawaan Joyride.
+
 ## Landing page
 
 - Isi demo chat ada di `features/landing/examples.ts`, tanpa memanggil AI. Setiap angkanya dibuktikan `tests/Feature/LandingTest.php`, jadi kalau katalog awal atau balasan bot berubah, perbarui keduanya.

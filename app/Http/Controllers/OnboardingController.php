@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\BusinessCategory;
 use App\Enums\ItemKind;
 use App\Http\Requests\OnboardingRequest;
+use App\Models\Account;
 use App\Services\Onboarding;
 use App\Support\StarterCatalog;
 use Illuminate\Http\RedirectResponse;
@@ -39,6 +40,8 @@ class OnboardingController extends Controller
             'templates' => collect(BusinessCategory::cases())->mapWithKeys(fn (BusinessCategory $category) => [$category->value => StarterCatalog::for($category)]),
             // Products added before the wizard already hold opening stock; the summary counts it.
             'inventory' => ['count' => (clone $stocked)->count(), 'value' => (int) (clone $stocked)->sum('items.stock_value')],
+            // The fixed chart (COA) the "Akun" step shows, group by group.
+            'chart' => Account::query()->whereNull('accounts.business_id')->orderBy('accounts.code')->get(['code', 'name', 'type']),
         ]);
     }
 
@@ -49,7 +52,7 @@ class OnboardingController extends Controller
     {
         // Kept as typed (text quantities, "contoh" markers), so the wizard resumes exactly where it was.
         $request->user()->currentBusiness()->update([
-            'onboarding_draft' => Arr::only((array) $request->input('draft', []), ['step', 'name', 'category', 'started_on', 'accounts', 'equipment', 'products', 'debts', 'receivables']),
+            'onboarding_draft' => Arr::only((array) $request->input('draft', []), ['step', 'name', 'category', 'started_on', 'accounts', 'equipment', 'products', 'debts', 'receivables', 'custom_accounts']),
         ]);
 
         return back();
@@ -65,6 +68,6 @@ class OnboardingController extends Controller
             'description' => 'Saldo awal tersimpan. Mulai catat penjualan hari ini.',
         ]);
 
-        return to_route('dashboard');
+        return to_route('dashboard', ['tur' => 1]);
     }
 }

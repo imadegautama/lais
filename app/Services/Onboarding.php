@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\AccountType;
 use App\Enums\MoneyAccountKind;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionType;
+use App\Models\Account;
 use App\Models\Business;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +73,11 @@ class Onboarding
 
             foreach ($data['receivables'] ?? [] as $row) {
                 $opening(TransactionKind::SaldoPiutang, (int) $row['amount'], ['contact_name' => $row['name']]);
+            }
+
+            // "Akun khusus": the owner's own income and expense accounts, ready for their biaya and pemasukan lain.
+            foreach ($data['custom_accounts'] ?? [] as $row) {
+                Account::addTo($business, AccountType::from((string) $row['type']), (string) $row['name']);
             }
 
             $business->update(['onboarded_at' => now(), 'onboarding_draft' => null]);

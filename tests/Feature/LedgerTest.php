@@ -7,6 +7,7 @@ use App\Enums\MoneyAccountKind;
 use App\Enums\StockReason;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Models\Account;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
@@ -270,7 +271,7 @@ class LedgerTest extends TestCase
         // Aset = Kewajiban + Modal − Prive + Pendapatan − Beban
         $this->assertSame(
             $balance('1101') + $balance('1102') + $balance('1201') + $balance('1301') + $balance('1401'),
-            $balance('2101') + $balance('2201') + $balance('3101') - $balance('3201') + $balance('4101') - $balance('5101') - $balance('6101') - $balance('6201'),
+            $balance('2101') + $balance('2201') + $balance('3101') - $balance('3201') + $balance('4101') - $balance('5101') - array_sum(array_map($balance, Account::OPERATING_EXPENSES)) - $balance('6201'),
         );
         $this->assertSame($balance('1201'), $contactBalances->filter(fn ($amount, $id) => $contacts[$id]->type === ContactType::Pelanggan)->sum());
         $this->assertSame($balance('2101'), $contactBalances->filter(fn ($amount, $id) => $contacts[$id]->type === ContactType::Supplier)->sum());

@@ -241,6 +241,7 @@ export default function TransactionCreate({
 
                                     <AccountField
                                         type={type}
+                                        kind={data.kind}
                                         value={data.account_id ?? ''}
                                         accounts={ownAccounts}
                                         error={errors.account_id}

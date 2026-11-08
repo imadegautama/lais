@@ -160,7 +160,6 @@ class ReportController extends Controller
         return Inertia::render('reports/chart', [
             ...$this->frame($business, $range),
             'accounts' => $this->reports->chart($business),
-            'expensesByKind' => $this->reports->expensesByKind($business, CarbonImmutable::createFromTimestamp(0)),
         ]);
     }
 

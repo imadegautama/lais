@@ -1,10 +1,12 @@
 import type { FormDataKeys, FormDataValues } from '@inertiajs/core';
 import { decimalInput, parseDecimal, roundHalfAway } from '@/lib/number';
+import type { Term } from '@/components/app/term-hint';
 import type { Rupiah } from '@/types/domain';
 import {
+    AccountType,
     ItemKind,
+    MoneyAccountKind,
     type BusinessCategory,
-    type MoneyAccountKind,
 } from '@/types/enums';
 
 // The onboarding wizard's rules, kept out of the page so they can be tested.
@@ -16,6 +18,7 @@ export const STEPS = [
     { key: 'peralatan', label: 'Peralatan' },
     { key: 'produk', label: 'Produk' },
     { key: 'utang', label: 'Utang & piutang' },
+    { key: 'akun', label: 'Akun' },
     { key: 'ringkasan', label: 'Ringkasan' },
 ] as const;
 
@@ -47,6 +50,12 @@ export type ProductRow = {
     example: boolean;
 };
 
+/** "Akun khusus": an income or expense account of the business's own. */
+export type CustomAccountRow = {
+    type: typeof AccountType.Pendapatan | typeof AccountType.Beban;
+    name: string;
+};
+
 export type OnboardingDraft = {
     /** The last step saved, so the wizard resumes after it. */
     step: StepKey | '';
@@ -58,6 +67,7 @@ export type OnboardingDraft = {
     products: ProductRow[];
     debts: AmountRow[];
     receivables: AmountRow[];
+    custom_accounts: CustomAccountRow[];
 };
 
 export type OnboardingSetter = <K extends FormDataKeys<OnboardingDraft>>(
@@ -109,6 +119,7 @@ export function initialDraft({
         products: [],
         debts: [],
         receivables: [],
+        custom_accounts: [],
         ...draft,
     };
 }
@@ -216,6 +227,9 @@ export function toPayload(draft: OnboardingDraft) {
             })),
         debts: draft.debts.filter((row) => !blankAmount(row)),
         receivables: draft.receivables.filter((row) => !blankAmount(row)),
+        custom_accounts: draft.custom_accounts
+            .map((row) => ({ type: row.type, name: row.name.trim() }))
+            .filter((row) => row.name !== ''),
     };
 }
 
@@ -228,6 +242,7 @@ const STEP_OF_FIELD: Record<string, StepKey> = {
     products: 'produk',
     debts: 'utang',
     receivables: 'utang',
+    custom_accounts: 'akun',
 };
 
 /** After a failed finish, the earliest step that has an error. */
@@ -240,4 +255,162 @@ export function firstStepWithError(
         .filter(Boolean);
 
     return STEPS.find((step) => steps.includes(step.key))?.key ?? null;
+}
+
+/** How ready the books are, by the steps already behind: 0 at the start, 100 on the summary. */
+export function readiness(index: number): number {
+    return Math.round((index / (STEPS.length - 1)) * 100);
+}
+
+/** A badge for each step done, named after what it put in the books. */
+export const BADGES: Record<Exclude<StepKey, 'ringkasan'>, string> = {
+    usaha: 'Usaha terdaftar',
+    uang: 'Kas tercatat',
+    peralatan: 'Peralatan tercatat',
+    produk: 'Stok siap',
+    utang: 'Utang-piutang rapi',
+    akun: 'Akun siap',
+};
+
+export function earnedBadges(index: number): string[] {
+    return STEPS.slice(0, index).flatMap((step) =>
+        step.key === 'ringkasan' ? [] : [BADGES[step.key]],
+    );
+}
+
+const expense = (name: string): CustomAccountRow => ({
+    type: AccountType.Beban,
+    name,
+});
+const income = (name: string): CustomAccountRow => ({
+    type: AccountType.Pendapatan,
+    name,
+});
+
+/** "Akun khusus" ideas per kind of business; the owner taps the ones they have. */
+export const ACCOUNT_IDEAS: Record<BusinessCategory | '', CustomAccountRow[]> =
+    {
+        kuliner: [
+            expense('Beban Kemasan'),
+            expense('Beban Perawatan alat masak'),
+            income('Pendapatan Jasa antar'),
+        ],
+        kelontong: [
+            expense('Beban Kantong belanja'),
+            expense('Beban Internet & pulsa'),
+            income('Pendapatan Komisi pulsa & token'),
+        ],
+        fashion: [
+            expense('Beban Kemasan'),
+            expense('Beban Jahit & permak'),
+            income('Pendapatan Jasa permak'),
+        ],
+        kerajinan: [
+            expense('Beban Kemasan'),
+            expense('Beban Perawatan alat'),
+            income('Pendapatan Kelas & workshop'),
+        ],
+        lainnya: [
+            expense('Beban Internet & pulsa'),
+            expense('Beban Perawatan alat'),
+            income('Pendapatan Jasa'),
+        ],
+        '': [
+            expense('Beban Internet & pulsa'),
+            expense('Beban Perawatan alat'),
+            income('Pendapatan Jasa'),
+        ],
+    };
+
+export type ChartAccount = { code: string; name: string; type: AccountType };
+
+export type ChartGroup = {
+    type: AccountType;
+    label: string;
+    term: Term;
+    /** Shown under the group's name when its accounts start empty. */
+    note: string | null;
+    accounts: Array<{
+        code: string | null;
+        name: string;
+        /** The opening balance; null where the books fill it later. */
+        amount: Rupiah | null;
+    }>;
+};
+
+const GROUPS: Array<Omit<ChartGroup, 'accounts'>> = [
+    { type: AccountType.Aset, label: 'Aset', term: 'assets', note: null },
+    {
+        type: AccountType.Kewajiban,
+        label: 'Kewajiban',
+        term: 'liabilities',
+        note: null,
+    },
+    { type: AccountType.Ekuitas, label: 'Modal', term: 'capital', note: null },
+    {
+        type: AccountType.Pendapatan,
+        label: 'Pendapatan',
+        term: 'income',
+        note: 'Terisi saat kamu mencatat penjualan.',
+    },
+    {
+        type: AccountType.Beban,
+        label: 'Beban',
+        term: 'costs',
+        note: 'Biaya masuk akun jenisnya sendiri, misalnya biaya sewa ke Beban Sewa.',
+    },
+];
+
+/**
+ * The chart (COA) as the "Akun" step shows it: the fixed accounts in five
+ * groups with the opening balances typed so far, plus the owner's own
+ * accounts (no code until they are saved).
+ */
+export function chartGroups(
+    chart: ChartAccount[],
+    draft: OnboardingDraft,
+    existingStock: Rupiah,
+): ChartGroup[] {
+    const books = openingBalance(draft, existingStock);
+    const cashIn = (kind: MoneyAccountKind) =>
+        draft.accounts
+            .filter((account) => account.kind === kind)
+            .reduce((total, account) => total + (account.balance ?? 0), 0);
+    const opening: Record<string, Rupiah> = {
+        '1101': cashIn(MoneyAccountKind.Tunai),
+        '1102': cashIn(MoneyAccountKind.NonTunai),
+        '1201': books.receivables,
+        '1301': books.inventory,
+        '1401': books.equipment,
+        '2101': books.debts,
+        '3101': books.capital,
+    };
+    const hasOpening = (type: AccountType) =>
+        type === AccountType.Aset ||
+        type === AccountType.Kewajiban ||
+        type === AccountType.Ekuitas;
+
+    return GROUPS.map((group) => ({
+        ...group,
+        accounts: [
+            ...chart
+                .filter((account) => account.type === group.type)
+                .map((account) => ({
+                    code: account.code,
+                    name: account.name,
+                    amount: hasOpening(group.type)
+                        ? (opening[account.code] ?? 0)
+                        : null,
+                })),
+            ...draft.custom_accounts
+                .filter(
+                    (row) => row.type === group.type && row.name.trim() !== '',
+                )
+                .map((row) => ({
+                    code: null,
+                    name: row.name.trim(),
+                    amount: null,
+                })),
+        ],
+    }));
 }
