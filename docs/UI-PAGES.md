@@ -162,6 +162,12 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 ---
 
+### A5. Kebijakan Privasi `/privasi` dan Syarat dan Ketentuan `/syarat`
+
+- Halaman publik untuk consent screen Google dan untuk pendaftar. Pengelola ditulis "Tim Lais", kontak `halo@lais.web.id` (diteruskan Cloudflare Email Routing).
+- Isinya harus jujur terhadap kode: data yang disimpan, layanan pihak ketiga (Anthropic, Cloudflare R2, Telegram atau WhatsApp, Resend, Google), tanpa analitik atau iklan, dan apa yang belum ikut terhapus saat akun dihapus. Tanpa klaim patuh UU PDP; laporan "mengacu pada SAK EMKM".
+- Ditautkan dari footer landing dan dari halaman Daftar. Kalau perilaku data berubah, perbarui teks dan tanggal berlakunya.
+
 ## B. Auth & Onboarding
 
 ### B1. Daftar `/register`

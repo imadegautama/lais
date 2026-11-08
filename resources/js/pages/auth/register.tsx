@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { login } from '@/routes';
+import { login, privacy, terms } from '@/routes';
 import { store } from '@/routes/register';
 
 type Props = {
@@ -101,6 +101,18 @@ export default function Register({ passwordRules, googleLogin }: Props) {
                                 Buat akun
                             </Button>
                         </div>
+
+                        <p className="text-sm text-muted-foreground">
+                            Dengan membuat akun, kamu setuju dengan{' '}
+                            <TextLink href={terms()}>
+                                Syarat dan Ketentuan
+                            </TextLink>{' '}
+                            serta{' '}
+                            <TextLink href={privacy()}>
+                                Kebijakan Privasi
+                            </TextLink>{' '}
+                            Lais.
+                        </p>
 
                         <p className="text-center text-sm text-muted-foreground">
                             Sudah punya akun?{' '}

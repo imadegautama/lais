@@ -23,6 +23,10 @@ use Inertia\Inertia;
 
 Route::get('/', LandingController::class)->name('home');
 
+// The policies Google's consent screen links to; public, no account.
+Route::inertia('privasi', 'legal/privacy')->name('privacy');
+Route::inertia('syarat', 'legal/terms')->name('terms');
+
 // The shop and the customer's nota (UI-PAGES A2–A4): public, no account.
 Route::get('t/{slug}', [ShopController::class, 'show'])->name('shop.show');
 Route::post('t/{slug}/pesan', [ShopController::class, 'store'])->name('shop.store');

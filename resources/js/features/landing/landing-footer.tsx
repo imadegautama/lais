@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { login, register } from '@/routes';
+import { login, privacy, register, terms } from '@/routes';
 
 const link =
     'inline-flex items-center justify-center hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:min-w-11';
@@ -19,6 +19,12 @@ export function LandingFooter({ hasShop }: { hasShop: boolean }) {
                         Toko contoh
                     </a>
                 )}
+                <Link href={privacy()} className={link}>
+                    Privasi
+                </Link>
+                <Link href={terms()} className={link}>
+                    Syarat
+                </Link>
                 {!auth.user && (
                     <>
                         <Link href={login()} className={link}>
