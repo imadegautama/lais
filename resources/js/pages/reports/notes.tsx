@@ -20,7 +20,11 @@ import { formatDate, formatQty, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import reports from '@/routes/reports';
 import type { NotesProps } from '@/types/domain';
-import { transactionKindLabels, type TransactionKind } from '@/types/enums';
+import {
+    transactionKindExpenseAccounts,
+    transactionKindLabels,
+    type TransactionKind,
+} from '@/types/enums';
 
 type Note = {
     number: number;
@@ -141,8 +145,8 @@ export default function Notes(props: NotesProps) {
                 label: transactionKindLabels[kind],
                 amount: expensesByKind[kind] ?? 0,
                 hint: `${previousLabel}: ${formatRupiah(previousExpensesByKind[kind] ?? 0)}`,
+                href: ledger(transactionKindExpenseAccounts[kind] ?? '6101'),
             })),
-            href: ledger('6101'),
         },
     ];
     const filled = notes.filter((note) => note.rows.length > 0);

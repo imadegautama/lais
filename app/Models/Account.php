@@ -56,7 +56,23 @@ class Account extends Model
 
     public const COGS = '5101';
 
+    /** Beban operasional lain-lain, and every biaya recorded before the per-kind accounts. */
     public const EXPENSES = '6101';
+
+    public const UTILITIES = '6102';
+
+    public const FUEL = '6103';
+
+    public const RENT = '6104';
+
+    public const WAGES = '6105';
+
+    public const TRANSPORT = '6106';
+
+    public const MARKETING = '6107';
+
+    /** Biaya operasional: where TransactionKind::expenseAccount() posts, read together by the reports. */
+    public const OPERATING_EXPENSES = [self::EXPENSES, self::UTILITIES, self::FUEL, self::RENT, self::WAGES, self::TRANSPORT, self::MARKETING];
 
     public const STOCK_DIFFERENCE = '6201';
 

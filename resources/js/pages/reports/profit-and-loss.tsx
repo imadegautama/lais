@@ -23,6 +23,7 @@ import { create } from '@/routes/transactions';
 import type { ProfitAndLossProps } from '@/types/domain';
 import {
     AccountType,
+    transactionKindExpenseAccounts,
     transactionKindLabels,
     type TransactionKind,
 } from '@/types/enums';
@@ -95,10 +96,11 @@ export default function ProfitAndLoss(props: ProfitAndLossProps) {
             label: 'Biaya operasional',
             amount: -from.expenses,
             term: 'expenses',
-            href: ledger('6101'),
+            // One expense account per kind, so each detail opens its own ledger.
             details: kinds.map((kind) => ({
                 label: transactionKindLabels[kind],
                 amount: -(from.expensesByKind[kind] ?? 0),
+                href: ledger(transactionKindExpenseAccounts[kind] ?? '6101'),
             })),
         },
         ...ownLines(from, AccountType.Beban),
@@ -216,7 +218,6 @@ export default function ProfitAndLoss(props: ProfitAndLossProps) {
                                     {
                                         label: 'Biaya',
                                         amount: costs,
-                                        href: ledger('6101'),
                                     },
                                     {
                                         label: loss

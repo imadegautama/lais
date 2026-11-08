@@ -71,7 +71,7 @@ class Reports
         $net = $this->net($business, $from, $before);
         $sales = -($net[Account::SALES] ?? 0);
         $cogs = $net[Account::COGS] ?? 0;
-        $expenses = $net[Account::EXPENSES] ?? 0;
+        $expenses = array_sum(array_map(fn (string $code) => $net[(int) $code] ?? 0, Account::OPERATING_EXPENSES));
         $stockDifference = $net[Account::STOCK_DIFFERENCE] ?? 0;
         $depreciation = $net[Account::DEPRECIATION] ?? 0;
         $income = array_filter($net, fn (int $code) => $code >= 4000 && $code < 5000, ARRAY_FILTER_USE_KEY);
@@ -396,9 +396,11 @@ class Reports
     }
 
     /**
-     * Biaya operasional per jenis (listrik & air, upah, …): the 6101 lines
-     * grouped by the kind of the record that posted them. A cancellation is
-     * mirrored with the same source, so it nets out here as well.
+     * Biaya operasional per jenis (listrik & air, upah, …): the lines on the
+     * operating expense accounts grouped by the kind of the record that
+     * posted them, so a biaya from before the per-kind accounts (on 6101)
+     * still counts under its kind. A cancellation is mirrored with the same
+     * source, so it nets out here as well.
      *
      * @return array<string, int> TransactionKind value => rupiah, without zeros
      */
@@ -407,7 +409,7 @@ class Reports
         return $this->journal($business, $from, $before)
             ->join('transactions', fn (JoinClause $join) => $join->on('transactions.id', '=', 'journal_entries.source_id')
                 ->where('journal_entries.source_type', (new Transaction)->getMorphClass()))
-            ->where('accounts.code', Account::EXPENSES)
+            ->whereIn('accounts.code', Account::OPERATING_EXPENSES)
             ->groupBy('transactions.kind')
             ->selectRaw('transactions.kind, sum(journal_lines.debit) as debit, sum(journal_lines.credit) as credit')
             ->get()

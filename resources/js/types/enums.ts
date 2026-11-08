@@ -322,3 +322,13 @@ export const transactionTypeKinds: Record<TransactionType, readonly TransactionK
     pindah_dana: [],
     saldo_awal: ['saldo_kas', 'saldo_peralatan', 'saldo_utang', 'saldo_piutang'],
 };
+
+export const transactionKindExpenseAccounts: Partial<Record<TransactionKind, string>> = {
+    listrik_air: '6102',
+    gas_bbm: '6103',
+    sewa: '6104',
+    upah: '6105',
+    transport: '6106',
+    pemasaran: '6107',
+    lain: '6101',
+};

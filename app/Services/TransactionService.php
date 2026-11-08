@@ -340,7 +340,8 @@ class TransactionService
                 ? self::add([Account::EQUIPMENT => $total], [$payable => -$total])
                 // Goods: Persediaan and any catch-up HPP are added per line.
                 : [$payable => -$total],
-            TransactionType::Biaya => self::add([$account->code ?? Account::EXPENSES => $total], [$payable => -$total]),
+            // Each kind has its own expense account (Beban Sewa, …); an account the owner picked wins.
+            TransactionType::Biaya => self::add([$account->code ?? $kind?->expenseAccount() ?? Account::EXPENSES => $total], [$payable => -$total]),
             TransactionType::PemasukanLain => self::add([$cash => $total], [($account ?? throw new LogicException('Other income needs its account.'))->code => -$total]),
             TransactionType::UtangPiutang => match ($kind) {
                 TransactionKind::TerimaPiutang => self::add([$cash => $total], [Account::RECEIVABLE => -$total]),

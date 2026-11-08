@@ -20,22 +20,13 @@ import { AccountDialog } from '@/features/reports/account-dialog';
 import { archive } from '@/routes/accounts';
 import reports from '@/routes/reports';
 import type { ChartAccount, ChartProps } from '@/types/domain';
-import {
-    AccountType,
-    accountTypeLabels,
-    transactionKindLabels,
-    type TransactionKind,
-} from '@/types/enums';
-
-const EXPENSES_CODE = '6101';
+import { AccountType, accountTypeLabels } from '@/types/enums';
 
 function AccountRow({
     account,
-    details,
     query,
 }: {
     account: ChartAccount;
-    details: Array<[TransactionKind, number]>;
     query: Record<string, string>;
 }) {
     return (
@@ -74,21 +65,6 @@ function AccountRow({
                 <Money value={account.balance} size="md" />
             </div>
 
-            {account.code === EXPENSES_CODE && details.length > 0 && (
-                <ul className="flex flex-col gap-1 pl-4 text-sm text-muted-foreground">
-                    {details.map(([kind, amount]) => (
-                        <li key={kind} className="flex justify-between gap-3">
-                            <span>{transactionKindLabels[kind]}</span>
-                            <Money
-                                value={amount}
-                                size="sm"
-                                className="text-muted-foreground"
-                            />
-                        </li>
-                    ))}
-                </ul>
-            )}
-
             {!account.system && (
                 <div className="flex flex-wrap gap-2">
                     <AccountDialog
@@ -124,11 +100,8 @@ function AccountRow({
 }
 
 /** Daftar akun (COA): the fixed chart and what the business added to it. */
-export default function Chart({ accounts, expensesByKind, query }: ChartProps) {
+export default function Chart({ accounts, query }: ChartProps) {
     const [search, setSearch] = useState('');
-    const details = Object.entries(expensesByKind) as Array<
-        [TransactionKind, number]
-    >;
     const wanted = search.trim().toLowerCase();
     const shown = accounts.filter(
         (account) =>
@@ -208,7 +181,6 @@ export default function Chart({ accounts, expensesByKind, query }: ChartProps) {
                                                 <AccountRow
                                                     key={account.id}
                                                     account={account}
-                                                    details={details}
                                                     query={query}
                                                 />
                                             ))}

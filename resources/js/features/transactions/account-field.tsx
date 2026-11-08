@@ -3,21 +3,30 @@ import { ChoiceGroup } from '@/components/app/choice-group';
 import InputError from '@/components/input-error';
 import reports from '@/routes/reports';
 import type { OwnAccountOption } from '@/types/domain';
-import { AccountType, TransactionType } from '@/types/enums';
+import {
+    AccountType,
+    TransactionKind,
+    TransactionType,
+    transactionKindLabels,
+} from '@/types/enums';
 
 /**
- * Which account a biaya or a pemasukan lain lands on. A biaya stays on Beban
- * Operasional unless the owner picks one they added; other income has no
- * default, because 4101 is only for sales.
+ * Which account a biaya or a pemasukan lain lands on. A biaya lands on its
+ * kind's own expense account (Beban Sewa, …; Lain-lain on Beban Operasional)
+ * unless the owner picks one they added; other income has no default,
+ * because 4101 is only for sales.
  */
 export function AccountField({
     type,
+    kind,
     value,
     accounts,
     error,
     onChange,
 }: {
     type: TransactionType;
+    /** The biaya's kind: it lands on that kind's own expense account unless another is picked. */
+    kind?: TransactionKind | '';
     value: string;
     accounts: OwnAccountOption[];
     error?: string;
@@ -66,7 +75,16 @@ export function AccountField({
                 options={
                     income
                         ? own
-                        : [{ value: '', label: 'Beban Operasional' }, ...own]
+                        : [
+                              {
+                                  value: '',
+                                  label:
+                                      kind && kind !== TransactionKind.Lain
+                                          ? `Beban ${transactionKindLabels[kind]}`
+                                          : 'Beban Operasional',
+                              },
+                              ...own,
+                          ]
                 }
                 onChange={onChange}
                 wrap

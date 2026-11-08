@@ -571,7 +571,6 @@ export type ChartAccount = {
 
 export type ChartProps = ReportFrame & {
     accounts: ChartAccount[];
-    expensesByKind: Partial<Record<TransactionKind, Rupiah>>;
 };
 
 export type JournalEntryRow = {
