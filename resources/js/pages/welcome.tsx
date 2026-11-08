@@ -4,15 +4,13 @@ import { AppShowcase } from '@/features/landing/app-showcase';
 import { LandingFooter } from '@/features/landing/landing-footer';
 import { LandingHeader } from '@/features/landing/landing-header';
 import {
+    Answers,
     Audience,
     Closing,
     ExampleShop,
     Hero,
-    HowItWorks,
     Problem,
-    Reports,
     SampleMessages,
-    SeparateMoney,
     Trust,
 } from '@/features/landing/landing-sections';
 import { useReveal } from '@/features/landing/use-reveal';
@@ -48,11 +46,9 @@ export default function Welcome({ demoShop }: WelcomeProps) {
                     <Hero demoShop={demoShop} />
                     <SampleMessages />
                     <Problem />
-                    <HowItWorks />
+                    <Answers />
                     <AppShowcase />
                     <Audience />
-                    <SeparateMoney />
-                    <Reports />
                     <Trust />
                     {demoShop && <ExampleShop shop={demoShop} />}
                     <Closing />

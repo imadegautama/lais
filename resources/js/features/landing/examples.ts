@@ -36,6 +36,56 @@ export type DemoExample = {
 export const CONFIRM = 'Balas 1 untuk simpan, 2 untuk batal.';
 
 /**
+ * OCBC Business Fitness Index 2024, quoted from OCBC's own press release.
+ * The 77% counts only businesses that already keep records.
+ */
+export const surveyFacts = [
+    {
+        value: 46,
+        text: 'UMKM yang sepenuhnya memisahkan uang usaha dan uang pribadi.',
+    },
+    {
+        value: 77,
+        text: 'UMKM yang sudah mencatat keuangan, masih melakukannya secara manual.',
+    },
+] as const;
+
+/**
+ * The four problems the landing page names, in the order the answers below
+ * them come. Every answer is something the app does today.
+ */
+export const problems = [
+    {
+        id: 'uang',
+        title: 'Uang usaha dan pribadi tercampur',
+        pain: 'Belanja bahan pakai uang dapur, ambil uang buat rumah tanpa dicatat.',
+        answer: 'Uang pribadi dicatat terpisah, laba tetap jelas.',
+        detail: 'Ambil uang untuk rumah, kas turun tetapi laba tidak berubah. Belanja usaha memakai uang pribadi tercatat sebagai setoran modal.',
+    },
+    {
+        id: 'catat',
+        title: 'Mau mencatat, tapi ribet dan manual',
+        pain: 'Buku tulis penuh coretan, aplikasi pembukuan penuh istilah debit dan kredit.',
+        answer: 'Cukup chat, jurnalnya tersusun sendiri.',
+        detail: 'Ketik di Telegram atau Tanya AI, atau kirim foto nota. Lais membuat draf, kamu yang menyetujui. Pesanan dari toko online ikut tercatat.',
+    },
+    {
+        id: 'untung',
+        title: 'Tidak tahu untung sebenarnya',
+        pain: 'Harga jual ditebak, modal per porsi tidak pernah dihitung.',
+        answer: 'Untung tiap porsi kelihatan.',
+        detail: 'HPP dihitung dari resep, dan laba rugi tersusun dari jurnal, mengacu pada SAK EMKM.',
+    },
+    {
+        id: 'stok',
+        title: 'Stok habis, utang terlupa',
+        pain: 'Bahan habis saat ramai, pelanggan lupa ditagih.',
+        answer: 'Stok dan utang terpantau sebelum jadi masalah.',
+        detail: 'Stok bahan berkurang sesuai resep, ada peringatan saat menipis, dan daftar siapa yang belum bayar beserta umurnya.',
+    },
+] as const;
+
+/**
  * Real shops, not stock art. Each photo is CC BY-SA, so its credit and the
  * note that it was cropped stay next to it (DESIGN.md §6).
  */

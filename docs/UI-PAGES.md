@@ -105,11 +105,10 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 - **Hero:** judul "Cukup chat, pembukuan usahamu tersusun sendiri.", tombol **Daftar gratis** dan **Lihat toko contoh**, lalu demo chat: empat contoh pesan yang bisa dipilih, HP berisi percakapan, dan kartu Stok, Kas, Laba, Jurnal yang ikut berubah. Demo tidak memanggil AI.
 - **Contoh pesan:** ban berjalan. Pesan dari eval `AssistantEvalTest` masuk dari kiri, melewati simpul AI di tengah, dan keluar sebagai catatan jadi. Berhenti saat disorot, disentuh, atau difokus.
-- **Masalah:** satu angka bersumber (46%, OCBC Business Fitness Index 2024) dan tiga akibat tanpa angka.
-- **Cara kerja:** satu pembukuan, tiga pintu masuk (chat, web, toko).
+- **Masalah:** panel oranye. Judul "Usaha jalan terus, tapi untungnya ke mana?", dua angka OCBC Business Fitness Index 2024 sebagai grid 100 titik (46% memisahkan uang usaha dan pribadi, 77% dari yang sudah mencatat masih manual), lalu empat masalah bernomor.
+- **Jawaban Lais** (`#cara-kerja`): empat jawaban dengan nomor dan urutan yang sama, masing-masing dengan potongan tampilan aplikasi. Daftar masalah menempel di kiri, menyala dan tercoret saat digulir.
 - **Aplikasi:** laptop berisi tangkapan layar asli dengan empat tab: Dashboard, Produk & stok, Utang-piutang, Laporan.
 - **Untuk siapa:** kartu foto kuliner, kelontong, fashion, kerajinan, dengan kredit fotografer di bawah tiap kartu.
-- **Uang terpisah** dan **Laporan:** dua bagian selang-seling.
 - **Kenapa bisa dipercaya:** AI tidak menyimpan tanpa konfirmasi, angka dari sistem, data tiap usaha terpisah.
 - **Toko contoh:** kartu `warung-bu-rina` dari data asli dengan tombol **Coba pesan**. Kalau toko itu tidak ada atau tidak punya produk yang bisa dipesan, bagian dan tombolnya tidak tampil.
 - **CTA penutup** + footer.

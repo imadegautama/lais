@@ -6,14 +6,16 @@ import {
     Check,
     CircleCheck,
     CircleX,
+    Clock,
     LockKeyhole,
     ShieldCheck,
     Store,
     TriangleAlert,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
-import { LabelBadge } from '@/components/app/badges';
+import type { CSSProperties, ReactNode } from 'react';
+import { useRef } from 'react';
+import { LabelBadge, MarginLabel } from '@/components/app/badges';
 import { DemoDataBadge } from '@/components/app/demo-data-badge';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Money } from '@/components/app/money';
@@ -25,11 +27,17 @@ import { show as showShop } from '@/routes/shop';
 import type { DemoShop } from '@/types/domain';
 import { businessCategoryLabels } from '@/types/enums';
 import { ChatDemo } from './chat-demo';
-import { businessPhotos, sampleRecords } from './examples';
+import {
+    businessPhotos,
+    problems,
+    sampleRecords,
+    surveyFacts,
+} from './examples';
+import { useActiveStep } from './use-active-step';
 import { delay, WordReveal } from './word-reveal';
 
 const SOURCE_URL =
-    'https://prnewswire.com/apac/news-releases/only-46-of-msmes-fully-separate-their-business-and-personal-finances-ocbc-simplifies-the-process-for-entrepreneurs-to-open-a-business-checking-account-100-digital-302240246.html';
+    'https://www.ocbc.id/id/tentang-ocbc/informasi/siaran-pers/2024/08/19/ocbc-business-fitness-index';
 
 const shell = 'mx-auto w-full max-w-[1280px] px-4 md:px-8';
 const creditLink =
@@ -66,9 +74,10 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
                             style={delay(380)}
                             className="mt-4 text-base text-pretty md:text-lg"
                         >
-                            Ketik penjualan seperti biasa. Lais mengurangi stok
-                            sesuai resep, menghitung HPP, memisahkan uang
-                            pribadi, dan menyusun laporannya.
+                            Aplikasi pembukuan untuk UMKM. Ketik penjualan
+                            seperti biasa, lalu Lais mengurangi stok sesuai
+                            resep, menghitung HPP, memisahkan uang pribadi, dan
+                            menyusun laporannya.
                         </p>
                         <div
                             data-intro
@@ -253,97 +262,48 @@ function Lane({
     );
 }
 
-const consequences = [
-    {
-        title: 'Uang tercampur',
-        text: 'Belanja bahan memakai uang dapur, lalu laba jadi tidak jelas.',
-    },
-    {
-        title: 'Stok tidak terpantau',
-        text: 'Bahan habis baru ketahuan saat pesanan sudah masuk.',
-    },
-    {
-        title: 'Laba cuma perkiraan',
-        text: 'Kas naik belum tentu untung, kas turun belum tentu rugi.',
-    },
-];
-
-export function Problem() {
+function Ledger({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <section
-            aria-labelledby="masalah"
-            className={cn(shell, 'py-12 md:py-16')}
-        >
-            <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
-                <div className="lg:col-span-5">
-                    <h2
-                        id="masalah"
-                        data-reveal="words"
-                        className="text-2xl font-semibold tracking-tight text-balance md:text-3xl"
-                    >
-                        <WordReveal text="Baru 46% UMKM yang sepenuhnya memisahkan uang usaha dan uang pribadi." />
-                    </h2>
-                    <p
-                        data-reveal="up"
-                        style={delay(250)}
-                        className="mt-2 text-sm text-muted-foreground"
-                    >
-                        Survei{' '}
-                        <a
-                            href={SOURCE_URL}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline underline-offset-2 hover:text-foreground pointer-coarse:py-[14px]"
-                        >
-                            OCBC Business Fitness Index 2024
-                        </a>
-                        , 620 responden di kota besar.
-                    </p>
-                </div>
-                <ul className="grid gap-6 sm:grid-cols-3 lg:col-span-7">
-                    {consequences.map(({ title, text }, index) => (
-                        <li
-                            key={title}
-                            data-reveal="up"
-                            style={delay(index * 100)}
-                        >
-                            <p className="font-semibold">{title}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {text}
-                            </p>
-                        </li>
-                    ))}
-                </ul>
+        <div className="landing-drift rounded-xl border bg-card p-4 shadow-card">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">{title}</p>
+                <DemoDataBadge />
             </div>
-        </section>
+            <dl className="mt-3 flex flex-col divide-y text-sm">{children}</dl>
+        </div>
     );
 }
 
-function Door({
-    order,
-    title,
-    text,
+function LedgerRow({
+    label,
     children,
 }: {
-    order: number;
-    title: string;
-    text: string;
+    label: string;
     children: ReactNode;
 }) {
     return (
-        <li
-            data-reveal="up"
-            style={delay(order * 110)}
-            className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-card"
-        >
-            <div className="flex min-h-32 flex-col justify-center gap-2 rounded-xl bg-surface-warm p-4 md:min-h-44">
+        <div className="flex items-center justify-between gap-3 py-2">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd>{children}</dd>
+        </div>
+    );
+}
+
+function Note({ children }: { children: ReactNode }) {
+    return (
+        <div className="landing-drift-more">
+            <p
+                data-reveal="pop"
+                style={delay(350)}
+                className="relative z-10 mt-3 flex w-fit items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm font-medium shadow-toast md:-mt-3 md:-mr-10 md:ml-auto"
+            >
+                <BadgeCheck
+                    className="size-4 shrink-0 text-success"
+                    aria-hidden
+                />
                 {children}
-            </div>
-            <div className="px-1 pb-1">
-                <h3 className="text-lg font-semibold">{title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-            </div>
-        </li>
+            </p>
+        </div>
     );
 }
 
@@ -355,67 +315,281 @@ function MiniRow({
     children: ReactNode;
 }) {
     return (
-        <p className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-card px-3 py-2 text-sm">
             <Icon className="size-4 shrink-0 text-brand-strong" aria-hidden />
-            {children}
+            <span>{children}</span>
         </p>
     );
 }
 
-export function HowItWorks() {
+/** One survey number as a hundred dots, filled one by one (landing.css). */
+function Fact({ value, text }: { value: number; text: string }) {
+    return (
+        <div
+            data-reveal="dots"
+            className="flex flex-col items-start gap-5 sm:flex-row sm:items-center"
+        >
+            <div aria-hidden className="grid shrink-0 grid-cols-10 gap-1">
+                {Array.from({ length: 100 }, (_, index) => (
+                    <span
+                        key={index}
+                        style={{ '--i': index } as CSSProperties}
+                        className={cn(
+                            'size-2 rounded-full md:size-2.5',
+                            index < value
+                                ? 'landing-dot bg-primary-foreground'
+                                : 'border border-primary-foreground/50',
+                        )}
+                    />
+                ))}
+            </div>
+            <p>
+                <span className="num block text-5xl font-semibold tracking-tight md:text-6xl">
+                    {value} dari 100
+                </span>
+                <span className="mt-2 block text-base md:text-lg">{text}</span>
+            </p>
+        </div>
+    );
+}
+
+/** The problem, in numbers first, then the four that the answers below take on. */
+export function Problem() {
     return (
         <section
-            id="cara-kerja"
-            aria-labelledby="cara-kerja-judul"
-            className={cn(shell, 'scroll-mt-6 py-12 md:py-16')}
+            aria-labelledby="masalah"
+            className="px-2 py-8 md:px-4 md:py-10"
         >
-            <div className="mx-auto max-w-2xl text-center">
-                <h2
-                    id="cara-kerja-judul"
-                    data-reveal="words"
-                    className={heading}
-                >
-                    <WordReveal text="Satu pembukuan, tiga pintu masuk" />
-                </h2>
-                <p
-                    data-reveal="up"
-                    style={delay(200)}
-                    className="mt-3 text-muted-foreground"
-                >
-                    Dari pintu mana pun catatan masuk, angkanya berakhir di buku
-                    yang sama.
-                </p>
+            <div className="mx-auto max-w-[1400px] rounded-3xl bg-primary py-12 text-primary-foreground md:py-16">
+                <div className={shell}>
+                    <h2
+                        id="masalah"
+                        data-reveal="words"
+                        className={cn(heading, 'max-w-3xl md:text-5xl')}
+                    >
+                        <WordReveal text="Usaha jalan terus, tapi untungnya ke mana?" />
+                    </h2>
+                    <div className="mt-10 grid gap-10 md:grid-cols-2">
+                        {surveyFacts.map((fact) => (
+                            <Fact key={fact.value} {...fact} />
+                        ))}
+                    </div>
+                    <p className="mt-8 text-sm">
+                        Sumber:{' '}
+                        <a
+                            href={SOURCE_URL}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline underline-offset-2 pointer-coarse:py-[14px]"
+                        >
+                            OCBC Business Fitness Index 2024
+                        </a>
+                        , OCBC dan NielsenIQ, 620 responden.
+                    </p>
+                    <ol className="mt-10 grid gap-x-8 gap-y-6 border-t border-primary-foreground/30 pt-8 sm:grid-cols-2 lg:grid-cols-4">
+                        {problems.map((problem, index) => (
+                            <li
+                                key={problem.id}
+                                data-reveal="up"
+                                style={delay(index * 90)}
+                                className="flex gap-3"
+                            >
+                                <span className="num flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-foreground font-semibold text-primary-text">
+                                    {index + 1}
+                                </span>
+                                <span>
+                                    <span className="block font-semibold">
+                                        {problem.title}
+                                    </span>
+                                    <span className="mt-1 block text-sm">
+                                        {problem.pain}
+                                    </span>
+                                </span>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
             </div>
-            <ul className="mt-10 grid gap-4 md:grid-cols-3 md:gap-6">
-                <Door
-                    order={0}
-                    title="Catat lewat chat"
-                    text="Ketik di Telegram atau Tanya AI, atau kirim foto nota. Lais membuat draf, kamu yang menyetujui."
-                >
-                    <p className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-brand-soft px-3 py-2 text-sm">
-                        jual 2 es teh tunai
-                    </p>
-                    <p className="max-w-[85%] self-start rounded-2xl rounded-bl-md border bg-card px-3 py-2 text-sm">
-                        Penjualan tersimpan.
-                    </p>
-                </Door>
-                <Door
-                    order={1}
-                    title="Kelola di web"
-                    text="Dashboard, stok, kas, utang-piutang, dan laporan ada di satu tempat, di HP maupun laptop."
-                >
-                    <MiniRow icon={TriangleAlert}>Stok telur menipis</MiniRow>
-                    <MiniRow icon={Calculator}>Laba bulan ini naik</MiniRow>
-                </Door>
-                <Door
-                    order={2}
-                    title="Terima pesanan dari toko"
-                    text="Pelanggan memesan lewat link toko tanpa akun. Saat pesanan selesai, penjualan dan stok ikut tercatat."
-                >
-                    <MiniRow icon={Store}>Pesanan baru masuk</MiniRow>
-                    <MiniRow icon={CircleCheck}>Selesai dan tercatat</MiniRow>
-                </Door>
-            </ul>
+        </section>
+    );
+}
+
+/** What each answer shows, in pieces of the app (sample numbers). */
+const answerVisuals: Record<(typeof problems)[number]['id'], ReactNode> = {
+    uang: (
+        <>
+            <Ledger title="Ambil 200rb buat rumah">
+                <LedgerRow label="Kas tunai">
+                    <Money value={200_000} direction="out" size="sm" />
+                </LedgerRow>
+                <LedgerRow label="Diambil untuk pribadi">
+                    <Money value={200_000} size="sm" />
+                </LedgerRow>
+                <LedgerRow label="Laba">
+                    <span className="font-medium">Tetap</span>
+                </LedgerRow>
+            </Ledger>
+            <Note>Uang pribadi bukan biaya usaha</Note>
+        </>
+    ),
+    catat: (
+        <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-card">
+            <div className="flex justify-end">
+                <DemoDataBadge />
+            </div>
+            <p className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-brand-soft px-3 py-2 text-sm">
+                jual 2 es teh tunai
+            </p>
+            <p className="max-w-[85%] self-start rounded-2xl rounded-bl-md bg-secondary px-3 py-2 text-sm">
+                Penjualan · 2 gelas Es Teh = Rp10.000. Balas 1 untuk simpan.
+            </p>
+            <p className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-brand-soft px-3 py-2 text-sm">
+                1
+            </p>
+            <p className="max-w-[85%] self-start rounded-2xl rounded-bl-md bg-secondary px-3 py-2 text-sm">
+                Penjualan tersimpan.
+            </p>
+        </div>
+    ),
+    untung: (
+        <>
+            <Ledger title="Nasi Goreng, per porsi">
+                <LedgerRow label="Harga jual">
+                    <Money value={15_000} size="sm" />
+                </LedgerRow>
+                <LedgerRow label="HPP dari resep">
+                    <Money value={7_200} direction="out" size="sm" />
+                </LedgerRow>
+                <LedgerRow label="Untung">
+                    <span className="flex items-center gap-2">
+                        <MarginLabel percent={52} />
+                        <Money value={7_800} size="sm" />
+                    </span>
+                </LedgerRow>
+            </Ledger>
+            <Note>Laporan mengacu pada SAK EMKM</Note>
+        </>
+    ),
+    stok: (
+        <div className="flex flex-col gap-2 rounded-xl border bg-card p-4 shadow-card">
+            <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold">Perlu tindakan hari ini</p>
+                <DemoDataBadge />
+            </div>
+            <MiniRow icon={TriangleAlert}>Stok telur menipis</MiniRow>
+            <MiniRow icon={Clock}>
+                Bu Sari belum bayar <Money value={45_000} size="sm" />, sudah 21
+                hari
+            </MiniRow>
+        </div>
+    ),
+};
+
+/**
+ * The same four problems, answered one by one. On wide screens the list
+ * stays beside the answers: the one being read lights up, the ones already
+ * answered are struck through (landing.css).
+ */
+export function Answers() {
+    const section = useRef<HTMLElement>(null);
+    const active = useActiveStep(section);
+    const last = problems.length - 1;
+
+    return (
+        <section
+            ref={section}
+            id="cara-kerja"
+            aria-labelledby="jawaban"
+            className={cn(shell, 'scroll-mt-6 py-12 md:py-20')}
+        >
+            <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
+                <div className="lg:col-span-5">
+                    <div className="lg:sticky lg:top-24">
+                        <h2
+                            id="jawaban"
+                            data-reveal="words"
+                            className={heading}
+                        >
+                            <WordReveal text="Begini Lais menjawabnya" />
+                        </h2>
+                        <p className="mt-3 text-muted-foreground">
+                            Empat masalah tadi, satu per satu.
+                        </p>
+                        <ol
+                            aria-hidden
+                            style={
+                                {
+                                    '--progress':
+                                        Math.min(Math.max(active, 0), last) /
+                                        last,
+                                } as CSSProperties
+                            }
+                            className="landing-steps relative mt-8 hidden flex-col gap-7 lg:flex"
+                        >
+                            {problems.map((problem, index) => (
+                                <li
+                                    key={problem.id}
+                                    data-state={
+                                        index < active
+                                            ? 'done'
+                                            : index === active
+                                              ? 'active'
+                                              : 'next'
+                                    }
+                                    className="landing-step group relative flex items-start gap-4"
+                                >
+                                    <span className="num relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-border bg-card font-semibold text-muted-foreground transition-colors group-data-[state=active]:border-primary group-data-[state=active]:bg-primary group-data-[state=active]:text-primary-foreground group-data-[state=done]:border-brand-strong group-data-[state=done]:text-primary-text">
+                                        {index < active ? (
+                                            <Check className="size-4" />
+                                        ) : (
+                                            index + 1
+                                        )}
+                                    </span>
+                                    <span className="pt-1.5 font-semibold text-muted-foreground transition-colors group-data-[state=active]:text-foreground">
+                                        <span className="landing-struck">
+                                            {problem.title}
+                                        </span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
+                </div>
+                <ol className="flex flex-col gap-16 lg:col-span-7 lg:gap-28">
+                    {problems.map((problem, index) => (
+                        <li key={problem.id} data-step={index}>
+                            <p
+                                data-reveal="strike"
+                                className="text-sm font-medium text-muted-foreground lg:sr-only"
+                            >
+                                <span className="sr-only">
+                                    Masalah {index + 1}:{' '}
+                                </span>
+                                <span className="landing-struck">
+                                    {problem.title}
+                                </span>
+                            </p>
+                            <div
+                                data-reveal="up"
+                                className="mt-3 rounded-3xl bg-landing-glow p-4 md:p-8 lg:mt-0"
+                            >
+                                {answerVisuals[problem.id]}
+                            </div>
+                            <h3 className="mt-6 text-2xl font-semibold tracking-tight text-balance md:text-3xl">
+                                {problem.answer}
+                            </h3>
+                            <p className="mt-3 text-muted-foreground">
+                                {problem.detail}
+                            </p>
+                        </li>
+                    ))}
+                </ol>
+            </div>
+            <span
+                aria-hidden
+                data-step={problems.length}
+                className="block h-px"
+            />
         </section>
     );
 }
@@ -485,132 +659,6 @@ export function Audience() {
                     </li>
                 ))}
             </ul>
-        </section>
-    );
-}
-
-function Ledger({ title, children }: { title: string; children: ReactNode }) {
-    return (
-        <div className="landing-drift rounded-xl border bg-card p-4 shadow-card">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold">{title}</p>
-                <DemoDataBadge />
-            </div>
-            <dl className="mt-3 flex flex-col divide-y text-sm">{children}</dl>
-        </div>
-    );
-}
-
-function LedgerRow({
-    label,
-    children,
-}: {
-    label: string;
-    children: ReactNode;
-}) {
-    return (
-        <div className="flex items-center justify-between gap-3 py-2">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd>{children}</dd>
-        </div>
-    );
-}
-
-function Note({ children }: { children: ReactNode }) {
-    return (
-        <div className="landing-drift-more">
-            <p
-                data-reveal="pop"
-                style={delay(350)}
-                className="relative z-10 mt-3 flex w-fit items-center gap-2 rounded-xl border bg-card px-3 py-2 text-sm font-medium shadow-toast md:-mt-3 md:-mr-10 md:ml-auto"
-            >
-                <BadgeCheck
-                    className="size-4 shrink-0 text-success"
-                    aria-hidden
-                />
-                {children}
-            </p>
-        </div>
-    );
-}
-
-export function SeparateMoney() {
-    return (
-        <section
-            aria-labelledby="uang-terpisah"
-            className={cn(
-                shell,
-                'grid items-center gap-8 py-12 md:grid-cols-2 md:gap-14 md:py-16',
-            )}
-        >
-            <div data-reveal="left">
-                <h2 id="uang-terpisah" className={heading}>
-                    Uang usaha dan uang pribadi punya tempatnya sendiri.
-                </h2>
-                <p className="mt-4 text-muted-foreground">
-                    Ambil uang untuk rumah, kas turun tetapi laba tetap. Belanja
-                    usaha memakai uang pribadi, tercatat sebagai setoran modal.
-                    Kamu selalu tahu berapa uang yang benar-benar milik usaha.
-                </p>
-            </div>
-            <div
-                data-reveal="right"
-                className="rounded-3xl bg-landing-glow p-4 md:p-8"
-            >
-                <Ledger title="Ambil 200rb buat rumah">
-                    <LedgerRow label="Kas tunai">
-                        <Money value={200_000} direction="out" size="sm" />
-                    </LedgerRow>
-                    <LedgerRow label="Diambil untuk pribadi">
-                        <Money value={200_000} size="sm" />
-                    </LedgerRow>
-                    <LedgerRow label="Laba">
-                        <span className="font-medium">Tetap</span>
-                    </LedgerRow>
-                </Ledger>
-                <Note>Uang pribadi bukan biaya usaha</Note>
-            </div>
-        </section>
-    );
-}
-
-export function Reports() {
-    return (
-        <section
-            aria-labelledby="laporan"
-            className={cn(
-                shell,
-                'grid items-center gap-8 py-12 md:grid-cols-2 md:gap-14 md:py-16',
-            )}
-        >
-            <div
-                data-reveal="left"
-                className="rounded-3xl bg-landing-glow p-4 md:order-first md:p-8"
-            >
-                <Ledger title="Laba rugi bulan ini">
-                    <LedgerRow label="Penjualan">
-                        <Money value={49_000} size="sm" />
-                    </LedgerRow>
-                    <LedgerRow label="HPP">
-                        <Money value={24_100} direction="out" size="sm" />
-                    </LedgerRow>
-                    <LedgerRow label="Laba bersih">
-                        <Money value={24_900} size="sm" />
-                    </LedgerRow>
-                </Ledger>
-                <Note>Selisih laba dan kas terjelaskan</Note>
-            </div>
-            <div data-reveal="right" className="order-first md:order-none">
-                <h2 id="laporan" className={heading}>
-                    Laporan tersusun sendiri, mengacu pada SAK EMKM.
-                </h2>
-                <p className="mt-4 text-muted-foreground">
-                    Laba rugi, neraca, perubahan modal, dan catatan atas laporan
-                    keuangan dihitung langsung dari jurnal. Buku besar, jurnal
-                    umum, dan neraca saldo juga tersedia, dan semuanya bisa
-                    dicetak.
-                </p>
-            </div>
         </section>
     );
 }

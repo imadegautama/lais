@@ -97,6 +97,8 @@ Oranye hanya muncul di:
 4. Kartu fokus, satu per layar.
 5. Wash halaman `bg-page-wash` di layout, sebagai satu-satunya latar berwarna (keputusan pemilik, §2). Landing page memakai `bg-landing-glow` pada panelnya, bukan pada halaman.
 
+Satu pengecualian di landing page: panel masalah memakai `bg-primary` penuh dengan teks putih penuh (4,66:1, tanpa transparansi), supaya masalahnya langsung menonjol. Hanya satu panel itu.
+
 Oranye tidak dipakai untuk ikon biasa, garis dekoratif, atau latar section lain selain wash halaman. **Teks oranye selalu memakai `text-primary-text`**, dan ikon oranye memakai `text-brand-strong`. Jangan pakai `text-primary` untuk teks.
 
 ### Tipografi
@@ -267,6 +269,7 @@ Isinya 20 baris per halaman. Param yang tidak valid diabaikan dan tidak pernah d
 14. **Daftar yang bisa terus bertambah** (riwayat pesanan, transaksi, utang-piutang) memakai `AppDataTable`: tabel di desktop, daftar bertumpuk di HP (`renderMobileItem`), dengan urut dan halaman 20 baris. Data dari query memakai mode server (`TableQuery` + `useTableQuery`); data yang sudah dihitung di PHP dan pasti sedikit memakai mode browser. Kartu saja hanya untuk daftar yang pasti pendek. Tombol aksi di baris selalu terlihat, tidak muncul hanya saat hover, karena layar sentuh tidak punya hover.
 15. **Pengaturan pendamping daftar** (misalnya Toko online di Pesanan) menjadi bar ringkas di atas daftar (`ShopBar`), bukan kolom samping, supaya tabel mendapat lebar penuh.
 16. **Landing page (`/`):** satu-satunya halaman yang menjual, jadi lebarnya sampai 1280 px, di luar aturan 640 px halaman publik. Tata letaknya: panel `bg-landing-glow` berganti dengan bagian putih, satu demo chat yang bisa diklik di hero, dan dua bagian selang-seling. Aturan yang tetap berlaku: token yang sama, tanpa eyebrow di atas judul, dan semua angka demo berlabel `DemoDataBadge`. Bagian yang datanya tidak ada (testimoni, logo mitra, jumlah pengguna, harga) tidak dibuat.
+    - **Masalah lalu jawaban:** panel oranye menyebut empat masalah bernomor, lalu section jawaban menjawabnya dengan nomor dan urutan yang sama. Di layar lebar, daftar masalah menempel di kiri: yang sedang dijawab menyala oranye, yang sudah dijawab dicoret. Di HP, setiap jawaban diawali masalahnya yang tercoret.
     - **Gerak:** atas permintaan pemilik, halaman ini memakai animasi, semuanya di `resources/css/landing.css` dan `use-reveal.ts`. Satu-satunya library adalah Lenis (`use-smooth-scroll.ts`), hanya untuk menghaluskan roda mouse di halaman ini. Guliran sentuh tetap native. Momen utamanya urutan demo chat: pesan, draf, "tersimpan", baru kartu Stok, Kas, Laba, Jurnal keluar. Saat digulir: judul per kata, kartu naik, dan bagian selang-seling masuk dari samping.
     - **Laptop:** berisi tangkapan layar asli, bukan gambar buatan, dari data contoh `DemoHistorySeeder` dan selalu berlabel `DemoDataBadge`. Nama, angka, dan teksnya tidak disunting.
     - **Foto:** hanya dari sumber yang lisensinya bisa diperiksa, tanpa gambar AI. Kredit fotografer dan lisensinya wajib tampil di dekat foto. Pilih tangan atau orang yang sedang bekerja, bukan wajah yang menatap kamera, supaya tidak terbaca sebagai testimoni.

@@ -66,6 +66,41 @@
     clip-path: inset(0 0 0 50%);
 }
 
+/* A struck-through problem: the line is drawn, so it can grow (below). */
+.landing-struck {
+    background-image: linear-gradient(var(--brand-strong), var(--brand-strong));
+    background-position: 0 58%;
+    background-repeat: no-repeat;
+    background-size: 100% 2px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+.landing-step:not([data-state='done']) .landing-struck {
+    background-size: 0% 2px;
+}
+
+/* The rail beside the answers, filled up to the one being read. */
+.landing-steps::before,
+.landing-steps::after {
+    position: absolute;
+    top: 1.125rem;
+    left: 1.0625rem;
+    width: 2px;
+    border-radius: 1px;
+    content: '';
+}
+
+.landing-steps::before {
+    bottom: 1.125rem;
+    background: var(--border);
+}
+
+.landing-steps::after {
+    height: calc((100% - 2.25rem) * var(--progress, 0));
+    background: var(--brand-strong);
+}
+
 /* Four photographers, one mood. */
 .landing-photo {
     filter: saturate(0.92) sepia(0.08);
@@ -194,6 +229,29 @@
     [data-reveal='pop'][data-waiting] {
         opacity: 0;
         transform: translateY(1rem) scale(0.9);
+    }
+
+    .landing-struck {
+        transition: background-size 0.7s var(--landing-ease) 0.15s;
+    }
+
+    [data-reveal='strike'][data-waiting] .landing-struck {
+        background-size: 0% 2px;
+    }
+
+    .landing-steps::after {
+        transition: height 0.6s var(--landing-ease);
+    }
+
+    [data-reveal='dots'] .landing-dot {
+        transition:
+            opacity 0.3s ease-out calc(var(--i) * 10ms),
+            transform 0.3s ease-out calc(var(--i) * 10ms);
+    }
+
+    [data-reveal='dots'][data-waiting] .landing-dot {
+        opacity: 0.2;
+        transform: scale(0.4);
     }
 
     [data-reveal='zoom'] {

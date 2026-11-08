@@ -42,7 +42,13 @@ export function useReveal(root: RefObject<HTMLElement | null>): void {
         root.current
             .querySelectorAll<HTMLElement>('[data-reveal]')
             .forEach((element) => {
-                const { top } = element.getBoundingClientRect();
+                const { top, width } = element.getBoundingClientRect();
+
+                // Hidden or read-out-only on this screen: nothing to show.
+                if (width <= 1) {
+                    return;
+                }
+
                 // Anything in sight stays put, or it would fade out on load.
                 // The demo is the exception: its play should not be missed.
                 const fold = element.dataset.reveal === 'play' ? 0.8 : 1;
