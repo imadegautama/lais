@@ -17,17 +17,19 @@ import {
     Wallet,
     type LucideIcon,
 } from 'lucide-react';
-import { useState } from 'react';
-import { ActionButton, SoonTag } from '@/components/app/action-button';
+import { useEffect, useState } from 'react';
+import { ActionButton } from '@/components/app/action-button';
 import { DeltaBadge, MetricTile } from '@/components/app/metric';
 import { Money } from '@/components/app/money';
 import { OnboardingReminder } from '@/components/app/onboarding-reminder';
 import { PageHeader } from '@/components/app/page-header';
 import { PeriodPicker } from '@/components/app/period-picker';
+import { ProductTour, tourSeen } from '@/components/app/product-tour';
 import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { EmptyState, ErrorState } from '@/components/app/states';
 import { TransactionTable } from '@/features/transactions/transaction-table';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
     appTimeZone,
@@ -76,6 +78,14 @@ const actionIcons: Record<ActionItem['kind'], LucideIcon> = {
 export default function Dashboard(props: DashboardProps) {
     const [loading, setLoading] = useState(false);
     const [failed, setFailed] = useState<PeriodKey | null>(null);
+    const [touring, setTouring] = useState(false);
+
+    // Storage is read after mount, so the server render and the first client render match.
+    useEffect(() => {
+        if (props.startTour && !tourSeen()) {
+            setTouring(true);
+        }
+    }, [props.startTour]);
 
     const changePeriod = (key: PeriodKey) => {
         router.get(
@@ -107,6 +117,7 @@ export default function Dashboard(props: DashboardProps) {
     return (
         <>
             <Head title="Dashboard" />
+            <ProductTour run={touring} onDone={() => setTouring(false)} />
             <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
                 <PageHeader
                     title={`${greeting()}, ${props.business.ownerName}`}
@@ -133,11 +144,18 @@ export default function Dashboard(props: DashboardProps) {
                     />
                 )}
 
-                {props.isEmpty ? (
-                    <FirstSteps />
-                ) : (
-                    <Overview {...props} loading={loading} />
+                {/* Until every mission is done, new owners see what to do next. */}
+                {props.missions.some((mission) => !mission.done) && (
+                    // The id is the tour's last stop (ProductTour).
+                    <div id="misi">
+                        <Missions
+                            missions={props.missions}
+                            onTour={() => setTouring(true)}
+                        />
+                    </div>
                 )}
+
+                {!props.isEmpty && <Overview {...props} loading={loading} />}
             </div>
         </>
     );
@@ -563,77 +581,135 @@ function StockCard({
     );
 }
 
-function FirstSteps() {
-    const steps: Array<{
-        title: string;
-        detail: string;
-        action?: { label: string; href: string };
-    }> = [
-        {
-            title: 'Tambahkan produk dan resep',
-            detail: 'Supaya stok bahan berkurang otomatis saat terjual.',
-            action: { label: 'Tambah produk', href: createItem.url() },
-        },
-        {
-            title: 'Catat penjualan pertama',
-            detail: 'Dari tombol Catat, atau kirim pesan ke bot Lais.',
-            action: { label: 'Catat penjualan', href: createTransaction.url() },
-        },
-        {
-            title: 'Hubungkan bot',
-            detail: 'Catat lewat chat, dan terima ringkasan malam di sana.',
-            action: { label: 'Hubungkan', href: editWhatsApp.url() },
-        },
-        {
-            title: 'Bagikan link toko',
-            detail: 'Pelanggan bisa pesan sendiri tanpa chat bolak-balik.',
-            action: { label: 'Buka Pesanan', href: ordersIndex.url() },
-        },
-    ];
+const MISSIONS: Record<
+    DashboardProps['missions'][number]['key'],
+    { title: string; detail: string; label: string; href: string }
+> = {
+    produk: {
+        title: 'Tambahkan produk',
+        detail: 'Supaya stok berkurang sendiri saat terjual.',
+        label: 'Tambah produk',
+        href: createItem.url(),
+    },
+    jual: {
+        title: 'Catat penjualan pertama',
+        detail: 'Dari tombol Catat, atau kirim pesan ke bot Lais.',
+        label: 'Catat penjualan',
+        href: createTransaction.url(),
+    },
+    biaya: {
+        title: 'Catat biaya pertama',
+        detail: 'Misalnya bayar listrik atau sewa. Masuk ke akun bebannya sendiri.',
+        label: 'Catat biaya',
+        href: createTransaction.url({
+            query: { jenis: TransactionType.Biaya },
+        }),
+    },
+    toko: {
+        title: 'Atur toko online',
+        detail: 'Isi nomor WA penjual atau QRIS, lalu bagikan link toko.',
+        label: 'Buka Pesanan',
+        href: ordersIndex.url(),
+    },
+    bot: {
+        title: 'Hubungkan bot',
+        detail: 'Catat lewat chat, dan terima ringkasan malam di sana.',
+        label: 'Hubungkan',
+        href: editWhatsApp.url(),
+    },
+};
+
+/** "Misi pertama": ticked from the data, so it shows where a new owner stands. */
+function Missions({
+    missions,
+    onTour,
+}: {
+    missions: DashboardProps['missions'];
+    onTour: () => void;
+}) {
+    const done = missions.filter((mission) => mission.done).length;
 
     return (
         <SectionCard
             tone="focus"
-            title="Langkah pertama"
-            description="Dashboard terisi setelah transaksi pertama tercatat."
+            title="Misi pertama"
+            description={`${done} dari ${missions.length} selesai. Selesaikan semuanya supaya Lais bekerja penuh untukmu.`}
             icon={Flag}
             contentClassName="pt-0 md:pt-0"
         >
+            <Progress
+                value={(done / missions.length) * 100}
+                aria-label="Misi yang selesai"
+                className="mb-1"
+            />
             <ol className="divide-y">
-                {steps.map((step, index) => (
-                    <li
-                        key={step.title}
-                        className="flex items-start gap-3 py-3.5 sm:items-center"
-                    >
-                        <span className="num flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold text-muted-foreground">
-                            {index + 1}
-                        </span>
-                        {/* The button drops below the text on phones, as in the actions panel. */}
-                        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold">
-                                    {step.title}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    {step.detail}
-                                </p>
-                            </div>
-                            {step.action ? (
-                                <ActionButton
-                                    target={{ href: step.action.href }}
-                                    variant="outline"
-                                    size="sm"
-                                    className="self-start sm:self-center"
-                                >
-                                    {step.action.label}
-                                </ActionButton>
+                {missions.map((mission) => {
+                    const copy = MISSIONS[mission.key];
+
+                    return (
+                        <li
+                            key={mission.key}
+                            className="flex items-start gap-3 py-3.5 sm:items-center"
+                        >
+                            {mission.done ? (
+                                <CircleCheck
+                                    className="size-6 shrink-0 text-success"
+                                    aria-hidden
+                                />
                             ) : (
-                                <SoonTag className="self-start sm:self-center" />
+                                <span
+                                    aria-hidden
+                                    className="size-6 shrink-0 rounded-full border-2 border-dashed border-border"
+                                />
                             )}
-                        </div>
-                    </li>
-                ))}
+                            {/* The button drops below the text on phones, as in the actions panel. */}
+                            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <p
+                                        className={cn(
+                                            'text-sm font-semibold',
+                                            mission.done &&
+                                                'text-muted-foreground',
+                                        )}
+                                    >
+                                        {copy.title}
+                                        {mission.done && (
+                                            <span className="sr-only">
+                                                {' '}
+                                                (selesai)
+                                            </span>
+                                        )}
+                                    </p>
+                                    {!mission.done && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {copy.detail}
+                                        </p>
+                                    )}
+                                </div>
+                                {!mission.done && (
+                                    <ActionButton
+                                        target={{ href: copy.href }}
+                                        variant="outline"
+                                        size="sm"
+                                        className="self-start sm:self-center"
+                                    >
+                                        {copy.label}
+                                    </ActionButton>
+                                )}
+                            </div>
+                        </li>
+                    );
+                })}
             </ol>
+            <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="-ml-3 self-start"
+                onClick={onTour}
+            >
+                Ulangi tur singkat
+            </Button>
         </SectionCard>
     );
 }

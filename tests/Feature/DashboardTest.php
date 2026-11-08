@@ -158,6 +158,24 @@ class DashboardTest extends TestCase
             ->where('wallets.equityOpening', 250000));
     }
 
+    public function test_the_first_missions_tick_themselves_from_the_data(): void
+    {
+        $business = $this->openBooks();
+        $this->actingAs($business->user);
+        $missions = fn () => $this->get(route('dashboard'))->viewData('page')['props']['missions'];
+
+        // The opening put a product in; nothing else is done yet.
+        $this->assertSame(['produk' => true, 'jual' => false, 'biaya' => false, 'toko' => false, 'bot' => false], array_column($missions(), 'done', 'key'));
+
+        $water = Item::query()->where('name', 'Air Mineral')->sole();
+        $this->record($business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $water->id, 'qty' => 2, 'price' => 4000]]]);
+        $this->record($business, ['type' => 'biaya', 'kind' => 'sewa', 'method' => 'tunai', 'amount' => 50000]);
+        $business->update(['whatsapp' => '6281234567890']);
+        $business->user->forceFill(['whatsapp' => '6281234567890', 'whatsapp_linked_at' => now()])->save();
+
+        $this->assertSame(['produk' => true, 'jual' => true, 'biaya' => true, 'toko' => true, 'bot' => true], array_column($missions(), 'done', 'key'));
+    }
+
     /**
      * Opened on 1 October: Rp500.000 cash, Rp1 jt in the bank, a Rp1,5 jt
      * stove, 100 bottles at Rp2.500, and Rp300.000 owed to a supplier.

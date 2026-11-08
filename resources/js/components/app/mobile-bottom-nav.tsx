@@ -89,6 +89,7 @@ export function MobileBottomNav() {
                     trigger={
                         <button
                             type="button"
+                            data-tour="catat"
                             className={cn(itemClass, 'text-foreground')}
                         >
                             <span className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-button">

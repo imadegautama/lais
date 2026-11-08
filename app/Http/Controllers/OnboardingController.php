@@ -68,6 +68,6 @@ class OnboardingController extends Controller
             'description' => 'Saldo awal tersimpan. Mulai catat penjualan hari ini.',
         ]);
 
-        return to_route('dashboard');
+        return to_route('dashboard', ['tur' => 1]);
     }
 }

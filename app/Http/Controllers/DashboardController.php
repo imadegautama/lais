@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ContactType;
+use App\Enums\ItemKind;
 use App\Enums\OrderStatus;
 use App\Enums\Period;
 use App\Enums\TransactionStatus;
@@ -12,6 +13,7 @@ use App\Models\Account;
 use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Order;
+use App\Models\User;
 use App\Services\Debts;
 use App\Services\Ledger;
 use App\Services\Reports;
@@ -51,6 +53,9 @@ class DashboardController extends Controller
                 ->where('transactions.type', '<>', TransactionType::SaldoAwal)
                 ->exists(),
             'business' => ['name' => $business->name, 'ownerName' => $request->user()->name],
+            'missions' => $this->missions($business, $request->user()),
+            // Right after the setup: the tour runs once (ProductTour remembers it per device).
+            'startTour' => $request->boolean('tur'),
             'period' => ['key' => $period, 'label' => $period->label(), 'comparisonLabel' => $compare ? $period->comparisonLabel() : null],
             'periods' => array_map(fn (Period $option) => ['key' => $option, 'label' => $option->label()], Period::cases()),
             'summary' => [
@@ -137,5 +142,27 @@ class DashboardController extends Controller
             'actionLabel' => 'Lihat tagihan',
             'target' => ['href' => route('debts.show', $row['contact'])],
         ], array_slice(array_values($overdue), 0, 3));
+    }
+
+    /**
+     * "Misi pertama": what makes Lais work fully for a new business, each
+     * ticked from the data itself, so nothing has to be marked by hand.
+     *
+     * @return list<array{key: string, done: bool}>
+     */
+    private function missions(Business $business, User $owner): array
+    {
+        $posted = fn (TransactionType $type) => $business->transactions()
+            ->where('transactions.status', TransactionStatus::Posted)
+            ->where('transactions.type', $type)
+            ->exists();
+
+        return [
+            ['key' => 'produk', 'done' => $business->items()->whereIn('items.kind', ItemKind::sold())->exists()],
+            ['key' => 'jual', 'done' => $posted(TransactionType::Penjualan)],
+            ['key' => 'biaya', 'done' => $posted(TransactionType::Biaya)],
+            ['key' => 'toko', 'done' => $business->whatsapp !== null || $business->qris_path !== null],
+            ['key' => 'bot', 'done' => $owner->whatsapp_linked_at !== null],
+        ];
     }
 }

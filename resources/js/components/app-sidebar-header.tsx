@@ -29,7 +29,7 @@ export function AppSidebarHeader({
             <div className="hidden lg:block">
                 <QuickRecordSheet
                     trigger={
-                        <Button>
+                        <Button data-tour="catat">
                             <Plus aria-hidden />
                             Catat
                         </Button>
