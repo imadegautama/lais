@@ -7,8 +7,8 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { TermHint } from '@/features/reports/term-hint';
-import type { Term } from '@/features/reports/vocabulary';
+import { TermHint } from '@/components/app/term-hint';
+import type { Term } from '@/components/app/term-hint';
 import { cn } from '@/lib/utils';
 
 export type StatementRow = {

@@ -14,7 +14,7 @@ import { EmptyState } from '@/components/app/states';
 import { Button } from '@/components/ui/button';
 import { PrintHeader } from '@/features/reports/print-header';
 import { ReportToolbar } from '@/features/reports/report-toolbar';
-import { TermHint } from '@/features/reports/term-hint';
+import { TermHint } from '@/components/app/term-hint';
 import { BalanceArea } from '@/features/reports/trend-chart';
 import { usePrinting } from '@/features/reports/use-printing';
 import { formatDate } from '@/lib/format';

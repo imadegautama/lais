@@ -20,7 +20,7 @@ import {
     ReportToolbar,
     useReportQuery,
 } from '@/features/reports/report-toolbar';
-import { TermHint } from '@/features/reports/term-hint';
+import { TermHint } from '@/components/app/term-hint';
 import { formatDate } from '@/lib/format';
 import { show as onboarding } from '@/routes/onboarding';
 import reports from '@/routes/reports';
