@@ -139,6 +139,16 @@ class WhatsAppTest extends TestCase
         Http::assertSentCount(2);
     }
 
+    public function test_todays_summary_goes_out_now_from_the_settings(): void
+    {
+        $this->actingAs($this->owner)->post(route('whatsapp.summary.send'))->assertRedirect();
+        Http::assertNothingSent();
+
+        $this->link();
+        $this->actingAs($this->owner)->post(route('whatsapp.summary.send'))->assertRedirect();
+        $this->assertSent('6281234567890', '*Ringkasan Warung Ani, ');
+    }
+
     public function test_the_owner_unlinks_and_switches_the_summary(): void
     {
         $this->link();

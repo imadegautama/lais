@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendWhatsApp;
 use App\Services\WhatsApp\BotChannel;
+use App\Services\WhatsApp\DailySummary;
 use App\Services\WhatsApp\Linking;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,6 +54,26 @@ class WhatsAppController extends Controller
     {
         $on = $request->validate(['daily_summary' => ['required', 'boolean']])['daily_summary'];
         $request->user()->currentBusiness()->update(['daily_summary' => $on]);
+
+        return back();
+    }
+
+    /**
+     * Today's summary to the owner's chat now, the same as /ringkasan: no waiting until 21.00.
+     */
+    public function sendSummary(Request $request, DailySummary $summary, BotChannel $channel): RedirectResponse
+    {
+        $user = $request->user();
+        $address = $user->whatsappAddress();
+
+        if ($address === null) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => "Hubungkan bot {$channel->name()} dulu."]);
+
+            return back();
+        }
+
+        SendWhatsApp::dispatch($address, $summary->for($user->currentBusiness()), $user->id);
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Ringkasan hari ini dikirim ke {$channel->name()}."]);
 
         return back();
     }
