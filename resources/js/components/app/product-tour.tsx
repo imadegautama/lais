@@ -6,65 +6,43 @@ import {
 } from 'react-joyride';
 import { Button } from '@/components/ui/button';
 
-const SEEN_KEY = 'lais-tur-dilihat';
-
-/** Seen once per device; storage can be blocked, so a failure means "not seen". */
-export function tourSeen(): boolean {
-    try {
-        return window.localStorage.getItem(SEEN_KEY) === '1';
-    } catch {
-        return false;
-    }
-}
-
-function markSeen(): void {
-    try {
-        window.localStorage.setItem(SEEN_KEY, '1');
-    } catch {
-        // Private mode: the tour may show again, nothing else breaks.
-    }
-}
+const shown = (element: HTMLElement) => element.getClientRects().length > 0;
 
 /** The first match on screen: the sidebar and the bottom nav carry the same link at different sizes. */
-const onScreen = (selector: string) => () =>
+export const onScreen = (selector: string) => () =>
+    Array.from(document.querySelectorAll<HTMLElement>(selector)).find(shown) ??
+    null;
+
+/** An element on screen by its own text, such as the button "Buat kode". */
+export const withText = (selector: string, text: string) => () =>
     Array.from(document.querySelectorAll<HTMLElement>(selector)).find(
-        (element) => element.getClientRects().length > 0,
+        (element) => shown(element) && element.textContent?.trim() === text,
     ) ?? null;
 
-const steps: Step[] = [
-    {
-        target: onScreen('[data-tour="catat"]'),
-        title: 'Catat apa saja',
-        content:
-            'Penjualan, belanja, atau biaya. Isi form singkat, atau tulis seperti chat biasa.',
-        skipBeacon: true,
-    },
-    {
-        target: onScreen('[data-tour="tanya-ai"]'),
-        title: 'Bingung? Tanya AI',
-        content:
-            'Tanya dicatat di mana, atau minta dibuatkan catatannya. AI hanya menyiapkan draf, kamu yang menyimpan.',
-    },
-    {
-        target: onScreen('a[href$="/pesanan"]'),
-        title: 'Pesanan dan toko online',
-        content:
-            'Pesanan dari link tokomu masuk di sini, lengkap dengan stok dan pembayarannya.',
-    },
-    {
-        target: onScreen('a[href$="/laporan"]'),
-        title: 'Laporan tersusun sendiri',
-        content:
-            'Laba rugi, neraca, dan daftar akun terisi dari catatanmu, tanpa rumus.',
-    },
-    {
-        // The heading, not the whole card: on a phone the card is taller than the screen.
-        target: onScreen('#misi h2'),
-        title: 'Misi pertama',
-        content:
-            'Selesaikan satu per satu. Misi tercentang sendiri begitu datanya masuk.',
-    },
-];
+/**
+ * A SectionCard by its title, so a page needs no extra markup to be toured; `last` when two cards share it.
+ * A card taller than half the screen gives its header instead, or a phone has no room left for the tooltip.
+ */
+export const card =
+    (title: string, last = false) =>
+    (): HTMLElement | null => {
+        const headings = Array.from(
+            document.querySelectorAll<HTMLElement>('section h2'),
+        ).filter(
+            (heading) =>
+                shown(heading) && heading.textContent?.trim() === title,
+        );
+        const heading = last ? headings.at(-1) : headings[0];
+        const section = heading?.closest('section');
+
+        if (!heading || !section) {
+            return null;
+        }
+
+        return section.offsetHeight > window.innerHeight / 2
+            ? (section.querySelector('header') ?? heading)
+            : section;
+    };
 
 function Tooltip({
     step,
@@ -115,13 +93,16 @@ function Tooltip({
 }
 
 /**
- * The dashboard tour (UI-PAGES C1): where to record, ask, sell, and read.
- * Rendered only while running, so the server render never touches it.
+ * A Joyride tour with the Lais tooltip. Rendered only while running, so the
+ * server render never touches it. Only the stops this screen shows are kept
+ * (Laporan sits in the menu on a phone), so "1 dari N" stays true.
  */
-export function ProductTour({
+export function GuidedTour({
+    steps: wanted,
     run,
     onDone,
 }: {
+    steps: Step[];
     run: boolean;
     onDone: () => void;
 }) {
@@ -129,10 +110,13 @@ export function ProductTour({
         return null;
     }
 
-    // Only the stops this screen shows (Laporan sits in the menu on a phone), so "1 dari N" stays true.
-    const shown = steps.filter(
+    const present = wanted.filter(
         (step) => typeof step.target !== 'function' || step.target() !== null,
     );
+
+    if (present.length === 0) {
+        return null;
+    }
 
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     // Joyride paints the overlay as an SVG fill, which cannot read a CSS variable: take the token's value.
@@ -146,7 +130,8 @@ export function ProductTour({
             run
             continuous
             scrollToFirstStep
-            steps={shown}
+            // Every stop opens as a tooltip, also when the first planned one is not on this screen.
+            steps={present.map((step) => ({ ...step, skipBeacon: true }))}
             tooltipComponent={Tooltip}
             locale={{
                 back: 'Kembali',
@@ -170,7 +155,6 @@ export function ProductTour({
                     data.status === STATUS.FINISHED ||
                     data.status === STATUS.SKIPPED
                 ) {
-                    markSeen();
                     onDone();
                 }
             }}

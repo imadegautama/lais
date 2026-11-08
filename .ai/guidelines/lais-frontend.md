@@ -56,7 +56,8 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 - Istilah akuntansi dijelaskan dari satu sumber: `terms` dan `TermHint` di `components/app/term-hint.tsx` (ⓘ di laporan, chip "Apa itu …?" di setup). Istilah baru ditambahkan di sana, satu kalimat sehari-hari.
 - Setup (`/onboarding`) adalah pengecualian gerak kedua setelah landing: transisi langkah, lencana, dan meter progres saja, semuanya `motion-safe:` dari `tw-animate-css`, transform dan opacity. Aplikasi lain tetap MOTION 1.
 - Gamifikasi hanya progres, lencana, dan misi yang tercentang dari data. Tanpa poin, level, atau konfeti.
-- Tur dashboard lewat `components/app/product-tour.tsx` (React Joyride 3). Target diberi `data-tour` atau dicari lewat link yang tampil di layar; langkah yang targetnya tidak tampil dibuang sebelum tur mulai. Tooltip memakai komponen Lais, bukan gaya bawaan Joyride.
+- Panduan per halaman ada di `components/app/page-guide.tsx` (`GUIDES`, berdasarkan nama komponen Inertia), dan tombolnya di header atas. Langkahnya mencari kartu lewat judulnya (`card()`), jadi mengganti judul kartu atau label tombol di halaman yang punya panduan berarti memperbarui `GUIDES` juga. Halaman fitur baru sebaiknya ikut mendapat panduan.
+- Mesin tur di `components/app/product-tour.tsx` (React Joyride 3). Target diberi `data-tour` atau dicari lewat link yang tampil di layar; langkah yang targetnya tidak tampil dibuang sebelum tur mulai. Tooltip memakai komponen Lais, bukan gaya bawaan Joyride. Tur terbuka sendiri selama `users.tour_completed_at` kosong, dan hanya Selesai atau Lewati yang mengisinya (`POST /tur-selesai`); jangan simpan tanda tur di `localStorage`, karena pemilik berganti perangkat.
 
 ## Landing page
 

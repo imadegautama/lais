@@ -24,7 +24,6 @@ import { Money } from '@/components/app/money';
 import { OnboardingReminder } from '@/components/app/onboarding-reminder';
 import { PageHeader } from '@/components/app/page-header';
 import { PeriodPicker } from '@/components/app/period-picker';
-import { ProductTour, tourSeen } from '@/components/app/product-tour';
 import { SalesBarChart } from '@/components/app/sales-bar-chart';
 import { SectionCard } from '@/components/app/section-card';
 import { EmptyState, ErrorState } from '@/components/app/states';
@@ -78,14 +77,15 @@ const actionIcons: Record<ActionItem['kind'], LucideIcon> = {
 export default function Dashboard(props: DashboardProps) {
     const [loading, setLoading] = useState(false);
     const [failed, setFailed] = useState<PeriodKey | null>(null);
-    const [touring, setTouring] = useState(false);
+    const [missionsHidden, setMissionsHidden] = useState(false);
 
     // Storage is read after mount, so the server render and the first client render match.
-    useEffect(() => {
-        if (props.startTour && !tourSeen()) {
-            setTouring(true);
-        }
-    }, [props.startTour]);
+    useEffect(() => setMissionsHidden(missionsAreHidden()), []);
+
+    const hideMissions = (hidden: boolean) => {
+        setMissionsHidden(hidden);
+        rememberMissionsHidden(hidden);
+    };
 
     const changePeriod = (key: PeriodKey) => {
         router.get(
@@ -117,7 +117,6 @@ export default function Dashboard(props: DashboardProps) {
     return (
         <>
             <Head title="Dashboard" />
-            <ProductTour run={touring} onDone={() => setTouring(false)} />
             <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">
                 <PageHeader
                     title={`${greeting()}, ${props.business.ownerName}`}
@@ -146,16 +145,24 @@ export default function Dashboard(props: DashboardProps) {
 
                 {/* Until every mission is done, new owners see what to do next. */}
                 {props.missions.some((mission) => !mission.done) && (
-                    // The id is the tour's last stop (ProductTour).
+                    // The id is a stop of the dashboard guide (PageGuide).
                     <div id="misi">
-                        <Missions
-                            missions={props.missions}
-                            onTour={() => setTouring(true)}
-                        />
+                        {missionsHidden ? (
+                            <MissionsHidden
+                                missions={props.missions}
+                                onShow={() => hideMissions(false)}
+                            />
+                        ) : (
+                            <Missions
+                                missions={props.missions}
+                                onHide={() => hideMissions(true)}
+                            />
+                        )}
                     </div>
                 )}
 
-                {!props.isEmpty && <Overview {...props} loading={loading} />}
+                {/* Shown from day one, so a new owner sees what fills in as they record. */}
+                <Overview {...props} loading={loading} />
             </div>
         </>
     );
@@ -589,43 +596,92 @@ const MISSIONS: Record<
         title: 'Tambahkan produk',
         detail: 'Supaya stok berkurang sendiri saat terjual.',
         label: 'Tambah produk',
-        href: createItem.url(),
+        href: createItem.url({ query: { panduan: 1 } }),
     },
     jual: {
         title: 'Catat penjualan pertama',
         detail: 'Dari tombol Catat, atau kirim pesan ke bot Lais.',
         label: 'Catat penjualan',
-        href: createTransaction.url(),
+        href: createTransaction.url({ query: { panduan: 1 } }),
     },
     biaya: {
         title: 'Catat biaya pertama',
         detail: 'Misalnya bayar listrik atau sewa. Masuk ke akun bebannya sendiri.',
         label: 'Catat biaya',
         href: createTransaction.url({
-            query: { jenis: TransactionType.Biaya },
+            query: { jenis: TransactionType.Biaya, panduan: 1 },
         }),
     },
     toko: {
         title: 'Atur toko online',
         detail: 'Isi nomor WA penjual atau QRIS, lalu bagikan link toko.',
         label: 'Buka Pesanan',
-        href: ordersIndex.url(),
+        href: ordersIndex.url({ query: { panduan: 1 } }),
     },
     bot: {
         title: 'Hubungkan bot',
         detail: 'Catat lewat chat, dan terima ringkasan malam di sana.',
         label: 'Hubungkan',
-        href: editWhatsApp.url(),
+        href: editWhatsApp.url({ query: { panduan: 1 } }),
     },
 };
 
 /** "Misi pertama": ticked from the data, so it shows where a new owner stands. */
-function Missions({
+const MISSIONS_HIDDEN_KEY = 'lais-misi-disembunyikan';
+
+/** Per device, like the tour; blocked storage just shows the card. */
+function missionsAreHidden(): boolean {
+    try {
+        return window.localStorage.getItem(MISSIONS_HIDDEN_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function rememberMissionsHidden(hidden: boolean): void {
+    try {
+        if (hidden) {
+            window.localStorage.setItem(MISSIONS_HIDDEN_KEY, '1');
+        } else {
+            window.localStorage.removeItem(MISSIONS_HIDDEN_KEY);
+        }
+    } catch {
+        // Private mode: the choice lasts until the page reloads.
+    }
+}
+
+/** The missions folded into one line, still counting, one tap from coming back. */
+function MissionsHidden({
     missions,
-    onTour,
+    onShow,
 }: {
     missions: DashboardProps['missions'];
-    onTour: () => void;
+    onShow: () => void;
+}) {
+    const done = missions.filter((mission) => mission.done).length;
+
+    return (
+        <div className="flex items-center justify-between gap-3 rounded-xl border bg-card px-4 py-2 text-sm shadow-card">
+            <span className="flex items-center gap-2">
+                <Flag className="size-4 text-brand-strong" aria-hidden />
+                Misi pertama{' '}
+                <span className="num text-muted-foreground">
+                    {done} dari {missions.length}
+                </span>
+            </span>
+            <Button type="button" variant="link" size="sm" onClick={onShow}>
+                Tampilkan
+            </Button>
+        </div>
+    );
+}
+
+function Missions({
+    missions,
+    onHide,
+}: {
+    missions: DashboardProps['missions'];
+    onHide: () => void;
 }) {
     const done = missions.filter((mission) => mission.done).length;
 
@@ -633,9 +689,18 @@ function Missions({
         <SectionCard
             tone="focus"
             title="Misi pertama"
-            description={`${done} dari ${missions.length} selesai. Selesaikan semuanya supaya Lais bekerja penuh untukmu.`}
+            description={`Yuk lengkapi seluruh misi untuk perjalanan yang lebih baik. ${done} dari ${missions.length} selesai.`}
             icon={Flag}
-            contentClassName="pt-0 md:pt-0"
+            action={
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onHide}
+                >
+                    Sembunyikan
+                </Button>
+            }
         >
             <Progress
                 value={(done / missions.length) * 100}
@@ -701,15 +766,6 @@ function Missions({
                     );
                 })}
             </ol>
-            <Button
-                type="button"
-                variant="link"
-                size="sm"
-                className="-ml-3 self-start"
-                onClick={onTour}
-            >
-                Ulangi tur singkat
-            </Button>
         </SectionCard>
     );
 }

@@ -244,7 +244,11 @@ Satu alur 3 langkah: nomor WA → OTP (memakai ulang B2) → password baru.
 - **Utang & piutang:** dua angka total dengan tautan ke C11.
 - **Aktivitas terbaru:** 10 transaksi terakhir, lengkap dengan ikon sumber (WA / web / toko).
 - **Misi pertama:** kartu di atas ringkasan selama ada misi yang belum selesai: tambah produk, catat penjualan pertama, catat biaya pertama, atur toko online (nomor WA penjual atau QRIS), dan hubungkan bot. Setiap misi tercentang sendiri dari data (`DashboardController::missions`), dengan progres "n dari 5" dan tombol ke tempatnya. Kartu hilang setelah semua selesai.
-- **Tur singkat:** setelah setup (`/dashboard?tur=1`) tur React Joyride menunjuk Catat, Tanya AI, Pesanan, Laporan, dan Misi. Hanya langkah yang tampil di layar (di HP, Laporan ada di menu sehingga dilewati), sekali per perangkat (`localStorage`), dan bisa diulang dari **Ulangi tur singkat** di kartu Misi.
+    - **Dipandu:** tombol misi membuka halamannya dengan `?panduan=1`, dan **Panduan** halaman itu berjalan sendiri (lihat "Panduan per halaman" di bawah). Parameternya dihapus dari alamat setelah selesai, jadi muat ulang tidak mengulang.
+    - **Sembunyikan:** kartu bisa dilipat jadi satu baris "Misi pertama n dari 5 · Tampilkan"; pilihannya diingat per perangkat.
+    - Ringkasan dashboard tetap tampil di bawahnya sejak hari pertama, dengan angka Rp0 dan keadaan kosong yang menjelaskan apa yang nanti terisi.
+- **Tur dashboard:** Panduan dashboard menunjuk Catat, Tanya AI, Pesanan, Laporan, Misi, lalu tombol Panduan itu sendiri. Panduan ini terbuka sendiri setiap kali dashboard dibuka sampai pemilik menekan **Selesai** atau **Lewati**; tandanya disimpan di akun (`users.tour_completed_at`, `POST /tur-selesai`), jadi berlaku di semua perangkat. Yang tertutup di tengah jalan (misalnya pindah halaman) muncul lagi.
+- **Panduan per halaman:** tombol **Panduan** di header atas (kanan, di HP di samping logo) muncul di halaman yang punya panduan: Dashboard, Catat transaksi (langkahnya menyesuaikan jenis), Transaksi, Produk & stok, form produk, Pesanan, Kas & rekening, Utang-piutang, Laporan, dan Bot. Setiap panduan menunjuk 2 sampai 7 bagian dengan Joyride; bagian yang tidak tampil di layar dilewati.
 - **Status pembuatan (slice 5):** semua angka sudah dihitung dari jurnal lewat `App\Services\Reports`.
     - Baris 4 kartu ringkasan (`MetricTile`, 2×2 di HP) mengikuti pemilih periode. Setiap kartu berisi angka, naik/turun, dan satu baris penjelasan:
         - **Penjualan:** membuka `/transaksi` dengan saringan penjualan dan periode yang sama
