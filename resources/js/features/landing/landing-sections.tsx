@@ -53,7 +53,7 @@ function SignUpButton() {
 export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
     return (
         <section aria-labelledby="judul" className="px-2 pt-2 md:px-4 md:pt-4">
-            <div className="mx-auto max-w-[1400px] rounded-3xl bg-landing-glow pt-24 pb-8 md:pt-28 md:pb-12">
+            <div className="landing-texture mx-auto max-w-[1400px] rounded-3xl bg-landing-glow pt-24 pb-8 md:pt-28 md:pb-12">
                 <div className="mx-auto grid max-w-[1280px] items-center gap-10 px-4 md:px-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,41rem)]">
                     <div className="landing-hero-copy max-w-xl">
                         <h1
@@ -540,7 +540,7 @@ export function Trust() {
             aria-labelledby="dipercaya"
             className="px-2 py-8 md:px-4 md:py-10"
         >
-            <div className="mx-auto max-w-[1400px] rounded-3xl bg-landing-glow py-10 md:py-14">
+            <div className="landing-texture mx-auto max-w-[1400px] rounded-3xl bg-landing-glow py-10 md:py-14">
                 <div
                     className={cn(
                         shell,
@@ -711,7 +711,7 @@ export function Closing() {
             aria-labelledby="penutup"
             className="px-2 pt-4 pb-2 md:px-4 md:pb-4"
         >
-            <div className="mx-auto flex max-w-[1400px] flex-col items-center gap-5 rounded-3xl bg-landing-glow px-4 py-14 text-center md:py-20">
+            <div className="landing-texture mx-auto flex max-w-[1400px] flex-col items-center gap-5 rounded-3xl bg-landing-glow px-4 py-14 text-center md:py-20">
                 <div data-reveal="pop">
                     <LogoWordmark className="h-8" />
                 </div>

@@ -82,6 +82,52 @@
     background: var(--brand-strong);
 }
 
+/*
+ * The big warm panels get a texture so the gradient does not read as flat:
+ * halftone dots fading in from two corners (the survey grids' dots) and a
+ * fine grain. Static, and under the panel's content.
+ */
+.landing-texture {
+    position: relative;
+    isolation: isolate;
+}
+
+.landing-texture::before,
+.landing-texture::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.landing-texture::before {
+    background-image: radial-gradient(
+        color-mix(in srgb, var(--brand-strong) 30%, transparent) 1.25px,
+        transparent 1.75px
+    );
+    background-size: 10px 10px;
+    mask-image:
+        radial-gradient(ellipse 75% 45% at 100% 0%, black, transparent 75%),
+        radial-gradient(ellipse 75% 45% at 0% 100%, black, transparent 75%);
+}
+
+.landing-texture::after {
+    opacity: 0.07;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-size: 180px;
+}
+
+@media (min-width: 768px) {
+    .landing-texture::before {
+        background-size: 12px 12px;
+        mask-image:
+            radial-gradient(ellipse 42% 60% at 100% 0%, black, transparent 75%),
+            radial-gradient(ellipse 42% 60% at 0% 100%, black, transparent 75%);
+    }
+}
+
 /* The chat diagram: grey routes, and the lit one flows. */
 .landing-route {
     fill: none;
@@ -105,7 +151,16 @@
     box-shadow: var(--shadow-tile);
 }
 
+/* The dashes run on a taller strip moved by transform, so it stays composited. */
 .landing-drop {
+    position: relative;
+    overflow: hidden;
+}
+
+.landing-drop::before {
+    content: '';
+    position: absolute;
+    inset: -8px 0 0;
     background: repeating-linear-gradient(
         to bottom,
         var(--brand-strong) 0 4px,
@@ -286,7 +341,7 @@
         animation: landing-rise 0.35s var(--landing-ease) both;
     }
 
-    .landing-drop {
+    .landing-drop::before {
         animation: landing-drop 0.6s linear infinite;
     }
 
@@ -470,7 +525,7 @@
 
 @keyframes landing-drop {
     to {
-        background-position: 0 8px;
+        transform: translateY(8px);
     }
 }
 

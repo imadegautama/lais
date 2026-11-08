@@ -19,7 +19,7 @@ export function AppShowcase() {
             aria-labelledby="aplikasi"
             className="px-2 py-8 md:px-4 md:py-10"
         >
-            <div className="mx-auto max-w-[1400px] rounded-3xl bg-landing-glow px-4 py-10 md:px-8 md:py-14">
+            <div className="landing-texture mx-auto max-w-[1400px] rounded-3xl bg-landing-glow px-4 py-10 md:px-8 md:py-14">
                 <div className="mx-auto max-w-2xl text-center">
                     <h2 id="aplikasi" data-reveal="words" className={heading}>
                         <WordReveal text="Semua angka usahamu di satu layar" />
