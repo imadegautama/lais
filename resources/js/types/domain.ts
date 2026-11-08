@@ -674,6 +674,8 @@ export type NotesProps = ReportFrame & {
 export type ShopInfo = {
     name: string;
     slug: string;
+    /** BusinessCategory label, e.g. "Kuliner". */
+    category: string | null;
     open: boolean;
     whatsapp: string | null;
     qrisUrl: string | null;
@@ -687,6 +689,8 @@ export type ShopItem = {
     price: Rupiah;
     photoUrl: string | null;
     orderable: boolean;
+    /** How many more the shop takes (stock less open orders); null for a recipe product or the owner's own form. */
+    left: number | null;
 };
 
 export type OrderLine = {

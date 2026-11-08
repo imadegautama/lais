@@ -72,12 +72,13 @@ class ShopController extends Controller
      * The shop's face: its name and link, whether it takes orders, the owner's
      * WA number for "Hubungi penjual", and the QRIS to pay to.
      *
-     * @return array{name: string, slug: string, open: bool, whatsapp: string|null, qrisUrl: string|null}
+     * @return array{name: string, slug: string, category: string|null, open: bool, whatsapp: string|null, qrisUrl: string|null}
      */
     public static function shop(Business $business): array
     {
         return [
             'name' => $business->name,
+            'category' => $business->category?->label(),
             'slug' => $business->slug,
             'open' => $business->accepting_orders,
             'whatsapp' => $business->whatsapp === null ? null : Orders::phone($business->whatsapp),
@@ -86,27 +87,35 @@ class ShopController extends Controller
     }
 
     /**
-     * What the shop sells to customers, by name.
+     * What the shop sells to customers, by name, with how many more each
+     * may take once open orders are counted.
      *
-     * @return Collection<int, array{id: int, name: string, unit: string, price: int|null, photoUrl: string|null, orderable: bool}>
+     * @return Collection<int, array{id: int, name: string, unit: string, price: int|null, photoUrl: string|null, orderable: bool, left: int|null}>
      */
     public static function catalog(Business $business): Collection
     {
+        $held = Orders::held($business);
+
         return $business->items()
             ->whereIn('items.kind', ItemKind::sold())
             ->where('items.show_in_store', true)
             ->whereNotNull('items.price')
             ->orderBy('items.name')
             ->get()
-            ->map(self::item(...))
+            ->map(function (Item $item) use ($held) {
+                $left = Orders::left($item, $held[$item->id] ?? 0.0);
+
+                return [...self::item($item), 'orderable' => Orders::orderable($item) && $left !== 0, 'left' => $left];
+            })
             ->values()
             ->toBase();
     }
 
     /**
      * A product as the order form shows it; the price is shown, never sent back.
+     * No limit here: the owner's own order form may take more than the stock.
      *
-     * @return array{id: int, name: string, unit: string, price: int|null, photoUrl: string|null, orderable: bool}
+     * @return array{id: int, name: string, unit: string, price: int|null, photoUrl: string|null, orderable: bool, left: int|null}
      */
     public static function item(Item $item): array
     {
@@ -117,6 +126,7 @@ class ShopController extends Controller
             'price' => $item->price,
             'photoUrl' => $item->photoUrl(),
             'orderable' => Orders::orderable($item),
+            'left' => null,
         ];
     }
 }

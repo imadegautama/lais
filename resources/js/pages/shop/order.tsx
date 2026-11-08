@@ -39,7 +39,7 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
     return (
         <>
             <Head title={`Pesanan ${order.code}`} />
-            <div className="flex flex-col gap-4">
+            <div className="mx-auto flex w-full max-w-[640px] flex-col gap-4">
                 <div>
                     <p className="text-sm text-muted-foreground">
                         {shop.name} · {formatDate(order.createdAt, 'datetime')}{' '}

@@ -15,6 +15,7 @@ use App\Models\Business;
 use App\Models\Contact;
 use App\Models\Item;
 use App\Models\Order;
+use App\Models\OrderLine;
 use App\Models\Transaction;
 use App\Support\Format;
 use Illuminate\Database\Eloquent\Collection;
@@ -54,6 +55,35 @@ class Orders
     }
 
     /**
+     * Units open orders hold per item, which the shop may not sell again.
+     *
+     * @param  array<int, int>|null  $itemIds
+     * @return array<int, float> item id => units held
+     */
+    public static function held(Business $business, ?array $itemIds = null): array
+    {
+        return OrderLine::query()
+            ->join('orders', 'orders.id', '=', 'order_lines.order_id')
+            ->where('orders.business_id', $business->id)
+            ->whereIn('orders.status', OrderStatus::holdsStock())
+            ->when($itemIds !== null, fn ($query) => $query->whereIn('order_lines.item_id', $itemIds))
+            ->groupBy('order_lines.item_id')
+            ->selectRaw('order_lines.item_id, SUM(order_lines.qty) AS held')
+            ->pluck('held', 'item_id')
+            ->map(fn ($held) => (float) $held)
+            ->all();
+    }
+
+    /**
+     * How many more the shop may take: stock less what open orders hold.
+     * Null for a recipe product, which follows its "tersedia" switch instead.
+     */
+    public static function left(Item $item, float $held): ?int
+    {
+        return $item->kind === ItemKind::Komposisi ? null : max(0, (int) floor(round((float) $item->stock - $held, 3)));
+    }
+
+    /**
      * A new order. From the shop it waits for the owner; one the owner enters
      * (taken by phone or chat) is accepted at once.
      *
@@ -71,7 +101,10 @@ class Orders
             /** @var list<array{item_id: int|string, qty: int|string}> $requested */
             $requested = $data['lines'];
             $wanted = collect($requested)->mapWithKeys(fn (array $line) => [(int) $line['item_id'] => (int) $line['qty']]);
-            $items = $business->items()->whereKey($wanted->keys())->get()->keyBy('id');
+            // Locked so two customers cannot both take the last units.
+            $items = $business->items()->whereKey($wanted->keys())->lockForUpdate()->get()->keyBy('id');
+            // The owner may take more than the stock (made or bought later); the shop may not.
+            $held = $fromShop ? self::held($business, $wanted->keys()->all()) : [];
             $lines = [];
 
             foreach ($wanted as $id => $qty) {
@@ -79,6 +112,14 @@ class Orders
 
                 if ($item === null || ($fromShop && ! $item->show_in_store) || ! self::orderable($item) || $item->price === null) {
                     throw ValidationException::withMessages(['lines' => ($item === null ? 'Ada produk yang' : $item->name).' sedang tidak bisa dipesan. Hapus dari pesanan, lalu kirim lagi.']);
+                }
+
+                $left = $fromShop ? self::left($item, $held[$id] ?? 0.0) : null;
+
+                if ($left !== null && $qty > $left) {
+                    throw ValidationException::withMessages(['lines' => $left === 0
+                        ? "{$item->name} sudah habis dipesan. Hapus dari pesanan, lalu kirim lagi."
+                        : "Stok {$item->name} tinggal {$left} {$item->unit}. Kurangi jumlahnya, lalu kirim lagi."]);
                 }
 
                 $lines[] = ['item_id' => $item->id, 'name' => $item->name, 'unit' => $item->unit, 'qty' => $qty, 'price' => $item->price, 'subtotal' => $qty * $item->price];

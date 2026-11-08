@@ -119,17 +119,17 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 ### A2. Halaman toko `/t/{slug}`
 
-- **Header toko:**
-    - logo, nama toko, deskripsi singkat
-    - badge **Buka** / **Tutup**
-    - tombol **Hubungi penjual** (`wa.me`)
-- **Pencarian produk:** input di bagian atas.
-- **Grid produk** (2 kolom di HP, 3–4 di desktop):
-    - Kartu berisi foto (rasio 1:1, ada placeholder), nama, dan harga.
-    - Tombol **Tambah** berubah jadi stepper `− 2 +` setelah ditekan.
-    - Produk habis diberi badge **Habis** dan tampil abu-abu.
-- **Bar keranjang lengket di bawah:** "3 item · Rp45.000 · **Lanjut pesan →**". Hanya muncul jika keranjang tidak kosong.
-- **State:** toko tutup (banner, tombol pesan nonaktif), katalog kosong, dan slug tidak ditemukan (D1).
+- **Kartu toko** (`ShopIntro`):
+    - nama toko sebagai `h1`, lalu "{Kategori} · Ambil sendiri atau diantar"
+    - badge **Buka** / **Tutup** dan tombol **Hubungi penjual** (`wa.me`)
+    - **Cara pesan** 3 langkah: Pilih produk → Kirim pesanan (nama dan nomor WA saja, tanpa akun) → Penjual konfirmasi lewat WA, bayar tunai atau QRIS. Toko ini untuk pesan dulu lalu ambil sendiri atau diantar, bukan pesan di meja.
+- **Pencarian produk:** input di atas daftar.
+- **Daftar produk** (`ProductRow`; 1 kolom di HP, 2 kolom mulai 768 px):
+    - Baris berisi foto kecil (atau ubin oranye muda dengan huruf depan), nama, harga per satuan, dan tombol **+** yang berubah jadi stepper `− 2 +`.
+    - Stepper berhenti di **sisa**: stok dikurangi pesanan yang belum Selesai atau Ditolak. Saat sisa ≤ 5 tampil "Sisa 3 botol". Produk resep tidak dihitung dan mengikuti saklar Tersedia.
+    - Produk habis (atau habis dipesan) diberi badge **Habis**, foto abu-abu, dan tombol nonaktif.
+- **Keranjang:** di bawah 1024 px berupa bar lengket di bawah ("3 item · Rp45.000 · **Lanjut pesan**"), mulai 1024 px berupa panel lengket di samping daftar. Bar hanya muncul jika keranjang tidak kosong.
+- **State:** toko tutup (banner, tombol pesan nonaktif), katalog kosong, slug tidak ditemukan (D1), dan pesanan ditolak server karena stoknya keburu dipesan orang lain (pesan merah di atas daftar).
 
 ### A3. Checkout `/t/{slug}/pesan`
 

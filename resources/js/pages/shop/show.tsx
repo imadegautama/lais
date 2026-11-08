@@ -1,17 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    CircleCheck,
-    CircleX,
-    MessageCircle,
-    PackageOpen,
-    Search,
-    ShoppingBag,
-} from 'lucide-react';
+import { ArrowLeft, PackageOpen, Search, ShoppingBag } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { LabelBadge } from '@/components/app/badges';
 import { EmptyState } from '@/components/app/states';
-import { QtyStepper } from '@/components/app/qty-stepper';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -20,24 +10,23 @@ import {
     cartTotal,
     loadCart,
     MAX_LINES,
-    MAX_QTY,
     saveCart,
     setQty,
     type Cart,
 } from '@/features/orders/cart';
+import { CartPanel } from '@/features/orders/cart-panel';
 import {
     CartSummary,
     CustomerFields,
     emptyOrder,
     type OrderFormData,
 } from '@/features/orders/order-fields';
-import { waLink } from '@/features/orders/phone';
-import { askSellerMessage } from '@/features/orders/vocabulary';
+import { ProductRow } from '@/features/orders/product-row';
+import { ShopIntro } from '@/features/orders/shop-intro';
 import { focusFirstError, formErrors } from '@/lib/form';
 import { formatRupiah } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import { store } from '@/routes/shop';
-import type { ShopItem, ShopShowProps } from '@/types/domain';
+import type { ShopShowProps } from '@/types/domain';
 
 /**
  * The shop (UI-PAGES A2 + A3): pick from the catalog, then one form to send
@@ -96,7 +85,7 @@ export default function ShopShow({ shop, items }: ShopShowProps) {
             <>
                 <Head title={`Pesan di ${shop.name}`} />
                 <form
-                    className="flex flex-col gap-5"
+                    className="mx-auto flex w-full max-w-[640px] flex-col gap-5"
                     onSubmit={(event) => {
                         event.preventDefault();
                         send();
@@ -166,100 +155,104 @@ export default function ShopShow({ shop, items }: ShopShowProps) {
     return (
         <>
             <Head title={shop.name} />
-            <div className="flex flex-col gap-4 pb-24">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    {shop.open ? (
-                        <LabelBadge
-                            icon={CircleCheck}
-                            label="Buka"
-                            tone="success"
+            <div className="grid gap-4 pb-24 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:pb-0">
+                <div className="flex min-w-0 flex-col gap-4">
+                    <ShopIntro shop={shop} />
+
+                    {/* The server refused the order (taken meanwhile): the cart dropped it, so say why here. */}
+                    {errors.lines && (
+                        <p
+                            role="alert"
+                            className="rounded-lg bg-destructive-soft px-4 py-3 text-sm text-destructive"
+                        >
+                            {errors.lines}
+                        </p>
+                    )}
+
+                    {!shop.open && (
+                        <p
+                            role="status"
+                            className="rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning"
+                        >
+                            Toko sedang tidak menerima pesanan online.
+                            Lihat-lihat dulu, atau hubungi penjual.
+                        </p>
+                    )}
+
+                    {items.length === 0 ? (
+                        <EmptyState
+                            icon={PackageOpen}
+                            title="Belum ada produk"
+                            description="Penjual belum menampilkan produk di toko ini."
                         />
                     ) : (
-                        <LabelBadge
-                            icon={CircleX}
-                            label="Tutup"
-                            tone="danger"
-                        />
-                    )}
-                    {shop.whatsapp && (
-                        <Button variant="outline" size="sm" asChild>
-                            <a
-                                href={waLink(
-                                    shop.whatsapp,
-                                    askSellerMessage(null),
-                                )}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <MessageCircle aria-hidden />
-                                Hubungi penjual
-                            </a>
-                        </Button>
+                        <section
+                            aria-labelledby="produk-judul"
+                            className="flex flex-col gap-3"
+                        >
+                            <h2 id="produk-judul" className="sr-only">
+                                Produk
+                            </h2>
+                            <div className="relative">
+                                <Search
+                                    aria-hidden
+                                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                                />
+                                <Input
+                                    type="search"
+                                    value={query}
+                                    onChange={(event) =>
+                                        setQuery(event.target.value)
+                                    }
+                                    placeholder="Cari produk"
+                                    aria-label="Cari produk"
+                                    className="pl-9"
+                                />
+                            </div>
+                            {visible.length === 0 ? (
+                                <p className="py-6 text-center text-sm text-muted-foreground">
+                                    Tidak ada produk bernama “{query.trim()}”.
+                                </p>
+                            ) : (
+                                <ul className="grid gap-3 md:grid-cols-2">
+                                    {visible.map((item) => (
+                                        <ProductRow
+                                            key={item.id}
+                                            item={item}
+                                            qty={
+                                                lines.find(
+                                                    (line) =>
+                                                        line.item.id ===
+                                                        item.id,
+                                                )?.qty ?? 0
+                                            }
+                                            open={shop.open}
+                                            full={
+                                                lines.length >= MAX_LINES &&
+                                                !cart[item.id]
+                                            }
+                                            onQty={(qty) =>
+                                                changeQty(item.id, qty)
+                                            }
+                                        />
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
                     )}
                 </div>
 
-                {!shop.open && (
-                    <p
-                        role="status"
-                        className="rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning"
-                    >
-                        Toko sedang tidak menerima pesanan online. Lihat-lihat
-                        dulu, atau hubungi penjual.
-                    </p>
-                )}
-
-                {items.length === 0 ? (
-                    <EmptyState
-                        icon={PackageOpen}
-                        title="Belum ada produk"
-                        description="Penjual belum menampilkan produk di toko ini."
-                    />
-                ) : (
-                    <>
-                        <div className="relative">
-                            <Search
-                                aria-hidden
-                                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                            />
-                            <Input
-                                type="search"
-                                value={query}
-                                onChange={(event) =>
-                                    setQuery(event.target.value)
-                                }
-                                placeholder="Cari produk"
-                                aria-label="Cari produk"
-                                className="pl-9"
-                            />
-                        </div>
-                        {visible.length === 0 ? (
-                            <p className="py-6 text-center text-sm text-muted-foreground">
-                                Tidak ada produk bernama “{query.trim()}”.
-                            </p>
-                        ) : (
-                            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                                {visible.map((item) => (
-                                    <ProductCard
-                                        key={item.id}
-                                        item={item}
-                                        qty={cart[item.id] ?? 0}
-                                        open={shop.open}
-                                        full={
-                                            lines.length >= MAX_LINES &&
-                                            !cart[item.id]
-                                        }
-                                        onQty={(qty) => changeQty(item.id, qty)}
-                                    />
-                                ))}
-                            </ul>
-                        )}
-                    </>
-                )}
+                <CartPanel
+                    lines={lines}
+                    open={shop.open}
+                    onQty={changeQty}
+                    onNext={() => go('pesan')}
+                />
             </div>
 
             {lines.length > 0 && (
-                <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-card shadow-bar">
-                    <div className="mx-auto flex w-full max-w-[640px] items-center gap-3 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-card shadow-bar lg:hidden">
+                    <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
                         <ShoppingBag
                             aria-hidden
                             className="size-5 shrink-0 text-muted-foreground"
@@ -281,95 +274,5 @@ export default function ShopShow({ shop, items }: ShopShowProps) {
                 </div>
             )}
         </>
-    );
-}
-
-function ProductCard({
-    item,
-    qty,
-    open,
-    full,
-    onQty,
-}: {
-    item: ShopItem;
-    qty: number;
-    open: boolean;
-    /** The order already has 20 different products. */
-    full: boolean;
-    onQty: (qty: number) => void;
-}) {
-    return (
-        <li className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-card">
-            <div className="relative aspect-square bg-secondary">
-                {item.photoUrl ? (
-                    <img
-                        src={item.photoUrl}
-                        alt=""
-                        width={320}
-                        height={320}
-                        loading="lazy"
-                        decoding="async"
-                        className={cn(
-                            'size-full object-cover',
-                            !item.orderable && 'opacity-50 grayscale',
-                        )}
-                    />
-                ) : (
-                    <span
-                        aria-hidden
-                        className="flex size-full items-center justify-center text-3xl font-semibold text-muted-foreground"
-                    >
-                        {item.name.slice(0, 1).toUpperCase()}
-                    </span>
-                )}
-                {!item.orderable && (
-                    <LabelBadge
-                        icon={CircleX}
-                        label="Habis"
-                        className="absolute top-2 left-2 bg-card text-muted-foreground"
-                    />
-                )}
-            </div>
-            <div className="flex flex-1 flex-col gap-2 p-2.5">
-                <div className="flex-1">
-                    <h2
-                        className={cn(
-                            'line-clamp-2 text-sm font-medium',
-                            !item.orderable && 'text-muted-foreground',
-                        )}
-                    >
-                        {item.name}
-                    </h2>
-                    <p className="num text-sm font-semibold">
-                        {formatRupiah(item.price)}
-                        <span className="font-normal text-muted-foreground">
-                            {' '}
-                            / {item.unit}
-                        </span>
-                    </p>
-                </div>
-                {qty > 0 ? (
-                    <QtyStepper
-                        label={item.name}
-                        value={qty}
-                        min={0}
-                        max={MAX_QTY}
-                        onChange={onQty}
-                        className="w-full justify-between"
-                    />
-                ) : (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        disabled={!item.orderable || !open || full}
-                        onClick={() => onQty(1)}
-                        aria-label={`${item.orderable ? 'Tambah' : 'Habis:'} ${item.name}`}
-                    >
-                        {item.orderable ? 'Tambah' : 'Habis'}
-                    </Button>
-                )}
-            </div>
-        </li>
     );
 }
