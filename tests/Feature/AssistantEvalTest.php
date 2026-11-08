@@ -63,6 +63,15 @@ class AssistantEvalTest extends TestCase
         ['beli kompor itu masuk biaya atau apa?', null, ['form' => null, 'topic' => 'beli_peralatan']],
         ['telur ada yang pecah 5 butir, gimana nyatatnya?', null, ['form' => null, 'topic' => 'stok_tidak_sesuai']],
         ['pinjam uang ke bank 5 juta dicatat di mana?', null, ['form' => null, 'topic' => 'belum_didukung']],
+        // Where a feature lives, what a term means, and whether a product is worth keeping.
+        ['di mana nyatet COA ya?', null, ['form' => null, 'topic' => 'daftar_akun']],
+        ['saya punya utang ke supplier, dicatat di mana?', null, ['form' => null, 'topic' => 'bayar_utang_supplier']],
+        ['salah catat penjualan tadi, gimana benerinnya?', null, ['form' => null, 'topic' => 'salah_catat']],
+        ['cara buka toko online gimana?', null, ['form' => null, 'topic' => 'pesanan_toko']],
+        ['apa itu HPP?', null, ['form' => null, 'reply_starts' => 'HPP: modal bahan']],
+        ['prive itu maksudnya apa?', null, ['form' => null, 'reply_starts' => 'Prive: ']],
+        ['hpp bulan ini berapa', null, ['form' => null, 'reply_starts' => 'HPP bulan ini']],
+        ['es teh worth it nggak sih?', null, ['form' => null, 'reply_starts' => 'Es Teh belum laku']],
         // A printed receipt; real photos from owners go next to it (PRD §3.2: 15 photos, field ≥ 80%).
         ['', null, ['form' => 'transaksi', 'type' => 'pembelian', 'kind' => 'barang', 'method' => 'tunai', 'lines' => ['Beras' => 5, 'Telur' => 30], 'prices' => ['Beras' => 14000, 'Telur' => 2000]], 'nota-belanja.png'],
         ['untung bulan ini berapa?', null, ['form' => null, 'reply_starts' => 'Laba bersih bulan ini']],

@@ -22,7 +22,7 @@ class Inbox
 {
     private const DRAFT_MINUTES = 15;
 
-    private const HELP = "Ceritakan yang mau dicatat, misalnya \"jual 3 nasi goreng tunai\" atau \"ambil 200rb buat rumah\". Bisa juga kirim foto nota.\n\nPesanan: *terima A012*, *A012 selesai*, *A012 dp 20rb qris*, *A012 lunas*.";
+    private const HELP = "Ceritakan yang mau dicatat, misalnya \"jual 3 nasi goreng tunai\" atau \"ambil 200rb buat rumah\". Bisa juga kirim foto nota.\n\nPesanan: *terima A012*, *A012 selesai*, *A012 dp 20rb qris*, *A012 lunas*.\n\nTanya juga boleh: *untung bulan ini berapa?*, *utang dicatat di mana?*, *apa itu HPP?*, *es teh worth it?*";
 
     public function __construct(private Linking $linking, private FormAssistant $assistant, private OrderCommands $orderCommands, private BotChannel $channel) {}
 

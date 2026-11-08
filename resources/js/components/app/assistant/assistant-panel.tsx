@@ -58,8 +58,9 @@ const examples: Record<AssistantFormName | 'none', string[]> = {
     ],
     none: [
         'jual 3 nasi goreng, bayar QRIS',
-        'tambah menu mie goreng 14rb, pakai telur 1 dan beras 1 ons',
         'uang pribadi 200rb dicatat di mana?',
+        'apa itu HPP?',
+        'es teh worth it nggak?',
     ],
 };
 
@@ -185,7 +186,8 @@ function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
                     {turn.text}
                 </p>
             ) : (
-                <p>{turn.text}</p>
+                // Answers from the books come in lines (a verdict, a list of costs): keep them.
+                <p className="whitespace-pre-line">{turn.text}</p>
             )}
             {turn.guide && turn.guide.needs.length > 0 && (
                 <div className="rounded-md bg-secondary px-3 py-2">

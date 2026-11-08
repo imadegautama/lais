@@ -219,7 +219,7 @@ class AssistantTest extends TestCase
         $this->model(['jawab_singkat', ['jenis' => 'di_luar_tugas', 'teks' => '```python print(5 * 1000) ```']]);
 
         $this->ask('buatkan saya kode python untuk menghitung beras', null)->assertOk()
-            ->assertJsonPath('reply', 'Maaf, saya hanya bisa membantu mencatat transaksi, produk baru, dan menjawab angka usaha. Ceritakan saja, misalnya "jual 3 nasi goreng tunai" atau "untung bulan ini berapa?".')
+            ->assertJsonPath('reply', 'Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru, menjawab angka usaha, serta menjelaskan istilah dan cara memakai Lais. Ceritakan saja, misalnya "jual 3 nasi goreng tunai", "untung bulan ini berapa?", atau "apa itu HPP?".')
             ->assertJsonPath('values', null);
     }
 
@@ -342,6 +342,99 @@ class AssistantTest extends TestCase
         // Bahan are not sold: their cost, with no price to suggest.
         $this->ask('modal beras berapa', null)->assertJsonPath('reply', 'Biaya rata-rata Beras Rp14.000 per kg.');
         $this->ask('hpp martabak', null)->assertJsonPath('reply', '"Martabak" tidak ada di daftar produk.');
+    }
+
+    public function test_where_a_feature_lives_is_answered_with_its_page(): void
+    {
+        $this->model(
+            ['jelaskan', ['topik' => 'daftar_akun']],
+            ['jelaskan', ['topik' => 'bayar_utang_supplier']],
+        );
+
+        $this->ask('di mana nyatet COA?', null)->assertOk()
+            ->assertJsonPath('reply', GuideTopic::DaftarAkun->explanation())
+            ->assertJsonPath('link', ['label' => 'Buka Daftar akun', 'href' => '/laporan/coa'])
+            ->assertJsonPath('guide.offer', null);
+        // A topic with a draft to open also says where the list lives.
+        $this->ask('saya punya utang ke supplier, dicatat di mana?', null)
+            ->assertJsonPath('guide.offer.label', 'Catat bayar utang')
+            ->assertJsonPath('link', ['label' => 'Lihat utang', 'href' => '/utang-piutang?jenis=utang']);
+    }
+
+    public function test_a_term_is_explained_in_the_same_words_as_on_screen(): void
+    {
+        $this->model(
+            ['artikan', ['istilah' => 'cogs']],
+            ['artikan', ['istilah' => 'drawings']],
+            ['artikan', ['istilah' => 'ebitda']],
+        );
+
+        $this->ask('apa itu HPP?', null)->assertOk()
+            ->assertJsonPath('reply', 'HPP: modal bahan dan barang dari produk yang terjual.')
+            ->assertJsonPath('link', ['label' => 'Buka Laba rugi', 'href' => '/laporan/laba-rugi']);
+        // A definition that does not start with its own name gets it in front.
+        $this->ask('prive itu apa', null)
+            ->assertJsonPath('reply', 'Prive: uang usaha yang diambil untuk keperluan pribadi (prive). Tidak mengurangi laba, tapi mengurangi modal.');
+        $this->ask('apa itu ebitda', null)
+            ->assertJsonPath('reply', 'Istilah itu belum ada di daftar Lais. Coba tanya dengan nama lain, misalnya "apa itu HPP?" atau "apa itu piutang?".')
+            ->assertJsonPath('link', null);
+    }
+
+    public function test_whether_a_product_is_worth_it_comes_from_its_margin_and_sales(): void
+    {
+        $this->model(
+            ['nilai_produk', ['produk' => 'aqua']],
+            ['nilai_produk', ['produk' => 'aqua']],
+            ['nilai_produk', ['produk' => 'nasgor']],
+        );
+        $closing = 'Penilaian ini belum menghitung biaya tetap seperti sewa, gas, dan upah.';
+
+        $this->ask('aqua worth it ga?', null)->assertOk()
+            ->assertJsonPath('reply', "Air Mineral belum laku: tidak terjual dalam 30 hari terakhir. Stoknya 24 botol senilai Rp60.000 masih tertahan.\n"
+                ."Harga jual Rp4.000, modal Rp2.500 per botol: untung Rp1.500 (margin 37,5%, sehat).\n{$closing}")
+            ->assertJsonPath('link', ['label' => 'Buka laporan Produk', 'href' => '/laporan/produk']);
+
+        app(TransactionService::class)->record($this->business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $this->item('Air Mineral')->id, 'qty' => 2, 'price' => 4000]]]);
+
+        $this->ask('aqua worth it ga?', null)
+            ->assertJsonPath('reply', "Air Mineral layak dipertahankan.\n"
+                ."Harga jual Rp4.000, modal Rp2.500 per botol: untung Rp1.500 (margin 37,5%, sehat).\n"
+                ."30 hari terakhir terjual 2 botol, laba kotor Rp3.000, 100% dari semua laba kotor (peringkat 1 dari 1 produk).\n{$closing}");
+        // Made to order from a recipe: no stock to hold up, cost from the recipe (0,15 kg beras + 1 telur = Rp4.100).
+        $this->ask('nasgor masih layak dijual?', null)
+            ->assertJsonPath('reply', "Nasi Goreng belum laku: tidak terjual dalam 30 hari terakhir.\n"
+                ."Harga jual Rp15.000, modal Rp4.100 per porsi: untung Rp10.900 (margin 72,7%, sehat).\n{$closing}");
+    }
+
+    public function test_a_losing_or_thin_product_gets_the_price_that_fixes_it(): void
+    {
+        $water = $this->item('Air Mineral');
+        app(TransactionService::class)->record($this->business, ['type' => 'penjualan', 'method' => 'tunai', 'lines' => [['item_id' => $water->id, 'qty' => 2, 'price' => 4000]]]);
+        $this->model(
+            ...array_fill(0, 3, ['nilai_produk', ['produk' => 'Air Mineral']]),
+            ...[['nilai_produk', ['produk' => 'Beras']], ['nilai_produk', ['produk' => 'Martabak']]],
+        );
+        $sold = '30 hari terakhir terjual 2 botol, laba kotor Rp3.000, 100% dari semua laba kotor (peringkat 1 dari 1 produk).';
+        $fix = 'Supaya margin 30%, harga jual minimal Rp4.000.';
+        $closing = 'Penilaian ini belum menghitung biaya tetap seperti sewa, gas, dan upah.';
+
+        $water->update(['price' => 2000]);
+        $this->ask('air mineral worth it?', null)->assertOk()
+            ->assertJsonPath('reply', "Air Mineral belum layak: setiap botol terjual malah rugi.\n"
+                ."Harga jual Rp2.000, modal Rp2.500 per botol: rugi Rp500 (margin -25%, rugi).\n{$sold}\n{$fix}\n{$closing}");
+
+        $water->update(['price' => 2900]);
+        $this->ask('air mineral worth it?', null)
+            ->assertJsonPath('reply', "Air Mineral masih untung, tapi tipis.\n"
+                ."Harga jual Rp2.900, modal Rp2.500 per botol: untung Rp400 (margin 13,8%, tipis).\n{$sold}\n{$fix}\n{$closing}");
+
+        $water->update(['price' => null]);
+        $this->ask('air mineral worth it?', null)
+            ->assertJsonPath('reply', 'Air Mineral belum bisa dinilai karena harga jualnya belum ada. Lengkapi dulu, lalu tanya lagi.')
+            ->assertJsonPath('link.label', 'Buka produk');
+        $this->ask('beras worth it?', null)
+            ->assertJsonPath('reply', 'Beras adalah bahan yang tidak dijual, jadi yang dinilai adalah produk yang memakainya.');
+        $this->ask('martabak worth it?', null)->assertJsonPath('reply', '"Martabak" tidak ada di daftar produk.');
     }
 
     public function test_a_price_for_a_margin_is_rounded_up_to_rp500(): void

@@ -297,6 +297,90 @@ export const accountTypeLabels: Record<AccountType, string> = {
     beban: 'Beban',
 };
 
+export const MarginLevel = {
+    Rugi: 'rugi',
+    Tipis: 'tipis',
+    Cukup: 'cukup',
+    Sehat: 'sehat',
+} as const;
+
+export type MarginLevel = (typeof MarginLevel)[keyof typeof MarginLevel];
+
+export const marginLevelLabels: Record<MarginLevel, string> = {
+    rugi: 'Rugi',
+    tipis: 'Tipis',
+    cukup: 'Cukup',
+    sehat: 'Sehat',
+};
+
+export const Term = {
+    Sales: 'sales',
+    Cogs: 'cogs',
+    Debit: 'debit',
+    Credit: 'credit',
+    BookValue: 'bookValue',
+    GrossProfit: 'grossProfit',
+    Expenses: 'expenses',
+    StockDifference: 'stockDifference',
+    NetProfit: 'netProfit',
+    OpeningEquity: 'openingEquity',
+    Deposits: 'deposits',
+    Drawings: 'drawings',
+    Receivables: 'receivables',
+    Inventory: 'inventory',
+    Equipment: 'equipment',
+    AccumulatedDepreciation: 'accumulatedDepreciation',
+    Depreciation: 'depreciation',
+    Payables: 'payables',
+    CustomerDeposits: 'customerDeposits',
+    Capital: 'capital',
+    ProfitToDate: 'profitToDate',
+    CashChange: 'cashChange',
+    OpeningBalance: 'openingBalance',
+    ChartOfAccounts: 'chartOfAccounts',
+    Assets: 'assets',
+    Liabilities: 'liabilities',
+    Income: 'income',
+    Costs: 'costs',
+    Margin: 'margin',
+    BreakEven: 'breakEven',
+} as const;
+
+export type Term = (typeof Term)[keyof typeof Term];
+
+export const termLabels: Record<Term, string> = {
+    sales: 'Penjualan (omzet)',
+    cogs: 'HPP',
+    debit: 'Debit',
+    credit: 'Kredit',
+    bookValue: 'Nilai buku',
+    grossProfit: 'Laba kotor',
+    expenses: 'Biaya operasional',
+    stockDifference: 'Selisih stok',
+    netProfit: 'Laba bersih',
+    openingEquity: 'Modal awal periode',
+    deposits: 'Setoran modal',
+    drawings: 'Prive',
+    receivables: 'Piutang',
+    inventory: 'Persediaan',
+    equipment: 'Peralatan',
+    accumulatedDepreciation: 'Akumulasi penyusutan',
+    depreciation: 'Penyusutan',
+    payables: 'Utang',
+    customerDeposits: 'Uang muka pesanan',
+    capital: 'Modal pemilik',
+    profitToDate: 'Laba ditahan',
+    cashChange: 'Perubahan kas',
+    openingBalance: 'Saldo awal',
+    chartOfAccounts: 'Daftar akun (COA)',
+    assets: 'Aset',
+    liabilities: 'Kewajiban',
+    income: 'Pendapatan',
+    costs: 'Beban',
+    margin: 'Margin',
+    breakEven: 'BEP (titik impas)',
+};
+
 export const soldItemKinds: readonly ItemKind[] = ['produk', 'komposisi'];
 
 export const stockedItemKinds: readonly ItemKind[] = ['produk', 'bahan'];
@@ -332,3 +416,39 @@ export const transactionKindExpenseAccounts: Partial<Record<TransactionKind, str
     pemasaran: '6107',
     lain: '6101',
 };
+
+export const termDefinitions: Record<Term, string> = {
+    sales: 'Semua penjualan di periode ini, yang lunas maupun yang belum dibayar.',
+    cogs: 'HPP: modal bahan dan barang dari produk yang terjual.',
+    debit: 'Debit: sisi kiri pembukuan. Menambah aset dan biaya, mengurangi utang, modal, dan pendapatan.',
+    credit: 'Kredit: sisi kanan pembukuan. Menambah utang, modal, dan pendapatan, mengurangi aset dan biaya.',
+    bookValue: 'Nilai buku: harga beli dikurangi penyusutan yang sudah dicatat.',
+    grossProfit: 'Penjualan dikurangi HPP, sebelum biaya operasional.',
+    expenses: 'Pengeluaran rutin yang habis dipakai, seperti listrik, gas, sewa, dan upah.',
+    stockDifference: 'Stok yang rusak, hilang, atau beda dengan hitungan saat koreksi stok.',
+    netProfit: 'Yang tersisa setelah semua biaya. Kalau minus, usaha rugi.',
+    openingEquity: 'Bagian pemilik di awal periode: semua yang dimiliki usaha dikurangi utangnya.',
+    deposits: 'Uang pribadi yang masuk ke usaha, termasuk belanja yang dibayar pakai uang pribadi dan stok awal produk baru.',
+    drawings: 'Uang usaha yang diambil untuk keperluan pribadi (prive). Tidak mengurangi laba, tapi mengurangi modal.',
+    receivables: 'Piutang: uang pelanggan yang belum dibayar.',
+    inventory: 'Nilai stok bahan dan barang, sebesar harga belinya.',
+    equipment: 'Alat yang dipakai lama, dicatat sebesar harga belinya.',
+    accumulatedDepreciation: 'Bagian harga peralatan yang sudah dibebankan sebagai biaya selama dipakai.',
+    depreciation: 'Harga peralatan yang dibagi rata selama umur pakainya. Ini biaya tanpa uang keluar.',
+    payables: 'Utang: belanja yang belum dibayar ke supplier.',
+    customerDeposits: 'Uang muka pesanan yang sudah diterima tapi pesanannya belum selesai.',
+    capital: 'Modal yang pernah dimasukkan pemilik, termasuk saldo awal.',
+    profitToDate: 'Laba dan rugi sejak pembukuan dibuka sampai tanggal ini.',
+    cashChange: 'Selisih uang tunai dan non-tunai antara awal dan akhir periode.',
+    openingBalance: 'Saldo awal: uang, stok, alat, utang, dan piutang yang sudah ada saat mulai pakai Lais.',
+    chartOfAccounts: 'Daftar akun (COA): daftar "laci" pembukuan. Setiap transaksi masuk ke laci yang sesuai, jadi laporan tersusun sendiri.',
+    assets: 'Aset: semua yang dimiliki usaha, seperti uang, stok, piutang, dan peralatan.',
+    liabilities: 'Kewajiban: yang masih harus dibayar usaha, seperti utang ke supplier dan uang muka pesanan.',
+    income: 'Pendapatan: uang yang didapat usaha, terutama dari penjualan.',
+    costs: 'Beban: biaya yang habis dipakai untuk menjalankan usaha, seperti sewa, listrik, dan upah.',
+    margin: 'Margin: bagian harga jual yang tersisa setelah dikurangi modal produknya. Harga Rp10.000 dengan modal Rp6.000 berarti margin 40%.',
+    breakEven: 'BEP (titik impas): penjualan minimal supaya semua biaya tertutup, belum untung dan belum rugi.',
+};
+
+export const THIN_MARGIN_PERCENT = 15;
+export const HEALTHY_MARGIN_PERCENT = 30;

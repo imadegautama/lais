@@ -174,6 +174,20 @@ class WhatsAppTest extends TestCase
         $this->assertSent('6281234567890@s.whatsapp.net', 'Tidak ada catatan yang menunggu');
     }
 
+    public function test_where_to_find_something_comes_back_with_the_page_address(): void
+    {
+        $this->link();
+        $this->model(['jelaskan', ['topik' => 'daftar_akun']], ['artikan', ['istilah' => 'cogs']]);
+
+        $this->deliver($this->event('di mana nyatet COA?', id: 'G1'));
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Daftar akun (COA) ada di menu Laporan');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Buka Daftar akun: '.route('reports.chart'));
+
+        $this->deliver($this->event('apa itu hpp', id: 'G2'));
+        $this->assertSent('6281234567890@s.whatsapp.net', 'HPP: modal bahan dan barang dari produk yang terjual.');
+        $this->assertSent('6281234567890@s.whatsapp.net', 'Buka Laba rugi: '.route('reports.profit-loss'));
+    }
+
     public function test_2_drops_the_draft_and_a_draft_lasts_15_minutes(): void
     {
         $this->link();

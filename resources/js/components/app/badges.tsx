@@ -35,10 +35,13 @@ import type {
     TransactionType,
 } from '@/types/domain';
 import {
+    HEALTHY_MARGIN_PERCENT,
     itemKindLabels,
+    marginLevelLabels,
     orderStatusLabels,
     paymentMethodLabels,
     paymentStatusLabels,
+    THIN_MARGIN_PERCENT,
     transactionSourceLabels,
     transactionTypeLabels,
 } from '@/types/enums';
@@ -217,19 +220,19 @@ export function StockStatusBadge({
     return null;
 }
 
-/** Below this the margin is flagged (UI-PAGES C5, C6). */
-export const THIN_MARGIN_PERCENT = 15;
+/** Below this the margin is flagged (UI-PAGES C5, C6); the levels come from MarginLevel. */
+export { THIN_MARGIN_PERCENT };
 
 /** Margin as a percentage of price, toned per UI-PAGES C5. */
 export function MarginLabel({ percent }: { percent: number }) {
     const [label, icon, tone]: [string, LucideIcon, Tone] =
         percent < 0
-            ? ['Rugi', CircleX, 'danger']
+            ? [marginLevelLabels.rugi, CircleX, 'danger']
             : percent < THIN_MARGIN_PERCENT
-              ? ['Tipis', TriangleAlert, 'danger']
-              : percent < 30
-                ? ['Cukup', CircleDashed, 'warning']
-                : ['Sehat', CircleCheck, 'success'];
+              ? [marginLevelLabels.tipis, TriangleAlert, 'danger']
+              : percent < HEALTHY_MARGIN_PERCENT
+                ? [marginLevelLabels.cukup, CircleDashed, 'warning']
+                : [marginLevelLabels.sehat, CircleCheck, 'success'];
 
     return (
         <LabelBadge

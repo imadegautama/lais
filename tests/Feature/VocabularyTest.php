@@ -5,10 +5,13 @@ namespace Tests\Feature;
 use App\Console\Commands\GenerateEnumTypes;
 use App\Enums\ContactType;
 use App\Enums\GuideTopic;
+use App\Enums\MarginLevel;
 use App\Enums\PaymentMethod;
 use App\Enums\Period;
+use App\Enums\Term;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionType;
+use App\Models\Business;
 use App\Services\Ai\TransactionDraft;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -55,6 +58,8 @@ class VocabularyTest extends TestCase
     {
         foreach (GuideTopic::cases() as $topic) {
             $this->assertNotSame('', $topic->explanation());
+            // Every page a topic points at exists.
+            $topic->link(new Business);
             $this->assertSame($topic === GuideTopic::BelumDidukung, $topic->needs() === []);
 
             $draft = $topic->draft();
@@ -68,6 +73,22 @@ class VocabularyTest extends TestCase
                 }
             }
         }
+    }
+
+    public function test_every_term_answers_in_its_own_name_and_links_to_a_real_page(): void
+    {
+        foreach (Term::cases() as $term) {
+            $this->assertStringStartsWith($term->label().': ', $term->answer());
+            $term->link();
+        }
+    }
+
+    public function test_margin_levels_meet_at_their_thresholds(): void
+    {
+        $this->assertSame(
+            [MarginLevel::Rugi, MarginLevel::Tipis, MarginLevel::Tipis, MarginLevel::Cukup, MarginLevel::Cukup, MarginLevel::Sehat],
+            array_map(MarginLevel::of(...), [-0.1, 0.0, 14.9, 15.0, 29.9, 30.0]),
+        );
     }
 
     public function test_periods_start_in_wib_and_weeks_start_on_monday(): void

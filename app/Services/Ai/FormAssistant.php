@@ -8,6 +8,7 @@ use App\Enums\MoneyAccountKind;
 use App\Enums\PaymentMethod;
 use App\Enums\Period;
 use App\Enums\ReportMetric;
+use App\Enums\Term;
 use App\Enums\TransactionKind;
 use App\Enums\TransactionSource;
 use App\Enums\TransactionType;
@@ -60,11 +61,11 @@ class FormAssistant
 
     public const SKIP_MISSING = 'Catat yang ada saja';
 
-    private const SCOPE = 'Maaf, saya hanya bisa membantu mencatat transaksi, produk baru, dan menjawab angka usaha. Ceritakan saja, misalnya "jual 3 nasi goreng tunai" atau "untung bulan ini berapa?".';
+    private const SCOPE = 'Maaf, saya hanya bisa membantu mencatat transaksi dan produk baru, menjawab angka usaha, serta menjelaskan istilah dan cara memakai Lais. Ceritakan saja, misalnya "jual 3 nasi goreng tunai", "untung bulan ini berapa?", atau "apa itu HPP?".';
 
     /** jawab_singkat replies; the model picks one, it never writes them. */
     private const REPLIES = [
-        'sapaan' => 'Halo! Saya bisa membantu mencatat transaksi dan produk baru, juga menjawab angka usaha. Coba "jual 3 nasi goreng tunai" atau "untung bulan ini berapa?".',
+        'sapaan' => 'Halo! Saya bisa membantu mencatat transaksi dan produk baru, menjawab angka usaha, dan menjelaskan cara memakai Lais. Coba "jual 3 nasi goreng tunai", "untung bulan ini berapa?", atau "di mana lihat daftar akun?".',
         'terima_kasih' => 'Sama-sama. Kalau ada yang mau dicatat lagi, tulis saja di sini.',
         'di_luar_tugas' => self::SCOPE,
     ];
@@ -226,6 +227,11 @@ class FormAssistant
             // The numbers come from the journal and the catalog, never from the model (ReportAnswers).
             'tanya_angka' => $this->figure($business, $args),
             'tanya_harga' => $this->price($args, $items),
+            'nilai_produk' => $this->verdict($business, $args, $items),
+            // The words come from Term, never from the model.
+            'artikan' => ($term = Term::tryFrom(self::text($args['istilah'] ?? null))) === null
+                ? self::result(['reply' => 'Istilah itu belum ada di daftar Lais. Coba tanya dengan nama lain, misalnya "apa itu HPP?" atau "apa itu piutang?".'])
+                : self::result(['reply' => $term->answer(), ...(($link = $term->link()) === null ? [] : ['link' => $link])]),
             'tanya_data' => $this->fromFacts($business, $message, $draft === null ? array_slice($history, -4) : []),
             default => self::text($args['jenis'] ?? null) === 'pertanyaan_laporan'
                 ? self::result(['reply' => 'Pertanyaan itu belum bisa dijawab di chat, tapi jawabannya ada di Laporan, termasuk produk terlaris.', 'link' => ['label' => 'Buka Laporan', 'href' => route('reports.index', absolute: false)]])
@@ -303,6 +309,20 @@ class FormAssistant
         $margin = is_numeric($args['target_margin'] ?? null) ? (float) $args['target_margin'] : null;
 
         return self::result($this->answers->price($item, $margin !== null && $margin > 0 && $margin < 100 ? $margin : null));
+    }
+
+    /**
+     * @param  array<string, mixed>  $args
+     * @param  Collection<int, Item>  $items
+     * @return Reply
+     */
+    private function verdict(Business $business, array $args, Collection $items): array
+    {
+        $item = Names::match($items, $args['produk'] ?? null, fn (Item $item) => [$item->name, ...($item->aliases ?? [])]);
+
+        return self::result($item === null
+            ? ['reply' => '"'.self::text($args['produk'] ?? null).'" tidak ada di daftar produk.']
+            : $this->answers->productVerdict($business, $item));
     }
 
     /**
@@ -605,6 +625,7 @@ class FormAssistant
     private function rules(Business $business): string
     {
         $topics = implode("\n", array_map(fn (GuideTopic $topic) => "- {$topic->value}: {$topic->label()}", GuideTopic::cases()));
+        $terms = implode("\n", array_map(fn (Term $term) => "- {$term->value}: {$term->label()}", Term::cases()));
 
         return <<<PROMPT
         Kamu asisten pencatatan di aplikasi Lais untuk usaha "{$business->name}". Tugasmu hanya mengubah kalimat pemilik menjadi catatan transaksi atau produk baru dengan memanggil tepat satu tool. Kamu tidak menyimpan apa pun: sistem menunjukkan ringkasannya, lalu pemilik yang mengonfirmasi.
@@ -620,14 +641,19 @@ class FormAssistant
         - Kalau pemilik minta barang yang kurang atau belum ada didaftarkan ke daftar produk, panggil tambah_ke_daftar dengan nama persis dari "Belum ada di daftar". Isi jenis dan harga_jual hanya kalau pemilik menyebutnya; sistem yang menanyakan sisanya. Jawaban pemilik untuk pertanyaan itu ("semua dijual lagi", "frestea 8rb") juga memakai tambah_ke_daftar. Jangan memakai isi_produk untuk barang dari draf.
         - isi_produk untuk produk yang berbeda dari draf produk saat ini memakai produk_lain true, supaya tidak mewarisi harganya.
         - Panggil tanya_balik hanya kalau maksud pemilik ragu, misalnya satu nama cocok dengan beberapa produk di daftar, atau satuannya tidak sejenis. Pertanyaannya hanya soal isian catatan. Beri pilihan singkat.
-        - Kalau pemilik bertanya cara atau tempat mencatat sesuatu ("dicatat di mana", "masuk apa", "gimana nyatatnya", "bingung"), panggil jelaskan dengan topik yang paling cocok, dan isi nominal, kontak, atau barang kalau disebut. Kalau pemilik menyuruh mencatat, tetap panggil isi_transaksi.
+        - Kalau pemilik bertanya cara atau tempat mencatat sesuatu ("dicatat di mana", "masuk apa", "gimana nyatatnya", "bingung"), atau di mana fitur Lais berada ("di mana lihat daftar akun", "cara buka toko online", "salah catat gimana", "tambah rekening di mana"), panggil jelaskan dengan topik yang paling cocok, dan isi nominal, kontak, atau barang kalau disebut. Kalau pemilik menyuruh mencatat, tetap panggil isi_transaksi.
         - Pertanyaan soal pencatatan usaha yang tidak cocok dengan topik mana pun memakai jelaskan dengan topik belum_didukung. Pertanyaan soal angka usaha (penjualan, omzet, untung, laba, HPP keseluruhan, biaya, kas, piutang, utang, jumlah transaksi) memakai tanya_angka; kalau periodenya tidak disebut, pakai bulan_ini. "Siapa yang belum bayar" adalah metrik piutang, dan "utang saya ke siapa" adalah metrik utang. Pertanyaan HPP, modal, atau harga jual satu produk memakai tanya_harga.
+        - Pertanyaan arti istilah ("apa itu HPP", "prive itu apa", "maksudnya piutang", "COA artinya apa") memakai artikan dengan istilah yang paling cocok, bukan tanya_angka. Kalau dua istilah dibandingkan, pilih yang disebut pertama.
+        - Pertanyaan apakah satu produk layak dijual ("worth it", "untung nggak", "perlu dipertahankan", "mending dihapus") memakai nilai_produk dengan nama produknya, bukan tanya_data.
         - Pertanyaan lain tentang kondisi usaha memakai tanya_data, bukan jelaskan: modal pemilik, aset, sisa stok barang, produk terlaris, BEP atau titik impas, hari paling ramai, perbandingan, alasan naik turun, atau saran dari data usaha.
         - Pesan yang diawali "Dari foto nota" adalah isi nota belanja atau tagihan yang sudah disalin. Panggil isi_transaksi: jenis pembelian (jenis_biaya barang, atau peralatan kalau isinya alat) atau biaya untuk tagihan listrik, air, atau sewa. Satu baris per item dengan total baris seperti tertulis; total nota tidak dipakai. Ubah jumlah kemasan ke satuan di daftar kalau ukurannya tertulis (1 karung beras 5 kg = 5 kg). kontak = nama toko, tanggal dari nota, dan metode_bayar hanya kalau tertulis (transfer atau QRIS = non_tunai, belum dibayar = kredit). Petakan nama item ke nama di daftar kalau jelas barang yang sama; yang tidak ada di daftar ditulis apa adanya.
         - jawab_singkat dengan jenis di_luar_tugas hanya untuk yang bukan soal usaha, misalnya minta dibuatkan kode, resep masakan, tulisan, atau pertanyaan umum. Jangan menjawab isinya.
 
         Topik untuk jelaskan:
         {$topics}
+
+        Istilah untuk artikan:
+        {$terms}
 
         Cara bayar: tunai = uang tunai; non_tunai = QRIS, transfer, atau e-wallet (isi rekening kalau disebut); kredit = belum dibayar, ngutang, bon; pribadi = dibayar dari uang pribadi pemilik (hanya pembelian dan biaya).
         Jenis transaksi: penjualan; pembelian (jenis_biaya barang untuk bahan atau barang dagangan, peralatan untuk alat); biaya (jenis_biaya listrik_air, gas_bbm, sewa, upah, transport, pemasaran, lain); modal (setor = menambah modal, prive = mengambil uang usaha untuk pribadi); utang_piutang (terima_piutang = pelanggan melunasi utangnya, bayar_utang = membayar utang ke supplier).
@@ -750,7 +776,7 @@ class FormAssistant
                 'pertanyaan' => ['type' => 'string'],
                 'pilihan' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Dua sampai empat jawaban singkat.'],
             ], ['pertanyaan']),
-            $function('jelaskan', 'Jelaskan cara atau tempat mencatat sesuatu, untuk pemilik yang bertanya atau bingung.', [
+            $function('jelaskan', 'Jelaskan cara atau tempat mencatat sesuatu, atau di mana fitur Lais berada, untuk pemilik yang bertanya atau bingung.', [
                 'topik' => ['type' => 'string', 'enum' => GuideTopic::values()],
                 'nominal' => ['type' => 'integer', 'description' => 'Jumlah uang kalau disebut.'],
                 'kontak' => ['type' => 'string', 'description' => 'Nama pelanggan atau supplier kalau disebut.'],
@@ -766,6 +792,12 @@ class FormAssistant
             $function('tanya_harga', 'Jawab HPP satu produk dan saran harga jualnya. Sistem yang menghitung, kamu hanya memilih.', [
                 'produk' => ['type' => 'string', 'description' => 'Nama produk seperti di daftar.'],
                 'target_margin' => ['type' => 'number', 'description' => 'Persen margin yang diinginkan, hanya kalau disebut.'],
+            ], ['produk']),
+            $function('artikan', 'Jelaskan arti satu istilah pembukuan. Sistem yang menulis artinya, kamu hanya memilih istilahnya.', [
+                'istilah' => ['type' => 'string', 'enum' => Term::values()],
+            ], ['istilah']),
+            $function('nilai_produk', 'Nilai apakah satu produk layak (worth it) dari margin dan penjualannya. Sistem yang menilai, kamu hanya memilih produknya.', [
+                'produk' => ['type' => 'string', 'description' => 'Nama produk seperti di daftar.'],
             ], ['produk']),
             $function('jawab_singkat', 'Balasan tetap untuk sapaan, ucapan terima kasih, pertanyaan laporan, atau permintaan di luar urusan usaha.', [
                 // Report questions are answered from the journal (ReportAnswers), not from REPLIES.
