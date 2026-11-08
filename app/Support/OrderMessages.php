@@ -4,6 +4,8 @@ namespace App\Support;
 
 use App\Enums\OrderFulfillment;
 use App\Enums\OrderStatus;
+use App\Enums\TransactionKind;
+use App\Enums\TransactionStatus;
 use App\Models\Order;
 
 /**
@@ -15,6 +17,7 @@ class OrderMessages
 {
     /**
      * Where the order stands and what is left to pay, with the nota link.
+     * A refused order says what uang muka comes back instead.
      *
      * @param  int  $paid  Orders::paid(), read by the caller
      */
@@ -35,8 +38,21 @@ class OrderMessages
             OrderStatus::Selesai => "Terima kasih, {$order->customer_name}! Pesanan {$order->code} sudah selesai.".($rest > 0 ? $owed : ' Pembayarannya sudah lunas.').$nota,
             OrderStatus::Ditolak => "Mohon maaf, {$order->customer_name}, pesanan {$order->code} di {$shop} tidak bisa kami proses"
                 .($order->reject_reason ? " ({$order->reject_reason})" : '').'.'
-                .($paid > 0 ? ' Uang muka '.Format::rupiah($paid).' kami kembalikan.' : '').$nota,
+                .(($returned = self::returned($order)) > 0 ? ' Uang muka '.Format::rupiah($returned).' kami kembalikan.' : '').$nota,
         };
+    }
+
+    /**
+     * Uang muka handed back when an accepted order was called off: Orders::cancel
+     * voids it, so paid() no longer counts it. Order records are locked
+     * elsewhere, so a void one here can only come from that cancel.
+     */
+    private static function returned(Order $order): int
+    {
+        return (int) $order->transactions()
+            ->where('transactions.kind', TransactionKind::UangMuka)
+            ->where('transactions.status', TransactionStatus::Void)
+            ->sum('transactions.total');
     }
 
     /**

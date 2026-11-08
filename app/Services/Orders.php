@@ -231,7 +231,7 @@ class Orders
      * Money the customer handed over: uang muka before the order is done,
      * Terima piutang after, never more than what is still unpaid.
      */
-    public function recordPayment(Order $order, int $amount, PaymentMethod $method, ?int $moneyAccountId = null): Transaction
+    public function recordPayment(Order $order, int $amount, PaymentMethod $method, ?int $moneyAccountId = null, TransactionSource $source = TransactionSource::Web): Transaction
     {
         $this->assert($order->status->acceptsPayment(), 'Pembayaran baru bisa dicatat setelah pesanan diterima.');
         $rest = $order->total - $this->paid($order);
@@ -249,7 +249,7 @@ class Orders
             'contact_id' => $order->contact_id,
             'note' => "Pesanan {$order->code}",
             'order_id' => $order->id,
-        ]);
+        ], $source);
     }
 
     /**

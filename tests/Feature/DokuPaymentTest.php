@@ -4,19 +4,27 @@ namespace Tests\Feature;
 
 use App\Enums\OnlinePaymentStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Enums\TransactionKind;
+use App\Enums\TransactionSource;
+use App\Jobs\SendWhatsApp;
+use App\Models\Account;
 use App\Models\Business;
 use App\Models\Item;
 use App\Models\OnlinePayment;
 use App\Models\Order;
 use App\Models\Transaction;
 use App\Services\Doku;
+use App\Services\Ledger;
 use App\Services\Onboarding;
 use App\Services\Orders;
+use App\Services\Reports;
+use App\Support\OrderMessages;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
@@ -157,6 +165,83 @@ class DokuPaymentTest extends TestCase
             ->where('order.paymentStatus', 'lunas')
             ->where('order.onlinePayment.status', 'lunas')
             ->where('order.onlinePayment.url', null));
+    }
+
+    public function test_an_order_paid_online_then_finished_keeps_stock_cash_and_reports_in_line(): void
+    {
+        $this->fakeDoku();
+        $this->order();
+        $order = Order::query()->sole();
+        $this->notify(OnlinePayment::query()->sole(), 'SUCCESS', 12000);
+        $ledger = app(Ledger::class);
+        $reports = app(Reports::class);
+        $doku = $this->business->moneyAccounts()->where('money_accounts.name', Doku::ACCOUNT_NAME)->sole();
+        $paidIn = $ledger->moneyBalances($this->business);
+
+        // Paid but not done: the money is in Saldo DOKU, owed to the customer, and the stock is still there.
+        $this->assertSame(12000, $paidIn[$doku->id]);
+        $this->assertSame(12000, $ledger->balance($this->business, Account::CUSTOMER_DEPOSITS));
+        $this->assertSame(100.0, (float) $this->water->refresh()->stock);
+        $this->assertSame(TransactionSource::Toko, $order->transactions()->sole()->source);
+
+        app(Orders::class)->complete($order->refresh()->load('lines'));
+
+        // Selesai: the uang muka pays for the sale, so no rekening moves and nothing is owed.
+        $sale = $order->refresh()->sale;
+        $this->assertSame([PaymentMethod::Tunai, 12000, TransactionSource::Toko], [$sale->method, $sale->total, $sale->source]);
+        $this->assertSame(97.0, (float) $this->water->refresh()->stock);
+        $this->assertSame(0, $ledger->balance($this->business, Account::CUSTOMER_DEPOSITS));
+        $this->assertSame($paidIn, $ledger->moneyBalances($this->business));
+        $this->assertSame([], array_filter($ledger->contactBalances($this->business)));
+
+        $from = CarbonImmutable::parse('2026-11-01');
+        $this->assertTrue($reports->balanceSheet($this->business, CarbonImmutable::parse('2026-11-18'))['balanced']);
+        $this->assertSame(0, $reports->cashReconciliation($this->business, $from)['difference']);
+        // 12.000 sold at a cost of 3 × 2.500.
+        $this->assertSame(4500, $reports->profitAndLoss($this->business, $from)['netProfit']);
+    }
+
+    public function test_cancelling_an_order_paid_online_returns_the_money_in_the_books_and_says_so(): void
+    {
+        $this->fakeDoku();
+        $this->order();
+        $order = Order::query()->sole();
+        $this->notify(OnlinePayment::query()->sole(), 'SUCCESS', 12000);
+        $ledger = app(Ledger::class);
+        $doku = $this->business->moneyAccounts()->where('money_accounts.name', Doku::ACCOUNT_NAME)->sole();
+
+        app(Orders::class)->cancel($order->refresh(), 'Bahan habis');
+
+        $from = CarbonImmutable::parse('2026-11-01');
+        $this->assertSame(0, $ledger->moneyBalances($this->business)[$doku->id]);
+        $this->assertSame(0, $ledger->balance($this->business, Account::CUSTOMER_DEPOSITS));
+        $this->assertSame(100.0, (float) $this->water->refresh()->stock);
+        $this->assertTrue(app(Reports::class)->balanceSheet($this->business, CarbonImmutable::parse('2026-11-18'))['balanced']);
+        $this->assertSame(0, app(Reports::class)->profitAndLoss($this->business, $from)['netProfit']);
+        // The news the owner forwards tells the customer their money comes back.
+        $this->assertStringContainsString('Uang muka Rp12.000 kami kembalikan', OrderMessages::status($order->refresh(), app(Orders::class)->paid($order)));
+    }
+
+    public function test_paying_online_after_a_cash_deposit_books_only_the_rest_and_tells_the_owner(): void
+    {
+        $this->fakeDoku();
+        $this->order();
+        $order = Order::query()->sole();
+        $payment = OnlinePayment::query()->sole();
+        $this->business->user->forceFill(['whatsapp' => '6281200000009', 'whatsapp_linked_at' => now()])->save();
+        $orders = app(Orders::class);
+        $orders->accept($order);
+        $orders->recordPayment($order->refresh(), 5000, PaymentMethod::Tunai);
+        Queue::fake();
+
+        // The page was opened for 12.000 before the cash came in, and the customer still paid it all.
+        $this->notify($payment, 'SUCCESS', 12000)->assertNoContent();
+
+        $doku = $this->business->moneyAccounts()->where('money_accounts.name', Doku::ACCOUNT_NAME)->sole();
+        $this->assertSame(7000, app(Ledger::class)->moneyBalances($this->business)[$doku->id]);
+        $this->assertSame(12000, $orders->paid($order->refresh()));
+        $this->assertTrue(app(Reports::class)->balanceSheet($this->business, CarbonImmutable::parse('2026-11-18'))['balanced']);
+        Queue::assertPushed(SendWhatsApp::class, fn (SendWhatsApp $job) => str_contains($job->text, 'Lebihnya Rp5.000 kembalikan'));
     }
 
     public function test_a_shop_that_does_not_offer_it_ignores_paying_online(): void

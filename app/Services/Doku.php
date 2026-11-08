@@ -6,6 +6,7 @@ use App\Enums\MoneyAccountKind;
 use App\Enums\OnlinePaymentStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Enums\TransactionSource;
 use App\Jobs\SendWhatsApp;
 use App\Models\Business;
 use App\Models\MoneyAccount;
@@ -183,7 +184,7 @@ class Doku
                 $booked = min($amount, $order->total - $this->orders->paid($order));
 
                 if ($booked > 0) {
-                    $this->orders->recordPayment($order, $booked, PaymentMethod::NonTunai, $this->account($order->business)->id);
+                    $this->orders->recordPayment($order, $booked, PaymentMethod::NonTunai, $this->account($order->business)->id, TransactionSource::Toko);
                 }
             }
 
