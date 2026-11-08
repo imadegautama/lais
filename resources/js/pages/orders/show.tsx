@@ -30,7 +30,7 @@ import {
 import { OrderLines, OrderTimeline } from '@/features/orders/order-timeline';
 import { displayPhone, waLink } from '@/features/orders/phone';
 import { useClipboard } from '@/hooks/use-clipboard';
-import { formatDate, formatRupiah } from '@/lib/format';
+import { formatDate, formatRupiah, zoneLabel } from '@/lib/format';
 import { index as debtsIndex } from '@/routes/debts';
 import { index } from '@/routes/orders';
 import { show as showTransaction } from '@/routes/transactions';
@@ -65,7 +65,7 @@ export default function OrderShow({
                             <PaymentStatusBadge status={order.paymentStatus} />
                         </>
                     }
-                    description={`Masuk ${formatDate(order.createdAt, 'long')}, ${formatDate(order.createdAt, 'time')} WIB · ${order.source === 'toko' ? 'dari toko online' : 'dicatat pemilik'}`}
+                    description={`Masuk ${formatDate(order.createdAt, 'long')}, ${formatDate(order.createdAt, 'time')} ${zoneLabel()} · ${order.source === 'toko' ? 'dari toko online' : 'dicatat pemilik'}`}
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <NextStepButtons order={order} />
@@ -220,7 +220,7 @@ export default function OrderShow({
                                 {order.wantedAt && (
                                     <DetailRow label="Waktu">
                                         {formatDate(order.wantedAt, 'datetime')}{' '}
-                                        WIB
+                                        {zoneLabel()}
                                     </DetailRow>
                                 )}
                                 {order.address && (

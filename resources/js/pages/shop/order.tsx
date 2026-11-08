@@ -15,7 +15,7 @@ import {
 import { OrderLines, OrderTimeline } from '@/features/orders/order-timeline';
 import { waLink } from '@/features/orders/phone';
 import { askSellerMessage } from '@/features/orders/vocabulary';
-import { formatDate, formatRupiah } from '@/lib/format';
+import { formatDate, formatRupiah, zoneLabel } from '@/lib/format';
 import { orderFulfillmentLabels } from '@/types/enums';
 import type { ShopOrderProps } from '@/types/domain';
 
@@ -43,7 +43,7 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
                 <div>
                     <p className="text-sm text-muted-foreground">
                         {shop.name} · {formatDate(order.createdAt, 'datetime')}{' '}
-                        WIB
+                        {zoneLabel()}
                     </p>
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Pesanan {order.code}
@@ -172,7 +172,8 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
                         <dl className="flex flex-col text-sm">
                             {order.wantedAt && (
                                 <DetailRow label="Waktu">
-                                    {formatDate(order.wantedAt, 'datetime')} WIB
+                                    {formatDate(order.wantedAt, 'datetime')}{' '}
+                                    {zoneLabel()}
                                 </DetailRow>
                             )}
                             {order.address && (

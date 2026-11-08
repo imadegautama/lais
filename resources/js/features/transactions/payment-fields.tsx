@@ -37,7 +37,7 @@ export function PaymentFields({
     setField: RecordFieldSetter;
     contacts: ContactOption[];
     moneyAccounts: MoneyAccountOption[];
-    /** Latest allowed time, from the server (WIB). */
+    /** Latest allowed time, from the server (app time zone). */
     now: string;
 }) {
     const { type, kind, method } = data;

@@ -10,8 +10,6 @@ use Carbon\CarbonImmutable;
  */
 final class DemoData
 {
-    private const TZ = 'Asia/Jakarta';
-
     private const PRODUCTS = [
         'nasgor' => ['name' => 'Nasi Goreng', 'price' => 15000, 'daily' => [12, 25]],
         'miegor' => ['name' => 'Mie Goreng', 'price' => 14000, 'daily' => [6, 14]],
@@ -27,7 +25,7 @@ final class DemoData
 
     public function __construct(?CarbonImmutable $now = null)
     {
-        $this->now = $now ?? CarbonImmutable::now(self::TZ);
+        $this->now = $now ?? CarbonImmutable::now();
         $this->generate();
     }
 

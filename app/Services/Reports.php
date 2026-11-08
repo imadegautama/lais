@@ -570,7 +570,7 @@ class Reports
     }
 
     /**
-     * Sales per WIB day for the last $days days, today last; quiet days are 0.
+     * Sales per day (app time zone) for the last $days days, today last; quiet days are 0.
      *
      * @return list<array{date: string, sales: int}>
      */

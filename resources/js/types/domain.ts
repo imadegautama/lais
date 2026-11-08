@@ -279,7 +279,7 @@ export type TransactionCreateProps = {
     initialType: TransactionType;
     /** A choice inside the tab; the edit page has none. */
     initialKind?: TransactionKind | null;
-    /** Server time (WIB) as a datetime-local value. */
+    /** Server time (app time zone) as a datetime-local value. */
     now: string;
     items: RecordItem[];
     contacts: ContactOption[];

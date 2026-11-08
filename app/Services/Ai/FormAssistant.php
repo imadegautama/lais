@@ -654,7 +654,7 @@ class FormAssistant
             .($item->price === null ? '' : " | harga jual {$item->price}"))->implode("\n") ?: '(belum ada)';
         $people = $contacts->map(fn (Contact $contact) => "- {$contact->name} ({$contact->type->label()})")->implode("\n") ?: '(belum ada)';
         $accounts = $moneyAccounts->map(fn (MoneyAccount $account) => "- {$account->name} (".($account->kind === MoneyAccountKind::Tunai ? 'tunai' : 'non_tunai').')')->implode("\n");
-        $now = Format::date(now()).', pukul '.now()->format('H.i').' WIB';
+        $now = Format::date(now()).', pukul '.now()->format('H.i T');
         $filled = $current === [] ? '(kosong)' : (string) json_encode($current, JSON_UNESCAPED_UNICODE);
         $record = $drafted === NewItemsDraft::FORM ? ($current['record'] ?? []) : $current;
         // The draft holds ids; the model answers follow-ups from these names.

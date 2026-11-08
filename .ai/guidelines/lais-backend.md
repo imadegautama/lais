@@ -7,6 +7,7 @@ Aturan akuntansi dan data ada di `docs/PRD.md` §4. Bagian ini mengatur letak da
 - Primary key setiap tabel bernama `id`, sedangkan foreign key bernama `<model>_id` (`item_id`, `transaction_id`). Ini konvensi Eloquent; jangan diganti.
 - Setiap join, subquery, atau SQL mentah wajib menulis nama tabel di depan kolom (`items.id`, `transactions.contact_id`, `$query->qualifyColumn()`). Dengan begitu, join yang ditambah belakangan tidak membuat kolom jadi ambigu. `App\Support\TableQuery` sudah menambahkan nama tabel ke nama kolom polos di sorts, filters, dan search.
 - Uang selalu BIGINT rupiah, tanpa desimal.
+- Zona waktu satu sumber: `config('app.timezone')` dari `APP_TIMEZONE` (bawaan `Asia/Jakarta`; usaha di Bali memakai `Asia/Makassar`). Jadwal di `routes/console.php` dan `DemoData` membacanya, dan label jam memakai format `T` (WIB/WITA/WIT). Kolom waktu disimpan tanpa zona, jadi set `APP_TIMEZONE` sebelum ada data dan jangan diganti sesudahnya: data lama ikut bergeser.
 - Input dari pengguna tidak pernah disisipkan ke SQL mentah; selalu lewat binding (`orderByRaw('items.kind = ?', [ItemKind::Komposisi->value])`). Hanya konstanta kode, seperti nilai enum di `Item::UNIT_COST_SQL`, yang boleh ditulis langsung.
 
 ## Istilah domain

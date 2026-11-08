@@ -19,6 +19,7 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import type { ReportFrame } from '@/types/domain';
+import { appTimeZone } from '@/lib/format';
 
 /** The owner's own dates: a popover beside the quick periods, a drawer on a phone. */
 export function DateRangeFilter({
@@ -36,7 +37,7 @@ export function DateRangeFilter({
     const [from, setFrom] = useState(frame.range.from);
     const [to, setTo] = useState(frame.range.to);
     const today = new Date().toLocaleDateString('en-CA', {
-        timeZone: 'Asia/Jakarta',
+        timeZone: appTimeZone(),
     });
     const custom = frame.period.key === null;
     const invalid = from === '' || to === '' || from > to;

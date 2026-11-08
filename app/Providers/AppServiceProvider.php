@@ -37,9 +37,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Date::use(CarbonImmutable::class);
 
-        if (app()->isProduction()) {
-            URL::forceScheme('https');
-        }
+        // TLS ends at Coolify's proxy (trusted in bootstrap/app.php); links stay https.
+        URL::forceHttps(app()->isProduction());
 
         DB::prohibitDestructiveCommands(
             app()->isProduction(),

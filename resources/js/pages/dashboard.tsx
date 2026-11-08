@@ -30,6 +30,7 @@ import { EmptyState, ErrorState } from '@/components/app/states';
 import { TransactionTable } from '@/features/transactions/transaction-table';
 import { Progress } from '@/components/ui/progress';
 import {
+    appTimeZone,
     formatDate,
     formatPercent,
     formatQty,
@@ -55,7 +56,7 @@ function greeting(): string {
         new Intl.DateTimeFormat('id-ID', {
             hour: 'numeric',
             hourCycle: 'h23',
-            timeZone: 'Asia/Jakarta',
+            timeZone: appTimeZone(),
         }).format(new Date()),
     );
 
