@@ -71,7 +71,7 @@ class DokuPaymentTest extends TestCase
             return $request->header('Signature')[0] === $signed
                 && $request['order']['amount'] === 12000
                 && $request['order']['invoice_number'] === $payment->invoice_number
-                && $request['order']['callback_url'] === route('shop.order', $order->token);
+                && $request['order']['callback_url'] === route('shop.order', [$order->token, 'dari' => 'doku']);
         });
         $this->assertMatchesRegularExpression('/^LAIS\d+[A-Z0-9]{8}$/', $payment->invoice_number);
         $this->assertLessThanOrEqual(30, strlen($payment->invoice_number));
@@ -164,7 +164,10 @@ class DokuPaymentTest extends TestCase
             ->where('order.status', 'diproses')
             ->where('order.paymentStatus', 'lunas')
             ->where('order.onlinePayment.status', 'lunas')
-            ->where('order.onlinePayment.url', null));
+            ->where('order.onlinePayment.url', null)
+            // The nota says so at the top: how much came in, and when.
+            ->where('order.onlinePayment.amount', 12000)
+            ->where('order.onlinePayment.paidAt', now()->toIso8601String()));
     }
 
     public function test_an_order_paid_online_then_finished_keeps_stock_cash_and_reports_in_line(): void

@@ -1,9 +1,16 @@
-import { Head, usePoll } from '@inertiajs/react';
-import { Download, MessageCircle, Printer, QrCode } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { Head, router, usePage, usePoll } from '@inertiajs/react';
+import {
+    CircleCheck,
+    Download,
+    MessageCircle,
+    Printer,
+    QrCode,
+} from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { PaymentStatusBadge } from '@/components/app/badges';
 import { DetailRow } from '@/components/app/detail-row';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Dialog,
     DialogContent,
@@ -35,6 +42,33 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
     const payOnline =
         shop.onlinePayment &&
         ['menunggu', 'diproses', 'siap'].includes(order.status);
+    // DOKU sends the customer back here with ?dari=doku (App\Services\Doku::checkout).
+    const returned = usePage().url.includes('dari=doku');
+    const paidOnline =
+        order.onlinePayment?.status === 'lunas' ? order.onlinePayment : null;
+    const waitingOnline =
+        order.onlinePayment?.status === 'menunggu' &&
+        order.onlinePayment.url !== null;
+    // DOKU's word usually comes seconds after paying, so look often for a short while.
+    const [lookingOften, setLookingOften] = useState(returned);
+    const checking = lookingOften && waitingOnline;
+
+    useEffect(() => {
+        if (!checking) {
+            return;
+        }
+
+        const poll = window.setInterval(
+            () => router.reload({ only: ['order'] }),
+            5_000,
+        );
+        const end = window.setTimeout(() => setLookingOften(false), 120_000);
+
+        return () => {
+            window.clearInterval(poll);
+            window.clearTimeout(end);
+        };
+    }, [checking]);
 
     // The order is placed, also when the customer went to DOKU first: the shop's cart is done.
     useEffect(() => saveCart(shop.slug, {}), [shop.slug]);
@@ -61,6 +95,47 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
                         Atas nama {order.customerName}
                     </p>
                 </div>
+
+                {checking && (
+                    <p
+                        role="status"
+                        className="flex items-center gap-3 rounded-xl border bg-card p-4 text-sm shadow-card"
+                    >
+                        <Spinner
+                            aria-hidden
+                            className="size-5 shrink-0 text-brand-strong motion-reduce:animate-none"
+                        />
+                        Memeriksa pembayaranmu di DOKU. Biasanya hanya beberapa
+                        detik, dan nota ini berubah sendiri.
+                    </p>
+                )}
+
+                {paidOnline && (
+                    <section
+                        role="status"
+                        className="flex items-start gap-3 rounded-xl border border-success/20 bg-success-soft p-4"
+                    >
+                        <CircleCheck
+                            className="mt-0.5 size-5 shrink-0 text-success"
+                            aria-hidden
+                        />
+                        <div>
+                            <p className="font-semibold">
+                                Pembayaran{' '}
+                                <span className="num">
+                                    {formatRupiah(paidOnline.amount)}
+                                </span>{' '}
+                                diterima
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Dibayar online lewat DOKU
+                                {paidOnline.paidAt &&
+                                    `, ${formatDate(paidOnline.paidAt, 'datetime')} ${zoneLabel()}`}
+                                . Nota ini bukti pembayaranmu.
+                            </p>
+                        </div>
+                    </section>
+                )}
 
                 <Card title="Status">
                     <OrderTimeline order={order} />
@@ -93,7 +168,9 @@ export default function ShopOrder({ shop, order }: ShopOrderProps) {
                                 {formatRupiah(rest)}
                             </span>
                         </p>
-                        {payOnline && <OnlinePay order={order} />}
+                        {payOnline && (
+                            <OnlinePay order={order} checking={checking} />
+                        )}
                         {order.status === 'menunggu' ? (
                             // Paying the seller before they accept risks paying for an order that is refused.
                             <p className="mt-2 text-sm text-muted-foreground">
