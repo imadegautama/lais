@@ -1,6 +1,7 @@
 import { Form, Head, usePage } from '@inertiajs/react';
 import { Lock, Mail } from 'lucide-react';
 import { AuthDivider } from '@/components/auth-divider';
+import { TryDemoButton } from '@/components/app/try-demo-button';
 import { GoogleSignInButton } from '@/components/google-sign-in-button';
 import InputError from '@/components/input-error';
 import { InputIcon } from '@/components/input-icon';
@@ -118,6 +119,12 @@ export default function Login({
                     </>
                 )}
             </Form>
+
+            {/* Judges and the curious: an account of their own with example books. */}
+            <div className="mt-6 grid gap-6">
+                <AuthDivider>atau coba dulu</AuthDivider>
+                <TryDemoButton />
+            </div>
         </>
     );
 }

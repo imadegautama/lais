@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebtController;
+use App\Http\Controllers\DemoController;
 use App\Http\Controllers\DokuWebhookController;
 use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\GowaWebhookController;
@@ -24,6 +25,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', LandingController::class)->name('home');
+// "Coba demo": an account of one's own with example books, no sign-up (App\Services\DemoAccounts).
+Route::post('coba-demo', DemoController::class)->middleware('throttle:10,60')->name('demo.start');
 
 // The policies Google's consent screen links to; public, no account.
 Route::inertia('privasi', 'legal/privacy')->name('privacy');

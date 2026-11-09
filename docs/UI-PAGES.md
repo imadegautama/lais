@@ -117,6 +117,13 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 
 > **Animasi (8 Nov):** gerakan mengikuti referensi pemilik, dengan Lenis untuk roda mouse. Aturannya di DESIGN.md §6 poin 16.
 
+> **Coba demo (9 Nov):**
+>
+> - Hero menampilkan **Coba demo tanpa daftar** di samping Daftar gratis untuk pengunjung yang belum masuk. Halaman login juga menampilkannya di bawah pemisah "atau coba dulu".
+> - Tombol ini masuk ke akun demo pribadi berisi salinan Warung Bu Rina (`App\Services\DemoAccounts`).
+> - Di dalam akun itu, banner di atas konten menyebut bahwa ini akun demo dan kapan akun terhapus.
+> - Lihat Demo Toko pindah ke header dan bagian toko contoh; di hero tombol itu hanya tampil untuk pengguna yang sudah masuk.
+
 ### A2. Halaman toko `/t/{slug}`
 
 - **Kartu toko** (`ShopIntro`):

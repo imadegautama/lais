@@ -53,6 +53,11 @@ Latar belakang, persona, dan kriteria keberhasilannya ada di [`docs/PRD.md`](doc
 - Tanpa sinyal, muncul halaman offline yang mengarahkan ke bot Telegram. Telegram menahan pesannya dan bot mencatatnya begitu HP online lagi.
 - Notifikasi HP (web push) untuk pesanan baru dari toko online, diaktifkan per perangkat di Pengaturan → Bot. Di iPhone, Lais harus dipasang di layar utama dulu.
 
+**Coba demo**
+
+- Tombol **Coba demo tanpa daftar** di landing dan halaman login membuat akun demo pribadi berisi salinan data 90 hari Warung Bu Rina, tanpa perlu mendaftar. Setiap pengunjung mendapat akunnya sendiri, jadi data dan sambungan Telegram tidak saling bertabrakan.
+- Tiga akun disiapkan lebih dulu oleh `php artisan lais:demo` (dijadwalkan tiap 5 menit), sehingga klik langsung masuk. Akun yang sudah diklaim terhapus otomatis bersama datanya setelah 48 jam.
+
 **Panduan**
 
 - Setup awal dibagi per langkah, termasuk langkah daftar akun.
@@ -108,7 +113,7 @@ php artisan db:seed     # akun demo + 90 hari pembukuan Warung Bu Rina
 php artisan dev         # server, antrean, log, dan Vite sekaligus
 ```
 
-Buka http://localhost:8000 dan masuk dengan `demo@lais.test`. Kata sandinya diambil dari `DEMO_PASSWORD` (kalau kosong: `password`).
+Buka http://localhost:8000 dan masuk dengan `demo@lais.test`. Kata sandinya diambil dari `DEMO_PASSWORD` (kalau kosong: `password`). Untuk akun demo pribadi, jalankan `php artisan lais:demo` sekali, lalu tekan **Coba demo tanpa daftar**.
 
 **Variabel lingkungan** (lihat `.env.example`; isi nilainya sendiri dan jangan pernah di-commit):
 
