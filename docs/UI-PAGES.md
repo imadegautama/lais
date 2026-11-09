@@ -609,6 +609,15 @@ Draf dari **Tanya AI** (C19) bisa dipindahkan ke form ini lewat "Ubah di form". 
 >
 > - **Pengaturan toko** (dialog Pengaturan di halaman Pesanan) punya **Uang QRIS masuk ke**: pilihan rekening non-tunai, muncul kalau rekening non-tunai lebih dari satu. Tanya AI dan bot memakainya saat pemilik menulis "qris" tanpa menyebut rekening; perintah pesanan ("A001 dp 20rb qris") juga.
 > - **Tab Bot** punya tombol **Kirim ringkasan sekarang** di kartu Ringkasan harian, sama dengan `/ringkasan` di bot.
+> - **Tab Bot** punya kartu **Notifikasi di HP ini** (web push untuk pesanan baru), tampil kalau kunci VAPID di server terisi. Isinya:
+>     - tombol **Aktifkan notifikasi** yang meminta izin browser lalu mendaftarkan perangkat ini, dan **Matikan** untuk mencabutnya
+>     - pesan sendiri kalau izin ditolak, browser menolak (mis. mode penyamaran), atau browser tidak mendukung
+>     - di iPhone yang belum memasang Lais: arahan memasang Lais di layar utama dulu
+> - **Pasang Lais di HP (PWA):**
+>     - entri di menu akun, yang di HP terbuka dari **Lainnya**, dan tombol **Pasang di HP** di hero landing
+>     - keduanya tampil hanya kalau browser bisa memasang dan Lais belum terpasang
+>     - Android/Chrome memakai dialog pasang bawaan; iPhone membuka dialog langkah Bagikan → Tambah ke Layar Utama
+> - **Offline:** banner kuning di atas konten saat koneksi putus ("Isian di form tidak hilang; simpan lagi setelah online"). Membuka halaman tanpa sinyal menampilkan `public/offline.html`, yang memuat ulang sendiri saat online.
 
 > **Catatan implementasi (6 Nov):** tab ini sekarang bernama **Bot** (`/settings/bot`) dan mengikuti saluran di `BOT_CHANNEL`. Di Telegram, tombolnya "Buka Telegram": link `t.me/<bot>?start=<kode>` yang menghubungkan akun setelah pemilik menekan Mulai. Catatan 4 Nov di bawah tetap berlaku untuk isi halamannya.
 

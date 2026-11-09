@@ -14,6 +14,7 @@ use App\Models\Item;
 use App\Models\Order;
 use App\Services\Doku;
 use App\Services\Orders;
+use App\Services\Push;
 use App\Support\OrderMessages;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\RateLimiter;
@@ -39,7 +40,7 @@ class ShopController extends Controller
         ]);
     }
 
-    public function store(OrderRequest $request, string $slug, Orders $orders, Doku $doku): HttpResponse
+    public function store(OrderRequest $request, string $slug, Orders $orders, Doku $doku, Push $push): HttpResponse
     {
         $business = Business::query()->where('businesses.slug', $slug)->firstOrFail();
         // 5 orders per IP per 10 minutes (PRD §7); a form sent back with errors does not count.
@@ -58,6 +59,9 @@ class ShopController extends Controller
         if ($owner->whatsappAddress() !== null) {
             SendWhatsApp::dispatch($owner->whatsappAddress(), OrderMessages::arrived($order->load('lines')), $owner->id, OrderMessages::decide($order));
         }
+
+        // And on the phones and browsers where the owner turned notifications on.
+        $push->orderArrived($order);
 
         return $request->boolean('pay_online') && Doku::offeredBy($business) ? $this->payPage($order, $doku) : to_route('shop.order', $order->token);
     }

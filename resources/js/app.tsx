@@ -1,5 +1,6 @@
 import type { SharedPageProps } from '@inertiajs/core';
 import { createInertiaApp } from '@inertiajs/react';
+import { captureInstallPrompt } from '@/components/app/install-app';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -59,3 +60,14 @@ void createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// Chrome offers installing once, early; the menu and the landing page offer it later.
+captureInstallPrompt();
+
+// Installable from the phone's browser, with a friendly page when offline (public/sw.js).
+// Not in dev: a service worker would get between Vite and its hot reload.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        void navigator.serviceWorker.register('/sw.js');
+    });
+}

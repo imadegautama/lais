@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#ffffff" />
+        <title>Sedang offline - Lais</title>
+        <style>
+            /* Lais tokens (resources/css/app.css), inline: this page loads with no network. */
+            :root {
+                --background: #ffffff;
+                --foreground: #1c1917;
+                --muted-foreground: #6b645e;
+                --border: #ece8e4;
+                --primary: #c25205;
+                --primary-foreground: #ffffff;
+                --accent: #fff7ed;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                min-height: 100dvh;
+                display: grid;
+                place-items: center;
+                padding: 24px 16px;
+                background: linear-gradient(
+                    180deg,
+                    var(--accent),
+                    var(--background) 40%
+                );
+                color: var(--foreground);
+                font:
+                    16px/1.5 'Plus Jakarta Sans',
+                    system-ui,
+                    -apple-system,
+                    'Segoe UI',
+                    sans-serif;
+            }
+            main {
+                width: 100%;
+                max-width: 420px;
+                padding: 24px;
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                background: var(--background);
+                box-shadow: 0 1px 2px rgb(28 25 23 / 0.06);
+            }
+            h1 {
+                margin: 16px 0 4px;
+                font-size: 20px;
+                line-height: 1.3;
+            }
+            p {
+                margin: 0 0 12px;
+                color: var(--muted-foreground);
+                font-size: 14px;
+            }
+            button {
+                min-height: 44px;
+                margin-top: 8px;
+                padding: 0 20px;
+                border: 0;
+                border-radius: 8px;
+                background: var(--primary);
+                color: var(--primary-foreground);
+                font: inherit;
+                font-weight: 600;
+                cursor: pointer;
+                box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.15);
+            }
+            button:focus-visible {
+                outline: 2px solid var(--primary);
+                outline-offset: 2px;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                width="64"
+                height="64"
+                aria-hidden="true"
+            >
+                <rect width="512" height="512" rx="112" fill="#FFFFFF" />
+                <g transform="translate(106 9)">
+                    <path
+                        fill="#1C1917"
+                        d="M17.3569 429.17C7.77098 429.17 0 421.399 0 411.813V82.3569C0 72.771 7.77096 65 17.3569 65H82.9741C92.5601 65 100.331 72.771 100.331 82.3569L100.331 411.813C100.331 421.399 92.56 429.17 82.974 429.17H17.3569ZM94.682 429.17C85.096 429.17 77.3251 421.399 77.3251 411.813V358.338C77.3251 348.752 85.0961 340.981 94.682 340.981H282.997C292.583 340.981 300.354 348.752 300.354 358.338V411.813C300.354 421.399 292.583 429.17 282.997 429.17H94.682Z"
+                    />
+                    <rect
+                        width="90.6233"
+                        height="89"
+                        rx="14"
+                        transform="matrix(1 0 -0.241922 0.970296 209.731 65)"
+                        fill="#EA580C"
+                    />
+                </g>
+            </svg>
+            <h1>Kamu sedang offline</h1>
+            <p>
+                Lais butuh internet untuk membuka halaman ini. Coba lagi setelah
+                sinyal kembali; halaman ini juga memuat ulang sendiri.
+            </p>
+            <p>
+                Mau tetap mencatat? Kirim ke bot Telegram Lais. Pesannya ditahan
+                Telegram dan langsung tercatat begitu HP online lagi.
+            </p>
+            <button type="button" onclick="location.reload()">Coba lagi</button>
+        </main>
+        <script>
+            window.addEventListener('online', () => location.reload());
+        </script>
+    </body>
+</html>

@@ -62,6 +62,13 @@ return [
         'channel' => env('BOT_CHANNEL', 'telegram'),
     ],
 
+    // Web push for new orders (App\Services\Push). Keys from `php artisan lais:vapid`; empty keys hide the feature.
+    'webpush' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        'subject' => env('VAPID_SUBJECT') ?: env('APP_URL'),
+    ],
+
     'telegram' => [
         'token' => env('TELEGRAM_BOT_TOKEN'),
         // Without the @, as BotFather shows it.

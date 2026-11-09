@@ -1,5 +1,6 @@
 import { Link, router } from '@inertiajs/react';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings, Smartphone } from 'lucide-react';
+import { installApp, useInstallWay } from '@/components/app/install-app';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -17,6 +18,7 @@ type Props = {
 
 export function UserMenuContent({ user }: Props) {
     const cleanup = useMobileNavigation();
+    const installWay = useInstallWay();
 
     const handleLogout = () => {
         cleanup();
@@ -32,6 +34,13 @@ export function UserMenuContent({ user }: Props) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+                {/* Only where this browser can put Lais on the home screen and has not yet. */}
+                {installWay && (
+                    <DropdownMenuItem onSelect={installApp}>
+                        <Smartphone className="mr-2" />
+                        Pasang Lais di HP
+                    </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild>
                     <Link
                         className="block w-full cursor-pointer"
