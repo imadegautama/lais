@@ -2,8 +2,10 @@
 
 namespace App\Services\WhatsApp;
 
+use App\Enums\MoneyAccountKind;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
+use App\Models\MoneyAccount;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\Orders;
@@ -56,6 +58,11 @@ class OrderCommands
             return ['text' => (string) Arr::first(Arr::flatten($exception->errors())), 'buttons' => []];
         }
 
+        // A question back (which rekening?), nothing done yet.
+        if (is_array($done)) {
+            return $done;
+        }
+
         $order->refresh();
         $paid = $this->orders->paid($order);
         $next = match ($order->status) {
@@ -67,7 +74,10 @@ class OrderCommands
         return ['text' => $done, 'buttons' => [...$next, ['label' => 'Kabari pelanggan lewat WhatsApp', 'url' => OrderMessages::forwardLink($order, $paid)]]];
     }
 
-    private function run(Order $order, string $verb, string $rest): string
+    /**
+     * @return string|array{text: string, buttons: list<Button>}
+     */
+    private function run(Order $order, string $verb, string $rest): string|array
     {
         $code = $order->code;
 
@@ -105,11 +115,19 @@ class OrderCommands
     }
 
     /**
-     * "dp 20rb qris" or "lunas [qris]": tunai unless a transfer or QRIS is named.
+     * "dp 20rb qris", "lunas bca": tunai unless a rekening, a transfer, or
+     * QRIS is named. QRIS lands in the shop's QRIS rekening; with several
+     * rekening and none to go by, the owner picks one by button.
+     *
+     * @return string|array{text: string, buttons: list<Button>}
      */
-    private function pay(Order $order, string $verb, string $rest): string
+    private function pay(Order $order, string $verb, string $rest): string|array
     {
-        $method = preg_match('/\b(qris|tf|transfer|non\s*tunai|bank|ewallet|gopay|ovo|dana)\b/iu', $rest) === 1 ? PaymentMethod::NonTunai : PaymentMethod::Tunai;
+        $nonCash = $order->business->moneyAccounts()->where('money_accounts.kind', MoneyAccountKind::NonTunai)->orderBy('money_accounts.id')->get();
+        $named = $nonCash->first(fn (MoneyAccount $account) => preg_match('/(?<![\p{L}\p{N}])'.preg_quote(mb_strtolower($account->name), '/').'(?![\p{L}\p{N}])/u', mb_strtolower($rest)) === 1);
+        $qris = preg_match('/\bqris\b/iu', $rest) === 1;
+        $method = $named !== null || preg_match('/\b(qris|tf|transfer|non\s*tunai|bank|ewallet|gopay|ovo|dana)\b/iu', $rest) === 1 ? PaymentMethod::NonTunai : PaymentMethod::Tunai;
+        $accountId = $named->id ?? ($qris ? $order->business->qris_money_account_id : null);
         $left = $order->total - $this->orders->paid($order);
         $amount = $verb === 'lunas' ? $left : Format::parseMoney((string) strtok($rest, ' '));
 
@@ -117,10 +135,21 @@ class OrderCommands
             return $verb === 'lunas' ? "Pesanan {$order->code} sudah lunas." : "Tulis nominalnya, misalnya \"{$order->code} dp 20rb qris\".";
         }
 
-        $this->orders->recordPayment($order, $amount, $method, source: $this->channel->source());
-        $after = $left - $amount;
+        if ($method === PaymentMethod::NonTunai && $accountId === null && $nonCash->count() > 1) {
+            return [
+                'text' => 'Pembayaran '.Format::rupiah($amount)." untuk {$order->code} masuk ke rekening mana?",
+                'buttons' => array_values($nonCash->map(fn (MoneyAccount $account) => Buttons::command(
+                    $account->name,
+                    trim("{$order->code} {$verb} {$rest}").' '.mb_strtolower($account->name),
+                ))->all()),
+            ];
+        }
 
-        return 'Pembayaran '.Format::rupiah($amount)." ({$method->label()}) untuk {$order->code} dicatat."
+        $this->orders->recordPayment($order, $amount, $method, $accountId, $this->channel->source());
+        $after = $left - $amount;
+        $where = $method === PaymentMethod::NonTunai ? ' ke '.($nonCash->firstWhere('id', $accountId)->name ?? $nonCash->first()?->name) : '';
+
+        return 'Pembayaran '.Format::rupiah($amount)." ({$method->label()}{$where}) untuk {$order->code} dicatat."
             .($after > 0 ? ' Sisa '.Format::rupiah($after).'.' : ' Sudah lunas.');
     }
 }

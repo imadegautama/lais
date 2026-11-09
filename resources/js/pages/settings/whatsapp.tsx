@@ -1,5 +1,11 @@
 import { Head, router, usePoll } from '@inertiajs/react';
-import { BellRing, CircleCheck, MessageCircle, Unlink } from 'lucide-react';
+import {
+    BellRing,
+    CircleCheck,
+    MessageCircle,
+    Send,
+    Unlink,
+} from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { SectionCard } from '@/components/app/section-card';
 import { SwitchRow } from '@/components/app/switch-row';
@@ -8,6 +14,7 @@ import { displayPhone } from '@/features/orders/phone';
 import { formatDate } from '@/lib/format';
 import { settings } from '@/routes';
 import { code, edit, summary, unlink } from '@/routes/whatsapp';
+import { send as sendSummary } from '@/routes/whatsapp/summary';
 
 type BotSettingsProps = {
     /** The chat app the bot runs on (BOT_CHANNEL). */
@@ -34,6 +41,7 @@ export default function BotSettings({
 }: BotSettingsProps) {
     const id = useId();
     const [busy, setBusy] = useState(false);
+    const [sending, setSending] = useState(false);
     // Waits for the code to arrive at the bot, then the page shows the link.
     const { start, stop } = usePoll(
         5_000,
@@ -185,19 +193,44 @@ export default function BotSettings({
                 description="Kabar usaha tiap malam, dikirim bot ke chat kamu."
                 icon={BellRing}
             >
-                <SwitchRow
-                    id={`${id}-summary`}
-                    label="Ringkasan harian jam 21.00"
-                    hint="Penjualan, laba, kas, pesanan belum selesai, dan stok yang mau habis, dikirim ke chat bot kamu."
-                    checked={dailySummary}
-                    onChange={(on) =>
-                        router.patch(
-                            summary.url(),
-                            { daily_summary: on },
-                            { preserveScroll: true },
-                        )
-                    }
-                />
+                <div className="flex flex-col gap-4">
+                    <SwitchRow
+                        id={`${id}-summary`}
+                        label="Ringkasan harian jam 21.00"
+                        hint="Penjualan, laba, kas, pesanan belum selesai, dan stok yang mau habis, dikirim ke chat bot kamu."
+                        checked={dailySummary}
+                        onChange={(on) =>
+                            router.patch(
+                                summary.url(),
+                                { daily_summary: on },
+                                { preserveScroll: true },
+                            )
+                        }
+                    />
+                    {/* Not waiting until 21.00, also for a demo; the same as /ringkasan in the chat. */}
+                    {linked && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="self-start"
+                            disabled={sending}
+                            onClick={() =>
+                                router.post(
+                                    sendSummary.url(),
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setSending(true),
+                                        onFinish: () => setSending(false),
+                                    },
+                                )
+                            }
+                        >
+                            <Send aria-hidden />
+                            {sending ? 'Mengirim…' : 'Kirim ringkasan sekarang'}
+                        </Button>
+                    )}
+                </div>
             </SectionCard>
         </>
     );

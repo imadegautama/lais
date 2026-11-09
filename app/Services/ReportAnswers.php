@@ -10,6 +10,7 @@ use App\Enums\ReportMetric;
 use App\Enums\TransactionKind;
 use App\Models\Business;
 use App\Models\Item;
+use App\Models\Transaction;
 use App\Support\Format;
 use Carbon\CarbonImmutable;
 
@@ -120,6 +121,29 @@ class ReportAnswers
         }
 
         return ['reply' => implode("\n", $lines), 'link' => $link];
+    }
+
+    /** Stock lines said after a record, so a long sale stays readable. */
+    private const EFFECTS = 3;
+
+    /**
+     * What a record just did to stock that needs buying, in the words of
+     * PRD §2.2: "Stok telur tinggal 6 butir (batas minimum 10)". Only items
+     * this record moved, only those Reports::stockAlerts() already flags.
+     *
+     * @return list<string>
+     */
+    public function stockEffects(Business $business, Transaction $transaction): array
+    {
+        $moved = $transaction->stockMovements()->pluck('stock_movements.item_id')->all();
+        $alerts = array_filter($this->reports->stockAlerts($business), fn (array $alert) => in_array($alert['id'], $moved, true));
+
+        return array_map(fn (array $alert) => match (true) {
+            $alert['stock'] < 0 => "Stok {$alert['name']} minus ".Format::qty(-$alert['stock'])." {$alert['unit']}. Cek stoknya atau catat belanjanya.",
+            $alert['minimum'] !== null && $alert['stock'] < $alert['minimum'] => "Stok {$alert['name']} tinggal ".Format::qty($alert['stock'])." {$alert['unit']} (batas minimum ".Format::qty($alert['minimum']).').',
+            $alert['daysLeft'] !== null => "Stok {$alert['name']} tinggal ".Format::qty($alert['stock'])." {$alert['unit']}, perkiraan habis ".Format::decimalInput($alert['daysLeft']).' hari lagi.',
+            default => "Stok {$alert['name']} tinggal ".Format::qty($alert['stock'])." {$alert['unit']}.",
+        }, array_slice(array_values($alerts), 0, self::EFFECTS));
     }
 
     /** Days of sales a product is judged on. */

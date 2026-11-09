@@ -176,6 +176,14 @@ class FormAssistant
             return $this->transaction($user, TransactionDraft::fill([], [...$draft['values'], 'unknown' => []], $items, $contacts, $moneyAccounts), $items, $contacts, $moneyAccounts);
         }
 
+        // The rekening the draft waits for, named as it is (a button on Telegram, a chip on the web): no model needed.
+        $named = $moneyAccounts->first(fn (MoneyAccount $account) => $account->kind === MoneyAccountKind::NonTunai && mb_strtolower($account->name) === mb_strtolower(trim($message)));
+
+        if ($draft !== null && $photo === null && $draft['form'] === 'transaksi' && $named !== null
+            && ($draft['values']['method'] ?? null) === PaymentMethod::NonTunai->value && ($draft['values']['money_account_id'] ?? '') === '') {
+            return $this->transaction($user, TransactionDraft::fill([], [...$draft['values'], 'money_account_id' => (string) $named->id], $items, $contacts, $moneyAccounts), $items, $contacts, $moneyAccounts);
+        }
+
         // Demo scenario 4 must not wait on the model: "kenapa laba naik tapi kas turun?" is answered from the journal at once.
         if ($photo === null && ReportAnswers::asksProfitVsCash($message)) {
             return self::result(['reply' => $this->answers->profitVsCash($user->currentBusiness()), 'link' => ['label' => 'Buka Perubahan modal', 'href' => route('reports.equity', absolute: false)]]);
@@ -210,7 +218,7 @@ class FormAssistant
                 ['role' => 'user', 'content' => $message],
             ],
             self::tools(),
-            context: self::context($form, $draft['form'] ?? null, $draft['values'] ?? $current, $items, $contacts, $moneyAccounts),
+            context: self::context($form, $draft['form'] ?? null, $draft['values'] ?? $current, $items, $contacts, $moneyAccounts, $business->qris_money_account_id),
         );
         $args = $call['arguments'];
 
@@ -393,7 +401,12 @@ class FormAssistant
             'values' => $values,
             'card' => TransactionDraft::card($values, $items, $contacts, $moneyAccounts),
             'missing' => $missing,
-            'options' => $values['unknown'] === [] ? [] : [self::ADD_MISSING, self::SKIP_MISSING],
+            'options' => match (true) {
+                $values['unknown'] !== [] => [self::ADD_MISSING, self::SKIP_MISSING],
+                // Each rekening is an answer, so picking one is a tap.
+                in_array(TransactionDraft::PICK_ACCOUNT, $missing, true) => array_values($moneyAccounts->where('kind', MoneyAccountKind::NonTunai)->map(fn (MoneyAccount $account): string => $account->name)->all()),
+                default => [],
+            },
             'confirm' => $missing === [],
             'target' => route('transactions.create', ['jenis' => $values['type']], absolute: false),
         ]);
@@ -559,7 +572,8 @@ class FormAssistant
         }
 
         return self::result([
-            'reply' => $transaction->type->savedMessage(),
+            // What it did to stock that needs buying, like the bot in PRD §2.2.
+            'reply' => implode("\n", [$transaction->type->savedMessage(), ...$this->answers->stockEffects($business, $transaction)]),
             'saved' => ['label' => 'Lihat transaksi', 'href' => route('transactions.show', $transaction, absolute: false)],
         ]);
     }
@@ -655,7 +669,7 @@ class FormAssistant
         Istilah untuk artikan:
         {$terms}
 
-        Cara bayar: tunai = uang tunai; non_tunai = QRIS, transfer, atau e-wallet (isi rekening kalau disebut); kredit = belum dibayar, ngutang, bon; pribadi = dibayar dari uang pribadi pemilik (hanya pembelian dan biaya).
+        Cara bayar: tunai = uang tunai; non_tunai = QRIS, transfer, atau e-wallet (isi rekening kalau disebut; QRIS tanpa nama rekening diisi dengan rekening yang ditandai "QRIS masuk ke sini"); kredit = belum dibayar, ngutang, bon; pribadi = dibayar dari uang pribadi pemilik (hanya pembelian dan biaya).
         Jenis transaksi: penjualan; pembelian (jenis_biaya barang untuk bahan atau barang dagangan, peralatan untuk alat); biaya (jenis_biaya listrik_air, gas_bbm, sewa, upah, transport, pemasaran, lain); modal (setor = menambah modal, prive = mengambil uang usaha untuk pribadi); utang_piutang (terima_piutang = pelanggan melunasi utangnya, bayar_utang = membayar utang ke supplier).
         Jenis produk: produk = dijual dan punya stok sendiri; bahan = bahan baku yang tidak dijual; komposisi = dijual dan dibuat dari resep bahan.
         PROMPT;
@@ -667,7 +681,7 @@ class FormAssistant
      * @param  Collection<int, Contact>  $contacts
      * @param  Collection<int, MoneyAccount>  $moneyAccounts
      */
-    private static function context(?string $form, ?string $drafted, array $current, Collection $items, Collection $contacts, Collection $moneyAccounts): string
+    private static function context(?string $form, ?string $drafted, array $current, Collection $items, Collection $contacts, Collection $moneyAccounts, ?int $qrisAccount = null): string
     {
         $page = match ($form) {
             'transaksi' => 'form Catat transaksi',
@@ -679,7 +693,8 @@ class FormAssistant
             ." | {$item->unit} | ".mb_strtolower($item->kind->label())
             .($item->price === null ? '' : " | harga jual {$item->price}"))->implode("\n") ?: '(belum ada)';
         $people = $contacts->map(fn (Contact $contact) => "- {$contact->name} ({$contact->type->label()})")->implode("\n") ?: '(belum ada)';
-        $accounts = $moneyAccounts->map(fn (MoneyAccount $account) => "- {$account->name} (".($account->kind === MoneyAccountKind::Tunai ? 'tunai' : 'non_tunai').')')->implode("\n");
+        $accounts = $moneyAccounts->map(fn (MoneyAccount $account) => "- {$account->name} (".($account->kind === MoneyAccountKind::Tunai ? 'tunai' : 'non_tunai')
+            .($account->id === $qrisAccount ? ', QRIS masuk ke sini' : '').')')->implode("\n");
         $now = Format::date(now()).', pukul '.now()->format('H.i T');
         $filled = $current === [] ? '(kosong)' : (string) json_encode($current, JSON_UNESCAPED_UNICODE);
         $record = $drafted === NewItemsDraft::FORM ? ($current['record'] ?? []) : $current;

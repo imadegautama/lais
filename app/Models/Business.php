@@ -27,10 +27,11 @@ use Illuminate\Support\Carbon;
  * @property bool $accepting_orders
  * @property string|null $whatsapp
  * @property string|null $qris_path
+ * @property int|null $qris_money_account_id Where QRIS money lands (Pesanan → Pengaturan).
  * @property bool $daily_summary
  * @property bool $online_payment Offers bayar online through DOKU in the shop (App\Services\Doku).
  */
-#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at', 'accepting_orders', 'whatsapp', 'qris_path', 'online_payment', 'daily_summary'])]
+#[Fillable(['name', 'slug', 'category', 'started_on', 'onboarding_draft', 'onboarded_at', 'accepting_orders', 'whatsapp', 'qris_path', 'qris_money_account_id', 'online_payment', 'daily_summary'])]
 class Business extends Model
 {
     /** @use HasFactory<BusinessFactory> */
@@ -83,6 +84,16 @@ class Business extends Model
     public function moneyAccounts(): HasMany
     {
         return $this->hasMany(MoneyAccount::class);
+    }
+
+    /**
+     * The non-cash rekening QRIS lands in; an archived one counts as unset.
+     *
+     * @return BelongsTo<MoneyAccount, $this>
+     */
+    public function qrisAccount(): BelongsTo
+    {
+        return $this->belongsTo(MoneyAccount::class, 'qris_money_account_id');
     }
 
     /**

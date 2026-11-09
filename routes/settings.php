@@ -32,5 +32,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('settings/bot/kode', [WhatsAppController::class, 'code'])->middleware('throttle:6,1')->name('whatsapp.code');
     Route::delete('settings/bot', [WhatsAppController::class, 'unlink'])->name('whatsapp.unlink');
     Route::patch('settings/bot/ringkasan', [WhatsAppController::class, 'summary'])->name('whatsapp.summary');
+    Route::post('settings/bot/ringkasan/kirim', [WhatsAppController::class, 'sendSummary'])->middleware('throttle:6,1')->name('whatsapp.summary.send');
 
 });

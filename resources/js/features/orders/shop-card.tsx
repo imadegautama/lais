@@ -10,8 +10,10 @@ import {
 import { QRCodeCanvas } from 'qrcode.react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { ChoiceGroup } from '@/components/app/choice-group';
 import { Field } from '@/components/app/field';
 import { SwitchRow } from '@/components/app/switch-row';
+import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -28,7 +30,8 @@ import { Switch } from '@/components/ui/switch';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { formErrors } from '@/lib/form';
 import { shop as updateShop } from '@/routes/orders';
-import type { OwnerShop } from '@/types/domain';
+import type { MoneyAccountOption, OwnerShop } from '@/types/domain';
+import { MoneyAccountKind } from '@/types/enums';
 import { displayPhone } from './phone';
 
 type Shop = OwnerShop;
@@ -38,7 +41,13 @@ type Shop = OwnerShop;
  * above the list: open or closed, its link and printable QR, and where
  * customers reach and pay the owner. The list below gets the full width.
  */
-export function ShopBar({ shop }: { shop: Shop }) {
+export function ShopBar({
+    shop,
+    moneyAccounts,
+}: {
+    shop: Shop;
+    moneyAccounts: MoneyAccountOption[];
+}) {
     const id = useId();
     const [copied, copy] = useClipboard();
 
@@ -106,7 +115,7 @@ export function ShopBar({ shop }: { shop: Shop }) {
                         </a>
                     </Button>
                     <QrDialog shop={shop} />
-                    <SettingsDialog shop={shop} />
+                    <SettingsDialog shop={shop} moneyAccounts={moneyAccounts} />
                 </div>
             </div>
         </section>
@@ -168,20 +177,33 @@ function QrDialog({ shop }: { shop: Shop }) {
     );
 }
 
-/** The owner's WA number for "Hubungi penjual" and the QRIS image on the nota. */
-function SettingsDialog({ shop }: { shop: Shop }) {
+/** The owner's WA number for "Hubungi penjual", the QRIS image on the nota, and where QRIS money lands. */
+function SettingsDialog({
+    shop,
+    moneyAccounts,
+}: {
+    shop: Shop;
+    moneyAccounts: MoneyAccountOption[];
+}) {
     const id = useId();
     const [open, setOpen] = useState(false);
+    const nonCash = moneyAccounts.filter(
+        (account) => account.kind === MoneyAccountKind.NonTunai,
+    );
     const form = useForm<{
         whatsapp: string;
         qris: File | null;
         remove_qris: boolean;
         online_payment: boolean;
+        qris_money_account_id: string;
     }>({
         whatsapp: shop.whatsapp ? displayPhone(shop.whatsapp) : '',
         qris: null,
         remove_qris: false,
         online_payment: shop.onlinePayment,
+        qris_money_account_id: shop.qrisMoneyAccountId
+            ? String(shop.qrisMoneyAccountId)
+            : '',
     });
     const errors = formErrors(form);
     const [preview, setPreview] = useState<string | null>(null);
@@ -302,6 +324,36 @@ function SettingsDialog({ shop }: { shop: Shop }) {
                                 Hapus QRIS
                             </Button>
                         )}
+                    {/* With one rekening there is nothing to choose: QRIS lands there anyway. */}
+                    {nonCash.length > 1 && (
+                        <div className="flex flex-col gap-1.5">
+                            <span
+                                id={`${id}-qris-account`}
+                                className="text-sm font-medium"
+                            >
+                                Uang QRIS masuk ke
+                            </span>
+                            <ChoiceGroup
+                                labelledBy={`${id}-qris-account`}
+                                value={form.data.qris_money_account_id}
+                                options={nonCash.map((account) => ({
+                                    value: String(account.id),
+                                    label: account.name,
+                                }))}
+                                onChange={(value) =>
+                                    form.setData('qris_money_account_id', value)
+                                }
+                                wrap
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Dipakai saat kamu mencatat "qris" lewat chat
+                                tanpa menyebut rekeningnya.
+                            </p>
+                            <InputError
+                                message={errors.qris_money_account_id}
+                            />
+                        </div>
+                    )}
                     {shop.onlinePaymentReady && (
                         <SwitchRow
                             id={`${id}-online`}

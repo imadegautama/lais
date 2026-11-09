@@ -80,7 +80,7 @@ export default function OrdersIndex({
                     actions={<ManualOrderSheet items={items} />}
                 />
 
-                <ShopBar shop={shop} />
+                <ShopBar shop={shop} moneyAccounts={moneyAccounts} />
 
                 <nav
                     aria-label="Status pesanan"
