@@ -47,6 +47,12 @@ Latar belakang, persona, dan kriteria keberhasilannya ada di [`docs/PRD.md`](doc
 - Indikator "mengetik…", tombol Simpan dan Batal, tombol Terima dan Tolak untuk pesanan, dan panduan lewat `/start`.
 - Ringkasan harian dikirim pukul 21.00, atau kapan saja lewat `/ringkasan`.
 
+**Di HP**
+
+- Lais bisa dipasang di layar utama HP (PWA) dari menu akun, menu **Lainnya**, atau landing page, lalu terbuka layar penuh seperti aplikasi.
+- Tanpa sinyal, muncul halaman offline yang mengarahkan ke bot Telegram. Telegram menahan pesannya dan bot mencatatnya begitu HP online lagi.
+- Notifikasi HP (web push) untuk pesanan baru dari toko online, diaktifkan per perangkat di Pengaturan → Bot. Di iPhone, Lais harus dipasang di layar utama dulu.
+
 **Panduan**
 
 - Setup awal dibagi per langkah, termasuk langkah daftar akun.
@@ -112,6 +118,7 @@ Buka http://localhost:8000 dan masuk dengan `demo@lais.test`. Kata sandinya diam
 | Database        | `DB_*`, `QUEUE_CONNECTION=database`, `DB_QUEUE_RETRY_AFTER`                                                                                     |
 | AI              | `LLM_DRIVER=claude`, `ANTHROPIC_API_KEY`, `CLAUDE_MODEL`, `LLM_TIMEOUT`, `LLM_TIMEOUT_VISION`                                                   |
 | Bot             | `BOT_CHANNEL=telegram`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`                                                                           |
+| Notifikasi HP   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (buat dengan `php artisan lais:vapid`; kosong berarti fitur ini tersembunyi)           |
 | Pembayaran      | `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_BASE_URL`                                                                                            |
 | File (produksi) | `PROOF_DISK`, `MEDIA_DISK`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_PRIVATE_BUCKET`, `R2_PUBLIC_BUCKET`, `R2_PUBLIC_URL` |
 | Login Google    | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`                                                                               |
@@ -163,6 +170,7 @@ Lais dibangun di atas library open-source berikut (dependensi langsung, versi da
 | spatie/laravel-activitylog | 5.1   | MIT        |
 | league/flysystem-aws-s3-v3 | 3.35  | MIT        |
 | anthropic-ai/sdk           | 1.6   | Apache-2.0 |
+| minishlink/web-push        | 11.0  | MIT        |
 
 **JavaScript (npm)**
 

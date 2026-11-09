@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendWhatsApp;
+use App\Services\Push;
 use App\Services\WhatsApp\BotChannel;
 use App\Services\WhatsApp\DailySummary;
 use App\Services\WhatsApp\Linking;
@@ -32,6 +33,8 @@ class WhatsAppController extends Controller
             ],
             'pending' => $pending === null ? null : [...$pending, 'url' => $channel->linkUrl($pending['code'])],
             'dailySummary' => $user->currentBusiness()->daily_summary,
+            // Web push for new orders; null hides the card until the VAPID keys are set.
+            'pushKey' => Push::ready() ? (string) config('services.webpush.public_key') : null,
         ]);
     }
 

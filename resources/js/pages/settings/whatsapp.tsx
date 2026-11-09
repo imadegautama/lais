@@ -7,6 +7,7 @@ import {
     Unlink,
 } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
+import { PushCard } from '@/components/app/push-card';
 import { SectionCard } from '@/components/app/section-card';
 import { SwitchRow } from '@/components/app/switch-row';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,8 @@ type BotSettingsProps = {
     /** The code waiting to be sent to the bot, and the link that sends it. */
     pending: { code: string; expiresAt: string; url: string | null } | null;
     dailySummary: boolean;
+    /** VAPID public key for web push; null while the server has none. */
+    pushKey: string | null;
 };
 
 /**
@@ -38,6 +41,7 @@ export default function BotSettings({
     linked,
     pending,
     dailySummary,
+    pushKey,
 }: BotSettingsProps) {
     const id = useId();
     const [busy, setBusy] = useState(false);
@@ -232,6 +236,8 @@ export default function BotSettings({
                     )}
                 </div>
             </SectionCard>
+
+            {pushKey && <PushCard pushKey={pushKey} />}
         </>
     );
 }

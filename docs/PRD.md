@@ -362,20 +362,20 @@ Bot     : Tersimpan. Stok telur tinggal 6 butir (batas minimum 10).
 
 ### 2.4 Non-Goals
 
-| Tidak dibuat                                                | Alasan                                                    |
-| ----------------------------------------------------------- | --------------------------------------------------------- |
-| Invoice formal B2B                                          | Target B2C. Nota digital sudah cukup                      |
-| Gaji owner                                                  | Pencatatan prive sudah menjawab masalah uang tercampur    |
-| Estimasi PPh 0,5%                                           | Usaha perorangan beromzet ≤ Rp500 jt/tahun tidak terutang |
-| Pengingat izin usaha                                        | Di luar operasional harian                                |
-| Multi-outlet, multi-user, payroll                           | Persona pemilik tunggal dengan ±2 pekerja                 |
-| Payment gateway / QRIS dinamis                              | UMKM sudah punya QRIS statis. Konfirmasi bayar manual     |
-| Integrasi marketplace                                       | Di luar masalah inti                                      |
-| Bot yang chat langsung ke pelanggan                         | Risiko blokir nomor. Pakai link `wa.me` dari WA pemilik   |
-| UMKM jasa (laundry, salon)                                  | Operasionalnya berbasis booking, model datanya berbeda    |
-| Produksi batch / barang setengah jadi                       | Produk berkomposisi dianggap dibuat saat dijual           |
-| Konversi satuan, mode offline, aplikasi mobile native       | Di luar 3 minggu. Konversi satuan masuk v1.1              |
-| Asisten konten promosi, voice note, nomor pencatat tambahan | Bab Rencana Pengembangan (v2.0)                           |
+| Tidak dibuat                                                | Alasan                                                                                                          |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Invoice formal B2B                                          | Target B2C. Nota digital sudah cukup                                                                            |
+| Gaji owner                                                  | Pencatatan prive sudah menjawab masalah uang tercampur                                                          |
+| Estimasi PPh 0,5%                                           | Usaha perorangan beromzet ≤ Rp500 jt/tahun tidak terutang                                                       |
+| Pengingat izin usaha                                        | Di luar operasional harian                                                                                      |
+| Multi-outlet, multi-user, payroll                           | Persona pemilik tunggal dengan ±2 pekerja                                                                       |
+| Payment gateway / QRIS dinamis                              | UMKM sudah punya QRIS statis. Konfirmasi bayar manual                                                           |
+| Integrasi marketplace                                       | Di luar masalah inti                                                                                            |
+| Bot yang chat langsung ke pelanggan                         | Risiko blokir nomor. Pakai link `wa.me` dari WA pemilik                                                         |
+| UMKM jasa (laundry, salon)                                  | Operasionalnya berbasis booking, model datanya berbeda                                                          |
+| Produksi batch / barang setengah jadi                       | Produk berkomposisi dianggap dibuat saat dijual                                                                 |
+| Konversi satuan, pencatatan offline, aplikasi mobile native | Di luar 3 minggu. Konversi satuan masuk v1.1. Lais bisa dipasang di HP (PWA) dengan halaman offline sejak 9 Nov |
+| Asisten konten promosi, voice note, nomor pencatat tambahan | Bab Rencana Pengembangan (v2.0)                                                                                 |
 
 ### 2.5 Kebutuhan UX
 
@@ -660,10 +660,16 @@ Konsekuensinya, neraca seimbang secara konstruksi. Laba berjalan = Penjualan −
 
 **v1.1 (minggu 3 jika sempat, atau setelah lomba):** US-16 foto nota, US-17 pengingat piutang & pelanggan lama, US-18 peringatan margin, konversi satuan beli, dan upload bukti bayar oleh pelanggan.
 
-**v2.0 (bab Rencana Pengembangan di proposal):** voice note, nomor pencatat tambahan untuk keluarga/karyawan, asisten konten promosi, multi-outlet, QRIS dinamis / payment gateway, penyusutan aset dan Catatan atas Laporan Keuangan SAK EMKM lengkap, mode offline (PWA). Ditambah dari pematangan 8 Nov:
+**v2.0 (bab Rencana Pengembangan di proposal):** voice note, nomor pencatat tambahan untuk keluarga/karyawan, asisten konten promosi, multi-outlet, QRIS dinamis / payment gateway, penyusutan aset dan Catatan atas Laporan Keuangan SAK EMKM lengkap, pencatatan offline. Ditambah dari pematangan 8 Nov:
 
 - **Akun bawaan per jenis biaya yang bisa diganti pemilik** (misalnya semua biaya Sewa ke akun buatan sendiri). Ditunda karena rincian per jenis, BEP, dan jawaban AI harus ikut membaca akun itu.
 - **DOKU Sub Account per toko:** uang bayar online langsung ke saldo toko masing-masing (`additional_info.account.id`), lalu ditarik ke rekening pemilik lewat Transfer Inquiry/Payment. Di Lais, penarikan tetap dicatat sebagai Pindah dana dari Saldo DOKU, dan biaya admin sebagai beban.
+- **Pencatatan offline di web** (PWA sudah ada sejak 9 Nov: dipasang di layar utama, halaman offline, dan notifikasi HP untuk pesanan baru). Rancangannya:
+    - catatan disimpan di antrean IndexedDB dengan `client_id` unik, yang menjadi kunci idempotensi di server supaya tidak tercatat dobel
+    - saat `online`, antrean dikirim ulang lewat `TransactionRequest` yang sama
+    - layar "Belum terkirim" menampilkan catatan yang ditolak beserta alasannya, misalnya stok ternyata habis
+    - katalog, kontak, dan rekening di-cache untuk form
+    - ditunda karena stok dan saldo divalidasi saat dicatat, sehingga catatan offline bisa ditolak belakangan, dan iPhone tidak mendukung sinkron di latar. Sampai saat itu, bot Telegram menjadi jalan saat sinyal lemah. Catatan bot memakai waktu pesan dikirim di Telegram, bukan waktu tiba di server.
 - **Tanya AI di setup** untuk pertanyaan "apa itu X?". Jawaban teks tetap per istilah sudah ada di Tanya AI dan bot (8 Nov, tool `artikan` dari enum `Term`); yang menyusul hanya membuka panelnya di halaman setup.
 
 ### 5.2 Technical Risks

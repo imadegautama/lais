@@ -7,7 +7,9 @@ import {
     AssistantPanel,
 } from '@/components/app/assistant/assistant-panel';
 import { AssistantProvider } from '@/components/app/assistant/assistant-provider';
+import { InstallAppDialog } from '@/components/app/install-app-dialog';
 import { MobileBottomNav } from '@/components/app/mobile-bottom-nav';
+import { OfflineBanner } from '@/components/app/offline-banner';
 import type { AppLayoutProps } from '@/types';
 
 export default function AppSidebarLayout({
@@ -32,11 +34,13 @@ export default function AppSidebarLayout({
                     className="min-w-0 overflow-x-clip bg-page-wash pb-(--content-pad-bottom) outline-none print:bg-none print:pb-0"
                 >
                     <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                    <OfflineBanner />
                     {children}
                 </AppContent>
                 <MobileBottomNav />
                 <AssistantButton />
                 <AssistantPanel />
+                <InstallAppDialog />
             </AssistantProvider>
         </AppShell>
     );

@@ -67,6 +67,13 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 - Foto landing hanya dari sumber yang lisensinya bisa diperiksa, dengan kredit di dekat fotonya (`businessPhotos` di `examples.ts`). Jangan memakai foto yang asalnya tidak diketahui.
 - Angka statistik hanya boleh yang sumbernya bisa diperiksa, dan ditulis bersama sumbernya. Tidak ada testimoni, logo mitra, atau jumlah pengguna sampai datanya nyata.
 
+## PWA
+
+- Service worker (`public/sw.js`) hanya meng-cache `offline.html` dan ikon. Halaman, props Inertia, API, dan gambar tidak pernah di-cache, supaya tidak ada angka basi atau data usaha yang tertinggal di HP. Naikkan `CACHE` kalau isi cache berubah.
+- SW didaftarkan otomatis hanya di build produksi (`app.tsx`); kartu notifikasi mendaftarkannya sendiri saat dibutuhkan.
+- `public/offline.html` berdiri sendiri: token warna inline, tanpa aset dari jaringan.
+- Ajakan memasang hanya lewat `useInstallWay`/`installApp` (`components/app/install-app.ts`), yang menyembunyikan entri kalau Lais sudah terpasang atau browser tidak bisa memasang.
+
 ## Selesai berarti
 
 - `npm run types:check`, `npm run check`, dan `php artisan test` hijau.

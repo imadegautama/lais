@@ -8,6 +8,7 @@ import {
     Clock,
     LockKeyhole,
     ShieldCheck,
+    Smartphone,
     Store,
     TriangleAlert,
 } from 'lucide-react';
@@ -29,6 +30,8 @@ import { businessPhotos, problems, surveyFacts } from './examples';
 import { useActiveStep } from './use-active-step';
 import { delay, WordReveal } from './word-reveal';
 import { isMouse } from './pointer';
+import { installApp, useInstallWay } from '@/components/app/install-app';
+import { InstallAppDialog } from '@/components/app/install-app-dialog';
 
 const SOURCE_URL =
     'https://www.ocbc.id/id/tentang-ocbc/informasi/siaran-pers/2024/08/19/ocbc-business-fitness-index';
@@ -38,6 +41,28 @@ const creditLink =
     'underline underline-offset-2 hover:text-foreground pointer-coarse:py-[15px]';
 export const heading =
     'text-3xl font-semibold tracking-tight text-balance md:text-4xl';
+
+/** "Pasang di HP", only on a phone or browser that can put Lais on its home screen. */
+function InstallButton() {
+    const way = useInstallWay();
+
+    return (
+        way && (
+            <>
+                <Button
+                    type="button"
+                    size="lg"
+                    variant="ghost"
+                    onClick={installApp}
+                >
+                    <Smartphone aria-hidden />
+                    Pasang di HP
+                </Button>
+                <InstallAppDialog />
+            </>
+        )
+    );
+}
 
 function SignUpButton() {
     const { auth } = usePage().props;
@@ -86,6 +111,7 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
                                     </Link>
                                 </Button>
                             )}
+                            <InstallButton />
                         </div>
                         <ul
                             data-intro
