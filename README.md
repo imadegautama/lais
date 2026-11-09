@@ -1,67 +1,72 @@
-# Lais
+<p align="center">
+  <a href="https://lais.web.id"><img src=".github/readme/banner.webp" width="100%" alt="Lais. Cukup chat, pembukuan usahamu tersusun sendiri. Dashboard Lais di laptop, diapit halaman toko online dan Tanya AI di HP."></a>
+</p>
 
-Lais adalah sistem operasional untuk UMKM: pembukuan, stok, pesanan, dan toko online dalam satu tempat, dengan asisten AI yang bisa diajak chat. Pemilik cukup bercerita seperti "jual 3 nasi goreng qris", dan Lais yang menyusun catatannya. Stok, kas, dan laporan keuangan yang mengacu pada SAK EMKM ikut tersusun sendiri.
+<h3 align="center">Pembukuan, stok, pesanan, dan toko online untuk UMKM,<br>dengan asisten AI yang bisa diajak chat.</h3>
 
-- **Aplikasi:** https://lais.web.id
-- **Toko demo:** https://lais.web.id/t/warung-bu-rina
-- **Bot Telegram:** [@LaisHelpBot](https://t.me/LaisHelpBot)
-- **Akun demo:** `demo@lais.test`. Kata sandinya ada di formulir pengumpulan lomba.
+<p align="center">
+  <a href="https://lais.web.id"><img src="https://img.shields.io/badge/Coba%20demo-lais.web.id-C25205?style=for-the-badge" alt="Coba demo di lais.web.id"></a>
+  <a href="https://t.me/LaisHelpBot"><img src="https://img.shields.io/badge/Bot%20Telegram-%40LaisHelpBot-1c1917?style=for-the-badge&logo=telegram&logoColor=white" alt="Bot Telegram @LaisHelpBot"></a>
+  <img src="https://img.shields.io/badge/Laravel-13-1c1917?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 13">
+  <img src="https://img.shields.io/badge/React-19-1c1917?style=for-the-badge&logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/AI-Claude%20Haiku%205.5-1c1917?style=for-the-badge&logo=anthropic&logoColor=white" alt="AI: Claude Haiku 5.5">
+  <img src="https://img.shields.io/badge/Pembukuan-mengacu%20SAK%20EMKM-1c1917?style=for-the-badge" alt="Pembukuan mengacu pada SAK EMKM">
+</p>
 
-## Masalah yang diselesaikan
+> Banyak pemilik UMKM tidak mencatat keuangan karena pembukuan terasa rumit, dan aplikasinya terasa seperti software akuntan. Akibatnya laba tidak terlihat, uang usaha bercampur dengan uang pribadi, dan stok habis tanpa terasa. Lais memangkas usaha mencatat sampai sependek satu pesan chat, sementara pembukuan berpasangan (double-entry) yang benar tetap berjalan di belakangnya.
 
-Banyak pemilik UMKM tidak mencatat keuangan, karena pembukuan terasa rumit dan aplikasinya terasa seperti software akuntan. Akibatnya laba tidak terlihat, uang usaha bercampur dengan uang pribadi, dan stok habis tanpa terasa. Lais menurunkan usaha mencatat sampai sependek satu pesan chat, tanpa melepas pembukuan berpasangan (double-entry) yang benar di belakangnya.
+<p align="center">
+  <a href="https://lais.web.id"><b>Coba demo tanpa daftar</b></a> &nbsp;·&nbsp; <a href="https://lais.web.id/t/warung-bu-rina">Lihat toko demo</a> &nbsp;·&nbsp; <a href="https://t.me/LaisHelpBot">Chat bot Lais di Telegram</a>
+</p>
 
-Latar belakang, persona, dan kriteria keberhasilannya ada di [`docs/PRD.md`](docs/PRD.md).
+## Fitur unggulan
 
-## Fitur
+### 1. Catat cukup dengan chat
 
-**Mencatat**
+Tulis seperti bercerita: "jual 3 nasgor 2 es teh qris". Lais mengenali produknya, menghitung totalnya, lalu menunjukkan draf. Begitu kamu menekan Simpan, penjualan, stok, kas, dan jurnalnya tercatat sekaligus.
 
-- Catat penjualan, belanja, biaya, utang-piutang, modal, dan pindah dana. Bisa lewat form, kalimat bebas di panel Tanya AI, chat bot, atau foto nota belanja.
-- Draf selalu ditunjukkan dulu, dan baru tersimpan setelah pemilik menekan Simpan.
-- Uang usaha dan uang pribadi dipisah. Ambil untuk pribadi (prive) tidak mengurangi laba.
+<p align="center">
+  <img src=".github/readme/catat.webp" width="100%" alt="Dua layar Tanya AI di HP. Kiri: kalimat jual 3 nasgor 2 es teh qris menjadi draf penjualan Rp55.000 dengan tombol Simpan. Kanan: setelah Simpan ditekan, muncul Penjualan tersimpan.">
+</p>
 
-**Produk dan stok**
+- Lewat panel **Tanya AI** di web atau **bot Telegram**, dengan kalimat bebas maupun foto nota belanja.
+- Draf selalu ditunjukkan dulu. Tidak ada yang tersimpan sebelum kamu menekan Simpan.
+- Penjualan, belanja, biaya, utang-piutang, modal, dan pindah dana. Uang yang diambil untuk pribadi (prive) dipisah, jadi laba tetap jujur.
 
-- Ada tiga jenis barang: produk biasa, bahan baku, dan produk dengan resep. Pada produk dengan resep, HPP dihitung dari harga bahannya.
-- Stok berkurang dan bertambah sendiri dari setiap catatan. Ada koreksi stok dan peringatan stok menipis.
+### 2. Laporan tersusun sendiri, dan bisa ditanya
 
-**Pesanan dan toko online**
+Setiap catatan langsung masuk ke laporan keuangan yang mengacu pada SAK EMKM. Bingung membacanya? Tanya saja, dan jawabannya diambil dari pembukuanmu sendiri.
 
-- Setiap usaha punya halaman toko sendiri (`/t/{nama-toko}`). Pelanggan bisa memesan tanpa akun.
-- Pemilik menerima, menyiapkan, dan menyelesaikan pesanan dari web atau bot. Pesanan yang selesai otomatis menjadi penjualan.
-- Pembayaran bisa tunai, QRIS milik toko, atau bayar online lewat DOKU Checkout (sandbox).
+<p align="center">
+  <img src=".github/readme/laporan.webp" width="100%" alt="Laporan laba rugi di laptop dengan kesimpulan Bulan ini untung Rp1,5 jt, dan panel Tanya AI yang menjawab kenapa laba turun dengan angka dari pembukuan.">
+</p>
 
-**Laporan**
+- Laba rugi, posisi keuangan (neraca), perubahan modal, catatan atas laporan, buku kas, jurnal, buku besar, dan neraca saldo. Semuanya bisa dicetak atau disimpan sebagai PDF.
+- Setiap laporan dibuka dengan kesimpulan satu kalimat, lalu pertanyaan siap pakai seperti "Kenapa labanya naik atau turun?".
+- Tanya AI menjelaskan laporan yang sedang dibuka, mengartikan istilah seperti HPP, dan menilai apakah sebuah produk layak dijual.
+- Dashboard merangkum penjualan, untung, kas, tagihan yang perlu ditindaklanjuti, dan kesehatan usaha.
 
-- Laba rugi, posisi keuangan (neraca), perubahan modal, catatan atas laporan, buku kas, produk terlaris, aset tetap dan penyusutan, daftar akun (COA), jurnal, buku besar, dan neraca saldo.
-- Dashboard berisi ringkasan, kesehatan usaha, dan misi pertama untuk pemilik baru.
+### 3. Toko online, pesanan, dan bayar online
 
-**Asisten AI (Tanya AI dan bot)**
+Setiap usaha langsung punya halaman toko sendiri. Pelanggan memesan tanpa akun, lalu membayar tunai, lewat QRIS toko, atau online.
 
-- Mengubah kalimat atau foto nota menjadi draf catatan.
-- Menjawab angka usaha (untung, kas, piutang, HPP), letak fitur ("utang dicatat di mana?"), arti istilah ("apa itu HPP?"), dan penilaian layak tidaknya produk ("es teh worth it?").
+<p align="center">
+  <img src=".github/readme/toko.webp" width="100%" alt="Dua layar HP. Kiri: halaman toko Warung Bu Rina dengan keranjang 3 item Rp35.000. Kanan: nota pesanan A001 dengan banner Pembayaran Rp40.000 diterima dan status Lunas.">
+</p>
 
-**Bot Telegram**
+- Pesanan baru masuk ke web, bot Telegram, dan notifikasi HP. Pemilik menerima atau menolaknya dengan satu tombol.
+- Bayar online lewat DOKU Checkout (sandbox). Nota pelanggan langsung berubah menjadi lunas.
+- Stok ditahan selama pesanan berjalan, dan pesanan yang selesai otomatis menjadi penjualan di pembukuan.
 
-- Indikator "mengetik…", tombol Simpan dan Batal, tombol Terima dan Tolak untuk pesanan, dan panduan lewat `/start`.
-- Ringkasan harian dikirim pukul 21.00, atau kapan saja lewat `/ringkasan`.
+## Yang juga ada
 
-**Di HP**
-
-- Lais bisa dipasang di layar utama HP (PWA) dari menu akun, menu **Lainnya**, atau landing page, lalu terbuka layar penuh seperti aplikasi.
-- Tanpa sinyal, muncul halaman offline yang mengarahkan ke bot Telegram. Telegram menahan pesannya dan bot mencatatnya begitu HP online lagi.
-- Notifikasi HP (web push) untuk pesanan baru dari toko online, diaktifkan per perangkat di Pengaturan → Bot. Di iPhone, Lais harus dipasang di layar utama dulu.
-
-**Coba demo**
-
-- Tombol **Coba demo tanpa daftar** di landing dan halaman login membuat akun demo pribadi berisi salinan data 90 hari Warung Bu Rina, tanpa perlu mendaftar. Setiap pengunjung mendapat akunnya sendiri, jadi data dan sambungan Telegram tidak saling bertabrakan.
-- Tiga akun disiapkan lebih dulu oleh `php artisan lais:demo` (dijadwalkan tiap 5 menit), sehingga klik langsung masuk. Akun yang sudah diklaim terhapus otomatis bersama datanya setelah 48 jam.
-
-**Panduan**
-
-- Setup awal dibagi per langkah, termasuk langkah daftar akun.
-- Setiap halaman utama punya tombol **Panduan** (tur interaktif), dan tur dashboard muncul sampai diselesaikan.
+- **Stok dan HPP dari resep.** Ada produk biasa, bahan baku, dan produk dengan resep. Stok bahan berkurang sendiri, HPP dihitung dari harga bahan, dan ada peringatan stok menipis.
+- **Utang-piutang** dengan sisa tagihan per kontak, dan tagihan lama yang muncul di dashboard.
+- **Ringkasan harian** dari bot setiap pukul 21.00, atau kapan saja lewat `/ringkasan`.
+- **Bisa dipasang di HP** (PWA), lengkap dengan halaman offline dan notifikasi pesanan baru.
+- **Setup bertahap** untuk pemilik baru, dan tombol **Panduan** (tur interaktif) di setiap halaman utama.
+- **Coba demo tanpa daftar.** Setiap pengunjung mendapat akun demo pribadi berisi data 90 hari Warung Bu Rina, yang terhapus otomatis setelah 48 jam.
+- **Keamanan akun:** masuk dengan Google, verifikasi dua langkah, passkey, dan log aktivitas.
 
 ## AI yang bisa dipercaya
 
@@ -129,7 +134,7 @@ Buka http://localhost:8000 dan masuk dengan `demo@lais.test`. Kata sandinya diam
 | Login Google    | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`                                                                               |
 | Email           | `MAIL_*` (dipakai untuk verifikasi email)                                                                                                       |
 
-**Bot di lokal:** jalankan `php artisan lais:telegram` di terminal lain. Pakai bot terpisah dari produksi (buat lewat @BotFather), karena satu token hanya boleh dibaca satu poller. Detailnya ada di [`docs/TELEGRAM.md`](docs/TELEGRAM.md).
+**Bot di lokal:** buat bot terpisah dari produksi lewat @BotFather, karena satu token hanya boleh dibaca satu poller. Isi `TELEGRAM_BOT_TOKEN` dan `TELEGRAM_BOT_USERNAME`, lalu jalankan `php artisan lais:telegram` di terminal lain.
 
 ## Pengujian
 
@@ -146,16 +151,6 @@ Tes mencakup:
 - isolasi data antar usaha
 - alur bot Telegram dan WhatsApp
 - asisten AI dengan model tiruan
-
-## Dokumen
-
-| Dokumen                                | Isi                                                                |
-| -------------------------------------- | ------------------------------------------------------------------ |
-| [`docs/PRD.md`](docs/PRD.md)           | Kebutuhan produk, user story, kriteria keberhasilan, aturan jurnal |
-| [`docs/UI-PAGES.md`](docs/UI-PAGES.md) | Spesifikasi tiap halaman                                           |
-| [`docs/DESIGN.md`](docs/DESIGN.md)     | Sistem desain: token, komponen, aturan tampilan                    |
-| [`docs/TELEGRAM.md`](docs/TELEGRAM.md) | Menyalakan dan memakai bot Telegram                                |
-| [`docs/WHATSAPP.md`](docs/WHATSAPP.md) | Bot lewat WhatsApp (GOWA) dan skenario demo                        |
 
 ## Library open-source
 

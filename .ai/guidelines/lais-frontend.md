@@ -63,6 +63,7 @@ Proyek GTNIC 2026: sistem operasional UMKM berbasis web + WhatsApp. Stack: Larav
 
 - Isi demo chat ada di `features/landing/examples.ts`, tanpa memanggil AI. Setiap angkanya dibuktikan `tests/Feature/LandingTest.php`, jadi kalau katalog awal atau balasan bot berubah, perbarui keduanya.
 - Animasi landing ada di `resources/css/landing.css` dan `use-reveal.ts`, dan hanya untuk landing. Lenis (`use-smooth-scroll.ts`) dipasang di halaman ini saja dan dihancurkan saat pindah halaman; jangan dipakai di aplikasi. Aplikasi tetap MOTION 1. Hanya hook yang boleh menyembunyikan elemen, dan hanya yang di bawah layar, supaya tanpa JS halaman tetap utuh.
+- Gambar README (`.github/readme/*.webp`) adalah layar asli dalam bingkai HP dan laptop landing, diambil dari database SQLite sementara yang diisi `php artisan db:seed`. Ambil ulang kalau tampilan yang terlihat di gambar berubah. README tidak merujuk ke file di `docs/`.
 - Gambar laptop (`public/images/landing/app-*.webp`) adalah tangkapan layar asli pada 1440×900. Ambil ulang kalau tampilan aplikasi berubah, dari database SQLite sementara yang diisi `php artisan db:seed`, jangan dari database lokal pemilik.
 - Foto landing hanya dari sumber yang lisensinya bisa diperiksa, dengan kredit di dekat fotonya (`businessPhotos` di `examples.ts`). Jangan memakai foto yang asalnya tidak diketahui.
 - Angka statistik hanya boleh yang sumbernya bisa diperiksa, dan ditulis bersama sumbernya. Tidak ada testimoni, logo mitra, atau jumlah pengguna sampai datanya nyata.
