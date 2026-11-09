@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
-import { Printer } from 'lucide-react';
+import { MessageCircleQuestion, Printer } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { useAssistant } from '@/components/app/assistant/assistant-provider';
 import { PeriodPicker } from '@/components/app/period-picker';
 import { Button } from '@/components/ui/button';
 import { DateRangeFilter } from '@/features/reports/date-range-filter';
@@ -57,6 +58,7 @@ export function ReportToolbar({
 }) {
     const own = useReportQuery();
     const { loading, failed, visit } = report ?? own;
+    const assistant = useAssistant();
 
     return (
         <div className="flex flex-col items-start gap-2 md:items-end print:hidden">
@@ -82,6 +84,18 @@ export function ReportToolbar({
                 ) : (
                     children
                 )}
+                {/* The panel knows which report and period are open (assistant-provider). */}
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => assistant.setOpen(true)}
+                >
+                    <MessageCircleQuestion
+                        className="text-brand-strong"
+                        aria-hidden
+                    />
+                    Tanya AI
+                </Button>
                 {printable && (
                     <Button
                         type="button"

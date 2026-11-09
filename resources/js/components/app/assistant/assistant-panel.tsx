@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     CircleAlert,
     CircleCheck,
@@ -35,12 +35,14 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatQty, formatRupiah } from '@/lib/format';
+import { chatParts } from '@/lib/chat-text';
 import { photoToDataUrl } from '@/lib/image';
 import { cn } from '@/lib/utils';
+import { isReport, reportQuestions } from './report-questions';
 
 const title = 'Tanya AI';
 const description =
-    'Ceritakan yang mau dicatat. AI menyiapkan catatannya, kamu yang memeriksa lalu menyimpan.';
+    'Tanya apa saja soal usahamu, atau ceritakan yang mau dicatat. Jawabannya dari pembukuanmu sendiri.';
 
 const SLOW =
     'Masih memproses. Kalimat dengan resep atau foto nota butuh waktu lebih lama, biasanya kurang dari setengah menit.';
@@ -56,13 +58,16 @@ const examples: Record<AssistantFormName | 'none', string[]> = {
         'tambah menu mie goreng 14rb, pakai telur 1 dan beras 1 ons',
         'tambah bahan gula pasir, stok 2 kg, modal 15rb per kg',
     ],
-    none: [
-        'jual 3 nasi goreng, bayar QRIS',
-        'uang pribadi 200rb dicatat di mana?',
-        'apa itu HPP?',
-        'es teh worth it nggak?',
-    ],
+    none: ['jual 3 nasi goreng, bayar QRIS', 'beli beras 5 kg 70rb tunai'],
 };
+
+/** Questions about the business itself, on every page. */
+const questions = [
+    'untung bulan ini berapa?',
+    'apa itu HPP?',
+    'utang dicatat di mana?',
+    'es teh worth it nggak?',
+];
 
 function Card({ card }: { card: DraftCard }) {
     return (
@@ -186,8 +191,7 @@ function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
                     {turn.text}
                 </p>
             ) : (
-                // Answers from the books come in lines (a verdict, a list of costs): keep them.
-                <p className="whitespace-pre-line">{turn.text}</p>
+                <ChatText text={turn.text} />
             )}
             {turn.guide && turn.guide.needs.length > 0 && (
                 <div className="rounded-md bg-secondary px-3 py-2">
@@ -285,6 +289,7 @@ function Turn({ turn, index }: { turn: AssistantTurn; index: number }) {
 
 function Conversation() {
     const { turns, sending, form, send, reset } = useAssistant();
+    const { component } = usePage();
     const [text, setText] = useState('');
     const [photo, setPhoto] = useState<string | null>(null);
     const [photoError, setPhotoError] = useState<string | null>(null);
@@ -340,22 +345,49 @@ function Conversation() {
         <>
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
                 {turns.length === 0 ? (
-                    <div className="flex flex-col gap-2">
-                        <p className="text-sm text-muted-foreground">
-                            Coba tulis seperti ini:
-                        </p>
-                        {examples[form ?? 'none'].map((example) => (
-                            <button
-                                key={example}
-                                type="button"
-                                onClick={() => {
-                                    setText(example);
-                                    input.current?.focus();
-                                }}
-                                className="min-h-11 rounded-lg border bg-card px-3 py-2 text-left text-sm shadow-button-soft hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                    <div className="flex flex-col gap-4">
+                        <div>
+                            <p className="text-base font-semibold">
+                                Yuk tanya AI
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Pilih contoh di bawah, atau tulis sendiri.
+                                Pertanyaan lanjutan juga diingat.
+                            </p>
+                        </div>
+                        {[
+                            ...(isReport(component)
+                                ? [
+                                      {
+                                          title: 'Tentang laporan ini',
+                                          items: reportQuestions(component),
+                                      },
+                                  ]
+                                : []),
+                            { title: 'Catat', items: examples[form ?? 'none'] },
+                            { title: 'Tanya', items: questions },
+                        ].map((group) => (
+                            <div
+                                key={group.title}
+                                className="flex flex-col gap-2"
                             >
-                                {example}
-                            </button>
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    {group.title}
+                                </p>
+                                {group.items.map((example) => (
+                                    <button
+                                        key={example}
+                                        type="button"
+                                        onClick={() => {
+                                            setText(example);
+                                            input.current?.focus();
+                                        }}
+                                        className="min-h-11 rounded-lg border bg-card px-3 py-2 text-left text-sm shadow-button-soft hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                    >
+                                        {example}
+                                    </button>
+                                ))}
+                            </div>
                         ))}
                         <p className="text-sm text-muted-foreground">
                             Bisa juga kirim foto nota belanja lewat tombol foto.
@@ -534,8 +566,80 @@ export function AssistantPanel() {
 }
 
 /** Floats above the bottom nav and any form action bar (app.css). */
+/**
+ * A reply as the chat writes it: its lines and blank lines kept (answers come
+ * as a conclusion, then points), with *bold* figures and _italic_ words.
+ */
+function ChatText({ text }: { text: string }) {
+    return (
+        <p className="leading-relaxed whitespace-pre-line">
+            {chatParts(text).map((part, index) =>
+                part.kind === 'bold' ? (
+                    <strong key={index} className="font-semibold">
+                        {part.text}
+                    </strong>
+                ) : part.kind === 'italic' ? (
+                    <em key={index}>{part.text}</em>
+                ) : (
+                    part.text
+                ),
+            )}
+        </p>
+    );
+}
+
+/** How long the button says "Yuk tanya AI" on arriving at a page. */
+const NUDGE_MS = 5000;
+
+const NUDGED_KEY = 'lais-tanya-ai-sapa';
+
+/** Pages it already greeted on this tab, so it says it once per page, not on every visit. */
+function nudgedPages(): string[] {
+    try {
+        return JSON.parse(
+            window.sessionStorage.getItem(NUDGED_KEY) ?? '[]',
+        ) as string[];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * The floating "Tanya AI": a small round button that stays out of the way,
+ * which says "Yuk tanya AI" for a few seconds the first time a page opens
+ * (on a report: "Yuk tanya AI soal laporan ini"), and again on hover or focus.
+ */
 export function AssistantButton() {
-    const { setOpen } = useAssistant();
+    const { setOpen, open } = useAssistant();
+    const { component } = usePage();
+    const [nudging, setNudging] = useState(false);
+    const [hovered, setHovered] = useState(false);
+    const expanded = (nudging || hovered) && !open;
+
+    useEffect(() => {
+        const seen = nudgedPages();
+
+        if (seen.includes(component)) {
+            return;
+        }
+
+        try {
+            window.sessionStorage.setItem(
+                NUDGED_KEY,
+                JSON.stringify([...seen, component]),
+            );
+        } catch {
+            // Blocked storage: it greets again next time, nothing more.
+        }
+
+        const show = window.setTimeout(() => setNudging(true), 600);
+        const hide = window.setTimeout(() => setNudging(false), 600 + NUDGE_MS);
+
+        return () => {
+            window.clearTimeout(show);
+            window.clearTimeout(hide);
+        };
+    }, [component]);
 
     return (
         <Button
@@ -543,13 +647,35 @@ export function AssistantButton() {
             variant="outline"
             data-tour="tanya-ai"
             onClick={() => setOpen(true)}
-            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 bg-card pr-4 pl-3.5 shadow-toast lg:right-6 print:hidden"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onFocus={() => setHovered(true)}
+            onBlur={() => setHovered(false)}
+            // 44 px round when quiet (12 + 20 + 12); the label opens to its left.
+            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 gap-0 rounded-full bg-card px-3 shadow-toast lg:right-6 print:hidden"
         >
             <MessageCircleQuestion
-                className="size-5 text-brand-strong"
+                className="size-5 shrink-0 text-brand-strong"
                 aria-hidden
             />
-            Tanya AI
+            {/*
+              Always in the page, so the button keeps one name. A 0fr → 1fr column eases
+              to the label's own width (max-width would spend the time past it); DESIGN.md MOTION.
+            */}
+            <span
+                className={cn(
+                    'grid motion-safe:transition-[grid-template-columns,margin,opacity] motion-safe:duration-300 motion-safe:ease-out',
+                    expanded
+                        ? 'ml-2 grid-cols-[1fr] opacity-100'
+                        : 'ml-0 grid-cols-[0fr] opacity-0',
+                )}
+            >
+                <span className="min-w-0 overflow-hidden whitespace-nowrap">
+                    {isReport(component)
+                        ? 'Yuk tanya AI soal laporan ini'
+                        : 'Yuk tanya AI'}
+                </span>
+            </span>
         </Button>
     );
 }

@@ -32,10 +32,16 @@ class AssistantRequest extends FormRequest
                 }
             }],
             'form' => ['nullable', Rule::in(FormAssistant::FORMS)],
-            'history' => ['nullable', 'array', 'max:12'],
+            'history' => ['nullable', 'array', 'max:20'],
             'history.*.role' => ['required', Rule::in(['user', 'assistant'])],
             'history.*.text' => ['required', 'string', 'max:1000'],
             'current' => ['nullable', 'array'],
+            // The report page open behind the panel, and its period as in its address.
+            'report' => ['nullable', 'array'],
+            'report.page' => ['required_with:report', Rule::in(array_keys(FormAssistant::REPORTS))],
+            'report.periode' => ['nullable', 'string', 'max:20'],
+            'report.dari' => ['nullable', 'string', 'max:10'],
+            'report.sampai' => ['nullable', 'string', 'max:10'],
             'draft' => ['nullable', 'array'],
             'draft.form' => ['required_with:draft', Rule::in(FormAssistant::DRAFTS)],
             'draft.values' => ['required_with:draft', 'array'],

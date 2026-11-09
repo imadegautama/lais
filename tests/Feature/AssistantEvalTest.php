@@ -247,6 +247,25 @@ class AssistantEvalTest extends TestCase
             }
         }
 
+        // Asked from a report page: the answer reads that report's own dates (1–20 of last month).
+        $report = ['page' => 'reports/profit-and-loss', 'dari' => now()->subMonthNoOverflow()->startOfMonth()->toDateString(), 'sampai' => now()->subMonthNoOverflow()->startOfMonth()->addDays(19)->toDateString()];
+
+        foreach (['jelaskan laporan ini', 'biaya terbesar apa?'] as $question) {
+            $reply = app(FormAssistant::class)->reply($business->user, $question, null, [], [], report: $report)['reply'];
+
+            if (str_starts_with($reply, 'Angkanya belum') || str_starts_with($reply, 'Datanya belum') || str_starts_with($reply, 'Pertanyaan itu belum')) {
+                $failures[] = "laporan: {$question} => dapat: {$reply}";
+            }
+        }
+
+        // A follow-up leans on the turn before it, as in a chat app.
+        $first = app(FormAssistant::class)->reply($business->user, 'untung bulan lalu berapa?', null, [], [])['reply'];
+        $follow = app(FormAssistant::class)->reply($business->user, 'kalau bulan ini?', null, [['role' => 'user', 'text' => 'untung bulan lalu berapa?'], ['role' => 'assistant', 'text' => $first]], [])['reply'];
+
+        if (preg_match('/^(Laba bersih|Rugi) bulan ini/u', $follow) !== 1) {
+            $failures[] = "lanjutan: kalau bulan ini? => dapat: {$follow}";
+        }
+
         $unknown = app(FormAssistant::class)->reply($business->user, 'harga beras di pasar hari ini berapa?', null, [], [])['reply'];
 
         // Declining in any words is right; a price from nowhere is not.
