@@ -19,19 +19,6 @@
   <a href="https://lais.web.id"><b>Coba demo tanpa daftar</b></a> &nbsp;·&nbsp; <a href="https://lais.web.id/t/warung-bu-rina">Lihat toko demo</a> &nbsp;·&nbsp; <a href="https://t.me/LaisHelpBot">Chat bot Lais di Telegram</a>
 </p>
 
-## Masalah dan pengguna sasaran
-
-Pengguna utama Lais adalah pemilik UMKM berbasis produk: usaha yang memegang stok bahan atau barang dagangan, dijalankan sendiri atau dengan satu-dua pekerja, dan dikelola dari HP. Contohnya warung makan, toko kelontong, oleh-oleh, dan kerajinan.
-
-Masalah yang mereka alami:
-
-- **Mencatat terasa berat, jadi ditunda.** Pencatatan masih manual, atau tidak dilakukan sama sekali.
-- **Uang usaha bercampur dengan uang pribadi.** Akibatnya laba sebenarnya tidak terlihat.
-- **HPP dan stok tidak diketahui.** Harga jual ditentukan dari perkiraan, dan bahan habis tanpa terasa.
-- **Laporan keuangan tidak siap.** Saat pemilik mengajukan pembiayaan, laporannya belum ada.
-
-Kebutuhan ini kami temui langsung lewat pendampingan UMKM di Bali, salah satunya di program SMART UMKM Universitas Primakara. Kuliner (Warung Bu Rina) dipakai sebagai data demo karena alurnya paling lengkap, tetapi Lais tidak terbatas pada kuliner.
-
 ## Fitur unggulan
 
 ### 1. Catat cukup dengan chat
@@ -165,22 +152,6 @@ Tes mencakup:
 - alur bot Telegram dan WhatsApp
 - asisten AI dengan model tiruan
 
-## Deployment dan akun demo
-
-- **Aplikasi:** https://lais.web.id
-- **Toko demo:** https://lais.web.id/t/warung-bu-rina
-- **Bot Telegram:** https://t.me/LaisHelpBot
-
-Untuk mencoba, tekan **Coba demo tanpa daftar** di halaman depan. Setiap pengunjung mendapat akun demo pribadi berisi data 90 hari Warung Bu Rina, yang terhapus otomatis setelah 48 jam. Kredensial akun demo tetap untuk juri dikirim lewat formulir panitia, tidak ditulis di repo ini.
-
-## Batasan yang diketahui
-
-- **SAK EMKM.** Pembukuan _mengacu_ pada SAK EMKM dan belum bisa disebut patuh penuh. Batasannya ditulis di catatan atas laporan, misalnya ongkos kirim pembelian dan utang bank.
-- **Pembayaran online.** Bayar online masih DOKU Checkout mode sandbox dengan satu akun platform. Refund dilakukan manual dari dashboard DOKU, dan biaya DOKU dicatat pemilik sebagai beban.
-- **Bot.** Bot sementara berjalan di Telegram, karena nomor bot WhatsApp lewat klien tidak resmi (GOWA) berisiko diblokir. Kode WhatsApp tetap ada dan bisa diaktifkan lagi lewat `BOT_CHANNEL`.
-- **Cakupan.** Satu pemilik per usaha. Multi-outlet, banyak pengguna per usaha, payroll, dan UMKM jasa berbasis jadwal belum dicakup.
-- **AI dan koneksi.** AI butuh koneksi internet, dan setiap usaha dibatasi 200 panggilan model per hari supaya biaya terkendali. Kalau AI tidak bisa dipakai, form manual tetap berjalan. Pencatatan offline belum tersedia; aplikasi yang dipasang di HP baru menampilkan halaman offline.
-
 ## Library open-source
 
 Lais dibangun di atas library open-source berikut (dependensi langsung, versi dan lisensi dibaca dari `vendor/` dan `node_modules/`).
@@ -208,7 +179,7 @@ Lais dibangun di atas library open-source berikut (dependensi langsung, versi da
 | react, react-dom                                | 19.3          | MIT        |
 | @inertiajs/react, @inertiajs/vite               | 3.9           | MIT        |
 | tailwindcss, @tailwindcss/vite                  | 4.3           | MIT        |
-| radix-ui dan paket @radix-ui/\*                 | 1.x–2.x       | MIT        |
+| radix-ui dan paket @radix-ui/*                  | 1.x–2.x       | MIT        |
 | @tanstack/react-table                           | 9.3           | MIT        |
 | recharts                                        | 3.8           | MIT        |
 | react-joyride                                   | 3.2           | MIT        |
@@ -231,14 +202,3 @@ Lais dibangun di atas library open-source berikut (dependensi langsung, versi da
 | concurrently                                    | 10.0          | MIT        |
 
 Layanan pihak ketiga yang dipakai: Anthropic Claude API, Telegram Bot API, DOKU Checkout (sandbox), Cloudflare R2, dan Google Sign-In.
-
-Proyek ini dimulai dari Laravel React Starter Kit (MIT). Font Plus Jakarta Sans memakai SIL Open Font License 1.1, dan foto usaha di landing page berasal dari Wikimedia Commons (CC BY-SA) dengan kredit di dekat setiap fotonya. Daftar lengkap teknologi, peran AI, dan alat bantu pengembangan ada di [AI & Technology Disclosure](docs/AI-DISCLOSURE.md).
-
-## Tim
-
-| Nama                               | Peran                                                                                    |
-| ---------------------------------- | ---------------------------------------------------------------------------------------- |
-| I Made Gautama                     | Pengembang: produk, desain antarmuka, kode, integrasi AI, dan deploy                     |
-| Desak Putu Nitya Dewi, S.E., M.Si. | Akuntansi dan pendampingan UMKM: kebutuhan pengguna, aturan pembukuan SAK EMKM, validasi |
-
-Keduanya dari Universitas Primakara.
