@@ -32,6 +32,7 @@ import { delay, WordReveal } from './word-reveal';
 import { isMouse } from './pointer';
 import { installApp, useInstallWay } from '@/components/app/install-app';
 import { InstallAppDialog } from '@/components/app/install-app-dialog';
+import { TryDemoButton } from '@/components/app/try-demo-button';
 
 const SOURCE_URL =
     'https://www.ocbc.id/id/tentang-ocbc/informasi/siaran-pers/2024/08/19/ocbc-business-fitness-index';
@@ -77,6 +78,8 @@ function SignUpButton() {
 }
 
 export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
+    const { auth } = usePage().props;
+
     return (
         <section aria-labelledby="judul" className="px-2 pt-2 md:px-4 md:pt-4">
             <div className="landing-texture mx-auto max-w-[1400px] rounded-3xl bg-landing-glow pt-24 pb-8 md:pt-28 md:pb-12">
@@ -104,7 +107,9 @@ export function Hero({ demoShop }: { demoShop: DemoShop | null }) {
                             className="mt-6 flex flex-wrap gap-2"
                         >
                             <SignUpButton />
-                            {demoShop && (
+                            {/* Visitors try an account of their own; the demo shop stays in the header and its section. */}
+                            {!auth.user && <TryDemoButton size="lg" />}
+                            {auth.user && demoShop && (
                                 <Button asChild size="lg" variant="outline">
                                     <Link href={showShop(demoShop.slug)}>
                                         Lihat Demo Toko

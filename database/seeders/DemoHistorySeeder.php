@@ -51,7 +51,17 @@ class DemoHistorySeeder extends Seeder
     {
         $business = Business::query()->where('businesses.slug', 'warung-bu-rina')->first();
 
-        if ($business === null || $business->transactions()->where('transactions.type', '!=', TransactionType::SaldoAwal)->exists()) {
+        if ($business !== null) {
+            $this->fill($business);
+        }
+    }
+
+    /**
+     * The months of sales, purchases, and costs, once per business.
+     */
+    public function fill(Business $business): void
+    {
+        if ($business->transactions()->where('transactions.type', '!=', TransactionType::SaldoAwal)->exists()) {
             return;
         }
 

@@ -30,6 +30,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $telegram_chat_id
  * @property Carbon|null $whatsapp_linked_at
  * @property Carbon|null $tour_completed_at
+ * @property bool $is_demo A "Coba demo" account (App\Services\DemoAccounts)
+ * @property Carbon|null $demo_until When a claimed demo account is removed; null while it waits in the pool
  * @property string|null $password Null for an account made with Google until a password is set in Keamanan.
  * @property string|null $two_factor_secret
  * @property string|null $two_factor_recovery_codes
@@ -73,6 +75,8 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return [
             'whatsapp_linked_at' => 'datetime',
             'tour_completed_at' => 'datetime',
+            'is_demo' => 'boolean',
+            'demo_until' => 'datetime',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',

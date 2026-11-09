@@ -12,4 +12,7 @@ Artisan::command('inspire', function () {
 Schedule::command('lais:penyusutan')->monthlyOn(1, '00:10')->timezone(config('app.timezone'))->withoutOverlapping();
 
 // The evening summary (PRD M8): 21.00 in the app time zone (APP_TIMEZONE), only to owners who linked WhatsApp and left it on.
+// Keeps a few "Coba demo" accounts ready and removes the ones that ran out (App\Services\DemoAccounts).
+Schedule::command('lais:demo')->everyFiveMinutes()->withoutOverlapping()->runInBackground();
+
 Schedule::command('lais:ringkasan')->dailyAt('21:00')->timezone(config('app.timezone'))->withoutOverlapping();

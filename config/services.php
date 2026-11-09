@@ -5,6 +5,9 @@ return [
     // The demo account judges sign in with (DatabaseSeeder).
     'demo' => [
         'password' => env('DEMO_PASSWORD') ?: 'password',
+        // "Coba demo" (App\Services\DemoAccounts): accounts kept ready, and days of history each.
+        'pool' => 3,
+        'days' => 90,
     ],
 
     /*

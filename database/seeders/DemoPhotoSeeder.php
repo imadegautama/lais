@@ -27,9 +27,16 @@ class DemoPhotoSeeder extends Seeder
     {
         $business = Business::query()->where('businesses.slug', 'warung-bu-rina')->first();
 
-        if ($business === null) {
-            return;
+        if ($business !== null) {
+            $this->attach($business);
         }
+    }
+
+    /**
+     * Product photos, copied per business so removing one account keeps the others'.
+     */
+    public function attach(Business $business): void
+    {
 
         foreach (self::PHOTOS as $name => $file) {
             $source = __DIR__."/demo-photos/{$file}";
