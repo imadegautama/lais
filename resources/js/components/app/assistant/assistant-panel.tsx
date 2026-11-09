@@ -646,29 +646,36 @@ export function AssistantButton() {
             type="button"
             variant="outline"
             data-tour="tanya-ai"
-            aria-label={expanded ? undefined : 'Tanya AI'}
             onClick={() => setOpen(true)}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             onFocus={() => setHovered(true)}
             onBlur={() => setHovered(false)}
-            className={cn(
-                'fixed right-4 bottom-(--assistant-offset-bottom) z-30 size-11 rounded-full bg-card p-0 shadow-toast lg:right-6 print:hidden',
-                expanded && 'w-auto pr-4 pl-3.5',
-            )}
+            // 44 px round when quiet (12 + 20 + 12); the label opens to its left.
+            className="fixed right-4 bottom-(--assistant-offset-bottom) z-30 h-11 gap-0 rounded-full bg-card px-3 shadow-toast lg:right-6 print:hidden"
         >
             <MessageCircleQuestion
-                className="size-5 text-brand-strong"
+                className="size-5 shrink-0 text-brand-strong"
                 aria-hidden
             />
-            {expanded && (
-                // Text only fades: MOTION 1 keeps the size change a plain swap.
-                <span className="motion-safe:animate-in motion-safe:fade-in">
+            {/*
+              Always in the page, so the button keeps one name. A 0fr → 1fr column eases
+              to the label's own width (max-width would spend the time past it); DESIGN.md MOTION.
+            */}
+            <span
+                className={cn(
+                    'grid motion-safe:transition-[grid-template-columns,margin,opacity] motion-safe:duration-300 motion-safe:ease-out',
+                    expanded
+                        ? 'ml-2 grid-cols-[1fr] opacity-100'
+                        : 'ml-0 grid-cols-[0fr] opacity-0',
+                )}
+            >
+                <span className="min-w-0 overflow-hidden whitespace-nowrap">
                     {isReport(component)
                         ? 'Yuk tanya AI soal laporan ini'
                         : 'Yuk tanya AI'}
                 </span>
-            )}
+            </span>
         </Button>
     );
 }
