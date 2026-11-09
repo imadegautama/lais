@@ -3,9 +3,9 @@
  * pages and app data always come from the server, so no figure is ever
  * stale and no business data stays on the phone.
  */
-const CACHE = 'lais-v1';
+const CACHE = 'lais-v2';
 const OFFLINE = '/offline.html';
-const SHELL = [OFFLINE, '/icons/icon-192.png', '/favicon.svg'];
+const SHELL = [OFFLINE, '/pwa/icon-192.png', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -55,8 +55,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
         self.registration.showNotification(message.title || 'Lais', {
             body: message.body || '',
-            icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
+            icon: '/pwa/icon-192.png',
+            badge: '/pwa/icon-192.png',
             lang: 'id',
             data: { url: message.url || '/pesanan' },
         }),
