@@ -110,6 +110,12 @@ return [
     |
     */
 
+    // Emails wear Lais's look: resources/views/vendor/mail (theme lais.css) and vendor/notifications.
+    'markdown' => [
+        'theme' => 'lais',
+        'paths' => [resource_path('views/vendor/mail')],
+    ],
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
