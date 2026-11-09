@@ -735,6 +735,8 @@ export type PublicOrder = {
         status: OnlinePaymentStatus;
         url: string | null;
         channel: string | null;
+        amount: number;
+        paidAt: string | null;
     } | null;
     lines: OrderLine[];
 };

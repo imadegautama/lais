@@ -72,7 +72,8 @@ class Doku
         $amount = $order->total - $this->orders->paid($order);
         // Letters and digits only, at most 30 characters (DOKU, for every channel).
         $invoice = 'LAIS'.$order->id.Str::upper(Str::random(8));
-        $nota = route('shop.order', $order->token);
+        // Marked, so the nota knows the customer is back from paying and checks right away.
+        $nota = route('shop.order', [$order->token, 'dari' => 'doku']);
 
         $page = $this->send('POST', '/checkout/v1/payment', [
             'order' => [

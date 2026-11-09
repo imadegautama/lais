@@ -91,7 +91,7 @@ class OrderResource extends JsonResource
     /**
      * The latest DOKU page, as the nota shows it; its link only while it still takes payments.
      *
-     * @return array{status: OnlinePaymentStatus, url: string|null, channel: string|null}|null
+     * @return array{status: OnlinePaymentStatus, url: string|null, channel: string|null, amount: int, paidAt: string|null}|null
      */
     private function onlinePayment(): ?array
     {
@@ -107,6 +107,8 @@ class OrderResource extends JsonResource
             'status' => $expired ? OnlinePaymentStatus::Kedaluwarsa : $payment->status,
             'url' => $payment->isOpen() ? $payment->url : null,
             'channel' => $payment->channel,
+            'amount' => $payment->amount,
+            'paidAt' => $payment->paid_at?->toIso8601String(),
         ];
     }
 }

@@ -8,31 +8,45 @@ import type { PublicOrder } from '@/types/domain';
  * Bayar online on the nota (App\Services\Doku): continue an open DOKU page,
  * or open a new one for what is still unpaid. DOKU is in test mode for now.
  */
-export function OnlinePay({ order }: { order: PublicOrder }) {
+export function OnlinePay({
+    order,
+    checking,
+}: {
+    order: PublicOrder;
+    /** The nota is asking DOKU right now; the notice at its top says so. */
+    checking: boolean;
+}) {
     const payment = order.onlinePayment;
 
     if (payment?.status === 'menunggu' && payment.url) {
         return (
             <div className="mt-3 flex flex-col gap-2">
-                <p className="text-sm">
-                    Pembayaran online belum selesai. Lanjutkan di halaman DOKU,
-                    lalu kembali ke nota ini.
-                </p>
+                {!checking && (
+                    <p className="text-sm">
+                        Belum ada kabar pembayaran dari DOKU. Kalau belum
+                        membayar, lanjutkan di halaman DOKU. Kalau sudah, tekan
+                        Cek pembayaran sebentar lagi.
+                    </p>
+                )}
                 <div className="flex flex-wrap gap-2">
-                    <Button asChild>
+                    <Button asChild variant={checking ? 'outline' : 'default'}>
                         <a href={payment.url}>
                             <ExternalLink aria-hidden />
-                            Lanjutkan bayar
+                            {checking
+                                ? 'Belum bayar? Lanjutkan'
+                                : 'Lanjutkan bayar'}
                         </a>
                     </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => router.reload({ only: ['order'] })}
-                    >
-                        <RefreshCw aria-hidden />
-                        Cek pembayaran
-                    </Button>
+                    {!checking && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.reload({ only: ['order'] })}
+                        >
+                            <RefreshCw aria-hidden />
+                            Cek pembayaran
+                        </Button>
+                    )}
                 </div>
             </div>
         );

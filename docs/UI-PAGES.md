@@ -162,6 +162,10 @@ Tujuannya menjelaskan produk ke juri dan calon pengguna dalam 30 detik. Isinya a
 - **Info ambil/antar:** metode, waktu, alamat.
 - **Aksi:** **Hubungi penjual** (`wa.me` dengan pesan berisi kode pesanan) dan **Simpan/Cetak nota** (tampilan cetak via `@media print`).
 - **Auto-refresh status** setiap 30 detik (Inertia polling).
+- **Setelah bayar online (9 Nov):**
+    - DOKU mengembalikan pelanggan ke nota dengan `?dari=doku`. Selama halaman DOKU masih Menunggu, kartu di atas nota menulis "Memeriksa pembayaranmu di DOKU…" dan nota mengecek ulang tiap 5 detik selama 2 menit.
+    - Begitu lunas, banner hijau **Pembayaran Rp… diterima** muncul di atas, dengan waktu bayar, dan tetap tampil sebagai bukti.
+    - Kalau 2 menit lewat tanpa kabar, kartu Bayar menulis "Belum ada kabar pembayaran dari DOKU" dengan **Lanjutkan bayar** dan **Cek pembayaran**.
 
 ---
 
