@@ -25,10 +25,8 @@ export default function OnboardingLayout({
                     </Link>
                 </div>
             </header>
-            <main
-                id="konten"
-                className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 md:px-6 md:py-8"
-            >
+            {/* Full width: the page keeps its own column, so its action bar can span the screen. */}
+            <main id="konten" className="flex w-full flex-1 flex-col">
                 {children}
             </main>
         </div>

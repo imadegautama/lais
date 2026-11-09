@@ -97,6 +97,9 @@ const intro: Record<
     },
 };
 
+/** The page column: header, progress, step, and the action bar's buttons line up on it. */
+const column = 'mx-auto w-full max-w-3xl px-4 md:px-6';
+
 /** Opening the books (UI-PAGES B5): saldo awal step by step, saved as a draft after each step. */
 export default function Onboarding({
     business,
@@ -162,12 +165,14 @@ export default function Onboarding({
     return (
         <>
             <Head title="Siapkan buku usaha" />
-            <div className="flex flex-col gap-5">
-                <PageHeader
-                    title="Siapkan buku usahamu"
-                    description="Jawab beberapa pertanyaan tentang usahamu. Lais menyusun saldo awal dan daftar akunnya. Bisa dilanjutkan nanti."
-                />
-                <SetupProgress current={index} />
+            <div className="flex flex-1 flex-col">
+                <div className={`${column} flex flex-col gap-5 pt-6 md:pt-8`}>
+                    <PageHeader
+                        title="Siapkan buku usahamu"
+                        description="Jawab beberapa pertanyaan tentang usahamu. Lais menyusun saldo awal dan daftar akunnya. Bisa dilanjutkan nanti."
+                    />
+                    <SetupProgress current={index} />
+                </div>
 
                 <form
                     noValidate
@@ -179,12 +184,12 @@ export default function Onboarding({
                             saveStep();
                         }
                     }}
-                    className="flex flex-col gap-5"
+                    className="flex flex-1 flex-col"
                 >
                     {/* Keyed by step, so each step slides in once (setup motion, DESIGN.md §6). */}
                     <div
                         key={step.key}
-                        className="motion-safe:animate-in motion-safe:duration-300 motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
+                        className={`${column} pt-5 pb-6 motion-safe:animate-in motion-safe:duration-300 motion-safe:fade-in motion-safe:slide-in-from-bottom-2 md:pb-8`}
                     >
                         <SectionCard
                             title={intro[step.key].title}
@@ -306,27 +311,32 @@ export default function Onboarding({
                         </SectionCard>
                     </div>
 
-                    {/* Back on the left and forward on the right, as in any wizard. */}
-                    <FormActionBar>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={index === 0 || processing}
-                            onClick={() => go(index - 1)}
+                    {/* Back on the left and forward on the right, as in any wizard. The bar spans
+                        the screen at its bottom (setup has no phone bottom nav); the buttons keep the column. */}
+                    <FormActionBar className="bottom-0 mx-0 mb-0 block p-0 md:mx-0 md:mb-0 md:px-0">
+                        <div
+                            className={`${column} flex items-center gap-2 py-3`}
                         >
-                            Kembali
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={processing}
-                            className="ml-auto"
-                        >
-                            {processing
-                                ? 'Menyimpan…'
-                                : last
-                                  ? 'Simpan dan mulai'
-                                  : 'Lanjut'}
-                        </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={index === 0 || processing}
+                                onClick={() => go(index - 1)}
+                            >
+                                Kembali
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                className="ml-auto"
+                            >
+                                {processing
+                                    ? 'Menyimpan…'
+                                    : last
+                                      ? 'Simpan dan mulai'
+                                      : 'Lanjut'}
+                            </Button>
+                        </div>
                     </FormActionBar>
                 </form>
             </div>

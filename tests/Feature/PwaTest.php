@@ -21,6 +21,8 @@ class PwaTest extends TestCase
         $this->assertContains('maskable', array_column($manifest['icons'], 'purpose'));
 
         foreach ($manifest['icons'] as $icon) {
+            // Apache's default config aliases /icons/ to its own folder, so ours would 404 in production.
+            $this->assertStringStartsNotWith('/icons/', $icon['src']);
             $size = getimagesize(public_path(ltrim($icon['src'], '/')));
             $this->assertNotFalse($size, $icon['src']);
             $this->assertSame($icon['sizes'], "{$size[0]}x{$size[1]}");
