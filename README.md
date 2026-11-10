@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://lais.web.id"><img src="https://img.shields.io/badge/Coba%20demo-lais.web.id-C25205?style=for-the-badge" alt="Coba demo di lais.web.id"></a>
-  <a href="https://t.me/LaisHelpBot"><img src="https://img.shields.io/badge/Bot%20Telegram-%40LaisHelpBot-1c1917?style=for-the-badge&logo=telegram&logoColor=white" alt="Bot Telegram @LaisHelpBot"></a>
+  <a href="https://t.me/LaisAssistantBot"><img src="https://img.shields.io/badge/Bot%20Telegram-%40LaisAssistantBot-1c1917?style=for-the-badge&logo=telegram&logoColor=white" alt="Bot Telegram @LaisAssistantBot"></a>
   <img src="https://img.shields.io/badge/Laravel-13-1c1917?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 13">
   <img src="https://img.shields.io/badge/React-19-1c1917?style=for-the-badge&logo=react&logoColor=white" alt="React 19">
   <img src="https://img.shields.io/badge/AI-Claude%20Haiku%205.5-1c1917?style=for-the-badge&logo=anthropic&logoColor=white" alt="AI: Claude Haiku 5.5">
@@ -16,7 +16,7 @@
 > Banyak pemilik UMKM tidak mencatat keuangan karena pembukuan terasa rumit, dan aplikasinya terasa seperti software akuntan. Akibatnya laba tidak terlihat, uang usaha bercampur dengan uang pribadi, dan stok habis tanpa terasa. Lais memangkas usaha mencatat sampai sependek satu pesan chat, sementara pembukuan berpasangan (double-entry) yang benar tetap berjalan di belakangnya.
 
 <p align="center">
-  <a href="https://lais.web.id"><b>Coba demo tanpa daftar</b></a> &nbsp;·&nbsp; <a href="https://lais.web.id/t/warung-bu-rina">Lihat toko demo</a> &nbsp;·&nbsp; <a href="https://t.me/LaisHelpBot">Chat bot Lais di Telegram</a>
+  <a href="https://lais.web.id"><b>Coba demo tanpa daftar</b></a> &nbsp;·&nbsp; <a href="https://lais.web.id/t/warung-bu-rina">Lihat toko demo</a> &nbsp;·&nbsp; <a href="https://t.me/LaisAssistantBot">Chat bot Lais di Telegram</a>
 </p>
 
 ## Fitur unggulan
