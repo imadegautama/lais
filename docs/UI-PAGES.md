@@ -74,7 +74,7 @@ Totalnya sekitar 30 layar. Sebanyak 19 di antaranya P0.
 - **Top bar:**
     - nama usaha
     - tombol **Catat** (desktop)
-    - tombol **Tanya AI** yang membuka panel asisten (Sheet kanan)
+    - tombol **Tanya AI** yang membuka panel asisten (Sheet kanan di desktop, layar penuh di HP dengan tombol kamera untuk memotret nota)
     - badge jumlah pesanan baru
     - avatar dengan menu (profil, keluar)
 - **Banner status** di atas konten jika WA belum terhubung atau ada stok minus.

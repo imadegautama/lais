@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Camera,
     CircleAlert,
     CircleCheck,
     ImagePlus,
@@ -18,6 +19,7 @@ import { Money } from '@/components/app/money';
 import { Button } from '@/components/ui/button';
 import {
     Drawer,
+    DrawerClose,
     DrawerContent,
     DrawerDescription,
     DrawerHeader,
@@ -296,6 +298,7 @@ function Conversation() {
     const [slow, setSlow] = useState(false);
     const input = useRef<HTMLTextAreaElement>(null);
     const fileInput = useRef<HTMLInputElement>(null);
+    const cameraInput = useRef<HTMLInputElement>(null);
     const end = useRef<HTMLDivElement>(null);
     const last = turns.at(-1);
 
@@ -390,7 +393,8 @@ function Conversation() {
                             </div>
                         ))}
                         <p className="text-sm text-muted-foreground">
-                            Bisa juga kirim foto nota belanja lewat tombol foto.
+                            Bisa juga foto nota belanja langsung dengan tombol
+                            kamera.
                         </p>
                     </div>
                 ) : (
@@ -498,13 +502,38 @@ function Conversation() {
                             event.target.value = '';
                         }}
                     />
+                    {/* On a phone this opens the back camera; laptops ignore `capture`, so it stays hidden there. */}
+                    <input
+                        ref={cameraInput}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        capture="environment"
+                        className="sr-only"
+                        tabIndex={-1}
+                        aria-hidden
+                        onChange={(event) => {
+                            attach(event.target.files?.[0]);
+                            event.target.value = '';
+                        }}
+                    />
                     <Button
                         type="button"
                         variant="outline"
                         size="icon"
-                        className="ml-auto"
+                        className="ml-auto hidden pointer-coarse:inline-flex"
                         disabled={sending}
-                        aria-label="Lampirkan foto nota"
+                        aria-label="Foto nota dengan kamera"
+                        onClick={() => cameraInput.current?.click()}
+                    >
+                        <Camera aria-hidden />
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="ml-auto pointer-coarse:ml-0"
+                        disabled={sending}
+                        aria-label="Pilih foto nota dari galeri"
                         onClick={() => fileInput.current?.click()}
                     >
                         <ImagePlus aria-hidden />
@@ -533,10 +562,23 @@ export function AssistantPanel() {
     if (isMobile) {
         return (
             <Drawer open={open} onOpenChange={setOpen}>
-                <DrawerContent className="max-h-[85dvh]">
-                    <DrawerHeader className="text-left">
-                        <DrawerTitle>{title}</DrawerTitle>
-                        <DrawerDescription>{description}</DrawerDescription>
+                {/* Full screen: the drawer's own data-[vaul-drawer-direction] classes win unless overridden on the same variant. */}
+                <DrawerContent className="h-dvh data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-none data-[vaul-drawer-direction=bottom]:rounded-t-none">
+                    <DrawerHeader className="flex-row items-start gap-2 border-b text-left">
+                        <div className="min-w-0 flex-1 text-left">
+                            <DrawerTitle>{title}</DrawerTitle>
+                            <DrawerDescription>{description}</DrawerDescription>
+                        </div>
+                        <DrawerClose asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Tutup"
+                            >
+                                <X aria-hidden />
+                            </Button>
+                        </DrawerClose>
                     </DrawerHeader>
                     <Conversation />
                 </DrawerContent>
